@@ -16,9 +16,9 @@ export class MockProvider implements ProviderAdapter {
     const toolOutputs = Array.isArray(request.input)
       ? request.input.flatMap(item => item.type === 'function_call_output' ? [String(item.output ?? '')] : [])
       : [];
-    const tool = request.tools?.[0];
-    const output = tool && toolOutputs.length === 0
-      ? [{ type: 'function_call', call_id: `call_${randomUUID()}`, name: String(tool.name ?? 'mock_tool'), arguments: '{}' }]
+    const nextTool = request.tools?.[toolOutputs.length];
+    const output = nextTool
+      ? [{ type: 'function_call', call_id: `call_${randomUUID()}`, name: String(nextTool.name ?? 'mock_tool'), arguments: '{}' }]
       : [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: toolOutputs.length
         ? `Tool result received:\n${toolOutputs.join('\n')}`
         : `Mock response: ${input}` }] }];
