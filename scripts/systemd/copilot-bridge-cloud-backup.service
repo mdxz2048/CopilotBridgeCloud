@@ -1,0 +1,9 @@
+[Unit]
+Description=Back up Copilot Bridge Cloud PostgreSQL
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/linuxuser/copilot-bridge-cloud/src
+ExecStart=/usr/bin/env SHARED_HOST=1 /bin/sh /home/linuxuser/copilot-bridge-cloud/src/scripts/backup.sh

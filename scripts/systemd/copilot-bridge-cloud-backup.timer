@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily Copilot Bridge Cloud PostgreSQL backup
+
+[Timer]
+OnCalendar=*-*-* 03:00:00 UTC
+Persistent=true
+Unit=copilot-bridge-cloud-backup.service
+
+[Install]
+WantedBy=timers.target

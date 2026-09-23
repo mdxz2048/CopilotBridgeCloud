@@ -1,0 +1,47 @@
+services:
+  postgres:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: bridge
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      POSTGRES_DB: bridge
+    volumes:
+      - bridge_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bridge -d bridge"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    logging: { driver: json-file, options: { max-size: "10m", max-file: "3" } }
+  api:
+    build: { context: ., target: api }
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      DATABASE_URL: postgres://bridge:${POSTGRES_PASSWORD}@postgres:5432/bridge
+      API_PORT: 3001
+    depends_on:
+      postgres: { condition: service_healthy }
+    logging: { driver: json-file, options: { max-size: "10m", max-file: "3" } }
+  web:
+    build: { context: ., target: web }
+    restart: unless-stopped
+    environment:
+      API_INTERNAL_URL: http://api:3001
+    depends_on: [api]
+    logging: { driver: json-file, options: { max-size: "10m", max-file: "3" } }
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["${PUBLIC_HTTP_BIND:-80}:80", "${PUBLIC_HTTPS_BIND:-443}:443"]
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [web, api]
+    logging: { driver: json-file, options: { max-size: "10m", max-file: "3" } }
+volumes:
+  bridge_postgres:
+  caddy_data:
+  caddy_config:

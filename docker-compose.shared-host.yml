@@ -1,0 +1,6 @@
+services:
+  caddy:
+    volumes:
+      - ./docker/Caddyfile.shared-host:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config

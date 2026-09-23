@@ -1,0 +1,31 @@
+import { OpenAPIRegistry, OpenApiGeneratorV31, extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
+import { z } from 'zod';
+import { writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { AccountSchema, ClientConfigSchema, DeviceInfoSchema, DeviceSchema, ErrorResponseSchema, LatestReleaseResponseSchema, LoginRequestSchema, LoginResponseSchema, ModelListSchema, PlanSchema, RefreshRequestSchema, RefreshResponseSchema, ResponseRequestSchema, ResponseSchema, SubscriptionSchema, UsageSchema } from './schemas.js';
+
+extendZodWithOpenApi(z);
+const registry = new OpenAPIRegistry();
+for (const [name, schema] of Object.entries({ DeviceInfo: DeviceInfoSchema, Device: DeviceSchema, LoginRequest: LoginRequestSchema, LoginResponse: LoginResponseSchema, RefreshRequest: RefreshRequestSchema, RefreshResponse: RefreshResponseSchema, ErrorResponse: ErrorResponseSchema, Plan: PlanSchema, Subscription: SubscriptionSchema, Usage: UsageSchema, Account: AccountSchema, ModelList: ModelListSchema, ResponseRequest: ResponseRequestSchema, Response: ResponseSchema, ClientConfig: ClientConfigSchema, LatestReleaseResponse: LatestReleaseResponseSchema })) registry.register(name, schema);
+registry.registerComponent('securitySchemes', 'DesktopBearer', { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' });
+const json = (schema: z.ZodType) => ({ 'application/json': { schema } });
+const response = (schema: z.ZodType) => ({ 200: { description: 'Success', content: json(schema) }, 400: { description: 'Invalid request', content: json(ErrorResponseSchema) }, 401: { description: 'Authentication failed', content: json(ErrorResponseSchema) }, 403: { description: 'Access denied', content: json(ErrorResponseSchema) }, 429: { description: 'Quota or rate limit', content: json(ErrorResponseSchema) } });
+const desktopHeaders = z.object({ 'x-device-id': z.uuid(), 'x-client-thread-id': z.string().optional() });
+registry.registerPath({ method: 'post', path: '/api/v1/auth/login', summary: 'Desktop login and device activation', request: { body: { content: json(LoginRequestSchema) } }, responses: response(LoginResponseSchema) });
+registry.registerPath({ method: 'post', path: '/api/v1/auth/refresh', summary: 'Rotate device refresh token', request: { body: { content: json(RefreshRequestSchema) } }, responses: response(RefreshResponseSchema) });
+registry.registerPath({ method: 'post', path: '/api/v1/auth/logout', summary: 'Revoke current refresh token', security: [{ DesktopBearer: [] }], request: { body: { content: json(RefreshRequestSchema) } }, responses: response(z.object({ ok: z.boolean() })) });
+registry.registerPath({ method: 'get', path: '/api/v1/auth/me', summary: 'Current user', security: [{ DesktopBearer: [] }], responses: response(z.object({ user: AccountSchema.shape.user })) });
+registry.registerPath({ method: 'post', path: '/api/v1/devices/register', summary: 'Register current device', security: [{ DesktopBearer: [] }], request: { body: { content: json(DeviceInfoSchema) } }, responses: response(z.object({ device: DeviceSchema })) });
+registry.registerPath({ method: 'get', path: '/api/v1/devices', summary: 'List devices', security: [{ DesktopBearer: [] }], responses: response(z.object({ data: z.array(DeviceSchema) })) });
+registry.registerPath({ method: 'delete', path: '/api/v1/devices/{id}', summary: 'Revoke a device', security: [{ DesktopBearer: [] }], request: { params: z.object({ id: z.uuid() }) }, responses: response(z.object({ device: DeviceSchema })) });
+registry.registerPath({ method: 'get', path: '/api/v1/account', summary: 'Account and service state', security: [{ DesktopBearer: [] }], responses: response(AccountSchema) });
+registry.registerPath({ method: 'get', path: '/api/v1/subscription', summary: 'Current subscription', security: [{ DesktopBearer: [] }], responses: response(z.object({ subscription: SubscriptionSchema.nullable(), plan: PlanSchema.nullable() })) });
+registry.registerPath({ method: 'get', path: '/api/v1/usage/current', summary: 'Current billing period usage', security: [{ DesktopBearer: [] }], responses: response(UsageSchema) });
+registry.registerPath({ method: 'get', path: '/api/v1/plans', summary: 'Available plans', responses: response(z.object({ data: z.array(PlanSchema) })) });
+registry.registerPath({ method: 'get', path: '/api/v1/client/config', summary: 'Desktop configuration', responses: response(ClientConfigSchema) });
+registry.registerPath({ method: 'get', path: '/api/v1/releases/latest', summary: 'Latest published Desktop release', responses: response(LatestReleaseResponseSchema) });
+registry.registerPath({ method: 'get', path: '/v1/models', summary: 'Entitled model list', security: [{ DesktopBearer: [] }], request: { headers: desktopHeaders }, responses: response(ModelListSchema) });
+registry.registerPath({ method: 'post', path: '/v1/responses', summary: 'Create response or SSE stream', description: 'When stream=true, response is text/event-stream with response.created, response.output_item.added, response.output_text.delta, response.output_item.done, response.completed, followed by data: [DONE].', security: [{ DesktopBearer: [] }], request: { headers: desktopHeaders.extend({ 'x-client-thread-id': z.string().min(1) }), body: { content: json(ResponseRequestSchema) } }, responses: { ...response(ResponseSchema), 200: { description: 'JSON response or SSE stream', content: { ...json(ResponseSchema), 'text/event-stream': { schema: z.string() } } } } });
+
+const document = new OpenApiGeneratorV31(registry.definitions).generateDocument({ openapi: '3.1.0', info: { title: 'Copilot Bridge Cloud Desktop API', version: '1.0.0' }, servers: [{ url: 'https://ai.mddxz.top' }, { url: 'http://127.0.0.1:3001' }] });
+writeFileSync(resolve(process.cwd(), '../../docs/protocol/openapi.v1.json'), `${JSON.stringify(document, null, 2)}\n`);

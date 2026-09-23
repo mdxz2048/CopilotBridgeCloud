@@ -1,0 +1,17 @@
+{
+  "name": "copilot-bridge-cloud",
+  "private": true,
+  "packageManager": "pnpm@11.19.0",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "dev": "pnpm --parallel --filter './apps/*' dev",
+    "contract:generate": "pnpm --filter @bridge/contract generate",
+    "dev:mock": "pnpm --filter @bridge/api dev:mock",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}
