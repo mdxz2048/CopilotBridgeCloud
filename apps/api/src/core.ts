@@ -2,7 +2,7 @@ import { db, auditLogs, devices, models, planModelAccess, plans, providers, subs
 import { and, desc, eq, gte, inArray, lt, sql, sum } from 'drizzle-orm';
 import type { FastifyRequest } from 'fastify';
 import { config } from './config.js';
-import { modelAllowed, subscriptionActive, usageState } from './logic.js';
+import { integrationMockAllowed, modelAllowed, subscriptionActive, usageState } from './logic.js';
 import { hashRefresh, readAccess } from './security.js';
 
 export class ApiError extends Error {
@@ -53,7 +53,11 @@ export async function currentSubscription(userId: string) {
   const [subscription] = await db.select().from(subscriptions).where(eq(subscriptions.userId, userId)).orderBy(desc(subscriptions.createdAt)).limit(1);
   if (!subscription || !subscriptionActive(subscription.status, subscription.currentPeriodEnd)) return null;
   const [plan] = await db.select().from(plans).where(eq(plans.id, subscription.planId)).limit(1);
-  return plan?.enabled ? { subscription, plan } : null;
+  if (!plan) return null;
+  if (plan.enabled) return { subscription, plan };
+  const [account] = await db.select({ email: users.email }).from(users).where(eq(users.id, userId)).limit(1);
+  return plan.code === 'PRO' && account && process.env.INTEGRATION_MOCK_ENABLED === 'true' && account.email.toLowerCase() === process.env.INTEGRATION_MOCK_TEST_EMAIL?.toLowerCase()
+    ? { subscription, plan } : null;
 }
 export async function subscriptionError(userId: string): Promise<ApiError> {
   const [latest] = await db.select().from(subscriptions).where(eq(subscriptions.userId, userId)).orderBy(desc(subscriptions.createdAt)).limit(1);
@@ -70,12 +74,15 @@ export async function currentUsage(userId: string, subscription: typeof subscrip
   return { tokens, credit, requests: Number(row?.requests ?? 0), tokenLimit: plan.monthlyTokenLimit, creditLimit: Number(plan.monthlyUsageCreditLimit), percent: Math.max(tokenState.percent, creditState.percent), threshold: Math.max(tokenState.threshold, creditState.threshold) };
 }
 export async function allowedModels(userId: string, planId: string) {
+  const [account] = await db.select({ email: users.email }).from(users).where(eq(users.id, userId)).limit(1);
+  if (!account) return [];
   const all = await db.select({ model: models, provider: providers }).from(models).innerJoin(providers, eq(models.providerId, providers.id)).where(and(eq(models.enabled, true), eq(providers.enabled, true))).orderBy(models.sortOrder);
   const planRows = await db.select().from(planModelAccess).where(eq(planModelAccess.planId, planId));
   const overrides = await db.select().from(userModelAccess).where(eq(userModelAccess.userId, userId));
   const planSet = new Set(planRows.map(row => row.modelId));
   const overrideMap = new Map(overrides.map(row => [row.modelId, row.access]));
-  return all.filter(({ model }) => modelAllowed(model.enabled, planSet.has(model.id), overrideMap.get(model.id)));
+  return all.filter(({ model, provider }) => integrationMockAllowed(provider.code, account.email, process.env.INTEGRATION_MOCK_ENABLED === 'true', process.env.INTEGRATION_MOCK_TEST_EMAIL)
+    && modelAllowed(model.enabled, planSet.has(model.id), overrideMap.get(model.id)));
 }
 export async function requireEntitlement(userId: string, deviceId: string, publicModelId: string) {
   const active = await currentSubscription(userId);

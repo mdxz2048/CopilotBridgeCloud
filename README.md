@@ -23,6 +23,8 @@ Contract: [Gateway API](docs/protocol/GATEWAY_API_V1.md), [Desktop Integration](
 
 DeepSeek requires an API key entered in Admin. The Copilot Provider is disabled pending an approved GitHub integration and commercial authorization review. WeChat and Alipay interfaces are reserved and reject order creation until connected.
 
+Production integration can optionally enable `INTEGRATION_MOCK_ENABLED=true` with a dedicated `INTEGRATION_MOCK_TEST_EMAIL`. A one-off CLI configures the hidden Pro fixture, Mock provider, and user-only model access after that account registers. The production model gate rejects Mock requests from every other account. The loopback Mock server remains the default Desktop development path.
+
 ## Verification
 
 ```powershell

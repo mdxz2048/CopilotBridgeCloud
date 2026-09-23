@@ -4,6 +4,9 @@ export function subscriptionActive(status: string, end: Date, now = new Date()) 
 export function modelAllowed(enabled: boolean, planAccess: boolean, override?: string) {
   return enabled && (override === 'DENY' ? false : override === 'ALLOW' ? true : planAccess);
 }
+export function integrationMockAllowed(providerCode: string, userEmail: string, enabled: boolean, testEmail?: string) {
+  return providerCode !== 'MOCK' || (enabled && Boolean(testEmail) && userEmail.toLowerCase() === testEmail!.toLowerCase());
+}
 export function usageState(used: number, limit: number) {
   const percent = limit > 0 ? Math.round(100 * used / limit) : 100;
   return { percent, threshold: percent >= 100 ? 100 : percent >= 90 ? 90 : percent >= 70 ? 70 : 0 };
