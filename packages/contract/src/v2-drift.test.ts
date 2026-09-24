@@ -24,6 +24,11 @@ describe('V2 contract drift gate', () => {
     const v1 = read('docs/protocol/openapi.v1.json');
     expect(JSON.parse(v1).info.version).toBe(freeze.gatewayV1.version);
     expect(createHash('sha256').update(v1).digest('hex')).toBe(freeze.gatewayV1.openapiSha256);
+    const manifest = read('docs/protocol/PRODUCTION_INTEGRATION_MANIFEST.md');
+    expect(manifest).toContain(`CONTRACT_VERSION: ${freeze.version}`);
+    expect(manifest).toContain(`OPENAPI_HASH: sha256:${freeze.openapiSha256}`);
+    expect(manifest).toContain(`GATEWAY_V1_OPENAPI_HASH: sha256:${freeze.gatewayV1.openapiSha256}`);
+    expect(read('docs/api-v2.md')).toContain(`Contract version: \`${freeze.version}\``);
   });
 
   it('documents every V2 runtime route and the inherited response route', () => {

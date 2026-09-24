@@ -209,10 +209,9 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
   });
 
   it('registers a referred account atomically and rejects invalid, duplicate and self referrals', async () => {
-    const { db, users, referralCodes, referrals, referralRewards } = dbModule;
+    const { db, users, referrals, referralRewards } = dbModule;
     const { eq } = await import('drizzle-orm');
-    const codeText = `ONBOARD${randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase()}`;
-    await db.insert(referralCodes).values({ userId: ids.secondUser, code: codeText });
+    const codeText = 'V2TESTCODE';
     const app = await (await import('./server.js')).createServer();
     const email = `v2-onboard-${randomUUID()}@example.test`;
     const invalidEmail = `v2-invalid-${randomUUID()}@example.test`;

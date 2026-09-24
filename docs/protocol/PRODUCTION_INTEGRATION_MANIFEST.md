@@ -1,28 +1,33 @@
 # PRODUCTION_INTEGRATION_MANIFEST
 
-This is the **only Desktop production integration handoff manifest**. Server/Contract ownership remains with the Server Agent. Contract changes require an explicit version review; Desktop must not edit Server source.
+This is the **only App/Desktop production integration handoff**. Server/Contract ownership remains with the Server Agent. [api-v2.md](../api-v2.md), the generated [openapi.v2.json](openapi.v2.json), the shared Zod schemas and the deployed routes are frozen together as V2 `2.1.0`. Breaking changes require a reviewed new version.
 
-`SERVER_COMMIT` identifies the deployed API source commit. Later documentation-only commits do not change that image.
+`SERVER_COMMIT` identifies the source in the deployed API image. Documentation-only commits may be newer. No password or provider secret is stored in this repository.
 
 ```text
 SERVER_BASE_URL: https://ai.mddxz.top
-CONTRACT_VERSION: 1.0.0
-SERVER_COMMIT: b669b60acb49cdc95bee526c75ff3cefbc60f1bc
-OPENAPI_HASH: sha256:4c72178606ecd71ec047c9618e89eff6581e489f53d80ff54f4035d7152a2d85
+CONTRACT_VERSION: 2.1.0
+SERVER_COMMIT: 0cb3307d9fce0ea8a5bf8ffef43e00364abf1738
+DEPLOYMENT_VERSION: api-image-sha256:20a67bd8151dcd5db1c8c808485ec858532eb43c982cdfaa1661a0f509890f9a
+OPENAPI_HASH: sha256:e7f84c5fb8811f4ede1aee4964a37ace8682cc3ae720ade0b5941362aff6b1c6
 ACCOUNT_MANAGEMENT_URL: https://ai.mddxz.top/dashboard
 TEST_ACCOUNT: production-integration@example.test
 TEST_ACCOUNT_PLAN: Pro (hidden integration fixture; commercial Pro PENDING)
-TEST_DEVICE_LIMIT: 3 (all three currently active; reuse an existing registered installation or free a slot through account management)
-AVAILABLE_MODELS: mock/mock-chat (test account only; real models BLOCKED)
+TEST_DEVICE_LIMIT: 3 (all occupied; reuse an existing installation UUID)
+AVAILABLE_MODELS: mock/mock-chat (test account only)
 LATEST_RELEASE_ENDPOINT: https://ai.mddxz.top/api/v1/releases/latest
 MOCK_PROVIDER: ENABLED_FOR_TEST_ACCOUNT_ONLY
+METERED_TEST_PROVIDER: mock/mock-chat; SHADOW rated usage and settlement PASS
 REAL_PROVIDERS: Copilot=NEEDS_USER_ACTION; DeepSeek=BLOCKED (API key missing)
-PRODUCTION_STATUS: PARTIAL — HTTPS, gated Mock integration and additive V2 schema through 0003 deployed; V2 point billing DISABLED; real-provider and commercial release BLOCKED
+REAL_PROVIDER: BLOCKED (no real-provider production E2E)
+BILLING_MODE: SHADOW (V2_BILLING_ENABLED=false; ENFORCED disabled)
+TEST_WALLET: 10000 AI_POINT via idempotent TEST_GRANT ledger fixture
+PRODUCTION_STATUS: PARTIAL — HTTPS, V2 Contract, referral onboarding DB tests, gated Mock, wallet/ledger/usage/rate/Shadow settlement PASS; real provider and commercial charging BLOCKED
+GATEWAY_V1_CONTRACT_VERSION: 1.0.0
+GATEWAY_V1_OPENAPI_HASH: sha256:4c72178606ecd71ec047c9618e89eff6581e489f53d80ff54f4035d7152a2d85
 ```
 
-`LATEST_RELEASE_ENDPOINT` currently returns `{ "release": null }`; publishing a Desktop release is **PENDING**.
-
-The separate V2 App/Server contract is version `2.0.0` at [docs/api-v2.md](../api-v2.md); it does not replace the frozen Gateway V1 contract or make V2 billing available. The test password is stored **outside the repository** at `C:\Users\HP\.codex\bridge-cloud-production-test.dpapi`, encrypted for the current Windows user. A Desktop Agent running as that same user can load it in process memory without printing it:
+The test password is stored **outside the repository** at `C:\Users\HP\.codex\bridge-cloud-production-test.dpapi`, encrypted for the current Windows user. An App Agent running as that user can load it in process memory without printing it:
 
 ```powershell
 $secure = Get-Content -LiteralPath 'C:\Users\HP\.codex\bridge-cloud-production-test.dpapi' | ConvertTo-SecureString
@@ -30,6 +35,8 @@ $credential = [pscredential]::new('production-integration@example.test', $secure
 # Pass $credential.GetNetworkCredential().Password directly to POST /api/v1/auth/login.
 ```
 
-Desktop must generate a stable random UUID for its device ID and persist it. The production test account has a live hidden Pro subscription and a three-device limit. All three slots were occupied on 2026-09-24 by registered Desktop installations; another new installation will receive `DEVICE_LIMIT_REACHED` until a slot is freed. Do not silently revoke a Desktop installation. The production gateway has passed login, account and subscription reads, `/v1/models`, JSON response, SSE completion, two sequential local tool calls with both outputs returned, V2 account/wallet/usage/referral reads, and restart persistence after the `0003` deployment. The V2 point-expiry timer is active, but there are no billed production wallet rows. This is a **Mock-only** production integration path; it does not prove a real AI provider, progressive upstream streaming, payment, or commercial plan readiness.
+The three device slots are occupied. Reuse the previously registered installation UUID `e6478afb-4719-4359-b57f-e446b3861629` for automated integration tests; do not revoke another installation silently. The App must persist its own stable random installation UUID for normal use.
 
-Production rejects the fixed loopback Mock password and has no `/mock/desktop.exe` route. `X-Mock-Error-Code` is ignored in production. Public `/api/v1/plans` remains empty until commercial prices and quotas are configured. The local loopback Mock environment in [DESKTOP_INTEGRATION.md](DESKTOP_INTEGRATION.md) remains separate.
+Production HTTPS checks on 2026-09-24 passed auth, subscription, models, JSON Responses, SSE completion, two-step tool continuation, V2 account/wallet/usage/referral reads, and API restart persistence. A metered Mock request produced `pointsRated=1`, `pointsCharged=0`, `billingStatus=SHADOW`; `/api/v1/usage/responses/{id}` returned the same settlement and the wallet stayed at `10000`. The grant is a `TEST_GRANT` wallet transaction, and no usage debit was created. The latest release endpoint currently returns `{ "release": null }`; publishing a Desktop release is **PENDING**.
+
+The Mock provider is gated to this exact account. Public production ignores `X-Mock-Error-Code`, rejects the fixed loopback Mock password and exposes no development Mock download route. Commercial plans remain unpublished. This integration path does **not** establish real provider usage, payment, progressive upstream streaming, or approval for `ENFORCED` point charging.
