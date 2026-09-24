@@ -48,3 +48,5 @@ export const ResponseSchema = z.object({ id: z.string(), object: z.literal('resp
 export const ClientConfigSchema = z.object({ minimumVersion: z.string(), latestVersion: z.string(), maintenance: z.boolean(), features: z.object({ cloudGateway: z.boolean() }) });
 
 export type ResponseRequest = z.infer<typeof ResponseRequestSchema>;
+// Additive V2 product shapes; Gateway V1 schemas and generated OpenAPI remain frozen.
+export * from './v2-schemas.js';

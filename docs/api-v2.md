@@ -1,6 +1,6 @@
 # Copilot Bridge V2 Domain API contract
 
-Version: `2.0.0-draft`. Base URL: `https://ai.mddxz.top`. Product routes remain under `/api/v1` as additive endpoints. AI routes remain `/v1/models` and `/v1/responses` with frozen Gateway V1 request semantics. **This is a draft App contract; production V2 point billing is disabled until its release gate passes.** Use [the production integration manifest](protocol/PRODUCTION_INTEGRATION_MANIFEST.md) for currently available Desktop production testing.
+**Contract version: `2.0.0` — frozen 2026-09-24.** Base URL: `https://ai.mddxz.top`. This file is the sole V2 App/Server wire contract. Product routes remain under `/api/v1` as additive endpoints. AI routes remain `/v1/models` and `/v1/responses` with frozen Gateway V1 request semantics. Production V2 point billing is disabled until its release gate passes. Contract freeze does not imply production availability: use [the production integration manifest](protocol/PRODUCTION_INTEGRATION_MANIFEST.md) for currently available Desktop testing. Changes to required fields, types, meanings, states, status codes or error codes require a new reviewed contract version; optional additive fields are allowed.
 
 All authenticated routes accept the existing bearer token; browser routes also accept the same-site HttpOnly session. Desktop AI requests still require `X-Device-Id` and `X-Client-Thread-Id`. JSON times are RFC 3339 UTC. Amounts named `points` are nonnegative integer AI points; transaction `points` is signed. Token counters are provider usage, never points. `null` means unknown or not yet settled, not zero.
 
@@ -11,14 +11,29 @@ type AccountSummary = { id: string; email: string; status: 'ACTIVE'|'DISABLED'|'
 type SubscriptionSummary = { id: string; status: string; planCode: string; periodStart: string; periodEnd: string; monthlyPoints: number; maxDevices: number; rolloverPolicy: 'NONE'|'UNLIMITED' } | null;
 type WalletSummary = { balance: number; unit: 'AI_POINT' };
 type Device = { id: string; userId: string; deviceId: string; deviceName: string; platform: string; osVersion: string; appVersion: string; status: 'ACTIVE'|'REVOKED'|'BLOCKED'; activatedAt: string; lastSeenAt: string|null; updatedAt: string };
+type DeviceCredential = { accessToken: string; refreshToken: string; expiresIn: 1800; user: { id: string; email: string; role: 'USER'|'ADMIN'; status: AccountSummary['status'] }; device: Device };
 type Provider = { id: string; code: string; name: string; ownership: 'MANAGED'; status: 'ACTIVE'|'DISABLED' };
+type ProviderConnection = { id: string; providerId: string; ownership: 'BYOS'; status: 'ACTIVE'|'DISABLED'; label: string; createdAt?: string; updatedAt?: string };
 type Model = { id: string; publicId: string; displayName: string; capabilities: { tools: boolean; vision: boolean; reasoning: boolean; streaming: boolean } };
 type ReferralSummary = { code: string; registered: number; rewarded: number; pointsEarned: number };
+type ReferralRecord = { id: string; status: 'REGISTERED'|'PENDING'|'QUALIFIED'|'REWARDED'|'REJECTED'; registeredAt: string; qualifiedAt: string|null };
 type UsageSummary = { requests: number; pointsRated: number; pointsCharged: number; legacy: unknown|null };
-type ErrorEnvelope = { error: { code: string; message: string; request_id: string; requestId: string } };
+type UsageRecord = { inputTokens: number; outputTokens: number; cachedInputTokens: number; reasoningTokens: number; pointsRated: number; pointsCharged: number; billingStatus: 'SETTLED'|'UNPAID'|'NO_USAGE'|'METERING_ERROR'|'UNRATED'; rateCardVersionId: string|null };
+type ErrorResponse = { error: { code: string; message: string; request_id: string; requestId: string } };
 ```
 
-`requestId` remains as the V1 compatibility alias. `legacy` is the existing `/api/v1/usage/current` shape; App clients must not interpret its `credit` as AI points. V2 objects can gain fields, but names and meanings listed above require version review before change.
+`requestId` remains as the V1 compatibility alias and equals `request_id`. `legacy` is the existing `/api/v1/usage/current` shape; App clients must not interpret its `credit` as AI points. `DeviceCredential` is returned only by device login and contains secrets; never log it. Browser login sets an HttpOnly cookie instead. The refresh endpoint returns only its three token fields. `ProviderConnection` never exposes an API key or ciphertext. `UsageRecord` is nullable until a final event exists. V2 objects can gain fields, but names and meanings listed above require version review before change.
+
+## Auth and device credentials
+
+| Method and path | Request | Response | State/error |
+| --- | --- | --- | --- |
+| `POST /api/v1/auth/register` | `{email,password}`; password length 12–256 | `201 {user:{id,email,role,status}}` | `EMAIL_IN_USE`, `VALIDATION_ERROR` |
+| `POST /api/v1/auth/login` | `{email,password,device:{deviceId,deviceName,platform,osVersion?,appVersion?}}` | `DeviceCredential` | `INVALID_CREDENTIALS`, `DEVICE_LIMIT_REACHED`, `DEVICE_REVOKED`, `SUBSCRIPTION_EXPIRED` |
+| `POST /api/v1/auth/refresh` | `{refreshToken}` | `{accessToken,refreshToken,expiresIn:1800}` | `UNAUTHORIZED`, `DEVICE_REVOKED` |
+| `POST /api/v1/auth/logout` | Authenticated | `{ok:true}` | `UNAUTHORIZED` |
+
+`deviceId` is a stable installation UUID generated by the App. Browser login without `device` is allowed only with the same-origin browser flow and returns `{user}` plus an HttpOnly cookie, not `DeviceCredential`. Tokens are secrets: keep refresh tokens in secure device storage, never logs or crash reports.
 
 ## Account, wallet, and usage
 
@@ -30,11 +45,12 @@ type ErrorEnvelope = { error: { code: string; message: string; request_id: strin
 | `GET /api/v1/me/devices` | None | `{data: Device[]}` | V2 states include `BLOCKED` |
 | `GET /api/v1/me/wallet/transactions` | None | `{data: [{id,type,points,balanceAfter,referenceType,referenceId,createdAt}]}` latest 100 | Immutable ledger; no credential data |
 | `GET /api/v1/me/usage` | None | `UsageSummary` | V2 totals cover all immutable events; `legacy` tracks current V1 period |
+| `GET /api/v1/usage` | None | `UsageSummary` | Stable alias of `/api/v1/me/usage` |
 | `GET /api/v1/usage/requests/{id}` | UUID request ID | `{request,usage,wallet}` | `usage:null` while in progress; `404` for other users |
 | `GET /api/v1/usage/responses/{response_id}` | `resp_` plus 32 lowercase hex | Same `{request,usage,wallet}` | Useful when the App has only a Responses API ID |
 | `GET /api/v1/usage/history` | None | Existing V1 history | Kept for compatibility |
 
-Settled `usage` contains `inputTokens`, `outputTokens`, `cachedInputTokens`, `reasoningTokens`, `pointsRated`, `pointsCharged`, `billingStatus`, and `rateCardVersionId`. `billingStatus` is `SETTLED`, `UNPAID`, or `NO_USAGE`. When V2 billing is enabled, `/v1/responses` adds `usage.points`, `usage.remaining_points`, `usage.request_id`, and header `X-Bridge-AI-Request-Id`; these fields are optional until the cutover. SSE `response.completed` carries the same response object. The App should poll `/api/v1/usage/responses/{response_id}` after a disconnect or missing final frame. `/v1/responses` is not yet progressive upstream streaming: its SSE frames are emitted after the provider completes.
+Settled `usage` has the exact `UsageRecord` shape above. `UNPAID` means the rated amount was not debited; `METERING_ERROR` means invalid provider usage; `UNRATED` means a rating failure. These states block further billed V2 requests pending review. When V2 billing is enabled, `/v1/responses` adds `usage.points`, `usage.remaining_points`, `usage.request_id`, and header `X-Bridge-AI-Request-Id`; these fields are optional until the cutover. SSE `response.completed` carries the same response object. The App should poll `/api/v1/usage/responses/{response_id}` after a disconnect or missing final frame. `/v1/responses` is not yet progressive upstream streaming: its SSE frames are emitted after the provider completes.
 
 ## Devices
 
@@ -46,7 +62,7 @@ Settled `usage` contains `inputTokens`, `outputTokens`, `cachedInputTokens`, `re
 | `POST /api/v1/devices/{id}/revoke` | None | `{device: Device}` | Revokes refresh tokens; idempotent status effect |
 | `DELETE /api/v1/devices/{id}` | None | Existing V1 `{device}` | Preserved alias |
 
-The active subscription's `maxDevices` determines capacity. `devices.deviceId` is a random installation UUID, not a MAC address. An App must generate and keep it stable per installation. AI requests tie `user_id` and internal `device_id` to the usage event.
+The active subscription's `maxDevices` determines capacity. `devices.deviceId` is a random installation UUID, not a MAC address. An App must generate and keep it stable per installation. AI requests tie `user_id` and internal `device_id` to the usage event. Revocation invalidates the device's refresh tokens. `GET /api/v1/me/devices` exposes `BLOCKED`; frozen `GET /api/v1/devices` maps blocked to `REVOKED`.
 
 ## Providers and models
 
@@ -66,9 +82,12 @@ The provider list exposes managed catalog entries. BYOS currently supports only 
 | `GET /api/v1/referral/code` | None | `{code,status}`; lazy creates one code per user | `REFERRAL_CODE_UNAVAILABLE` on collision failure |
 | `POST /api/v1/referral/apply` | `{code: string}` | `{id,status,riskReviewRequired}` | `INVALID_REFERRAL_CODE`, `REFERRAL_NOT_ELIGIBLE` |
 | `GET /api/v1/referral/stats` | None | `ReferralSummary` | Reward count and earned points |
+| `GET /api/v1/referral` | None | `ReferralSummary` | Stable alias of `/api/v1/referral/stats` |
 | `GET /api/v1/referral/history` | None | `{data: [{id,status,registeredAt,qualifiedAt}]}` | No referred user's email disclosed |
 
 Status: `REGISTERED → PENDING` if flagged, then Admin review; a paid order meeting the configured threshold can move it to `QUALIFIED → REWARDED`; Admin may set `REJECTED`. Registration never awards points. A user can apply one code, before a subscription exists. The server stores an HMAC of the registration IP, not the raw address in the referral row.
+
+`ReferralRecord` is the exact item shape in `/history`.
 
 ## Admin V2 endpoints
 
@@ -82,6 +101,6 @@ The existing `/api/v1/admin/*` V1 routes remain. Admin Web panels now expose the
 
 ## Error codes and lifecycle
 
-Auth and access: `AUTH_REQUIRED`, `TOKEN_EXPIRED`, `DEVICE_REVOKED`, `DEVICE_LIMIT_REACHED`, `SUBSCRIPTION_EXPIRED`, `MODEL_NOT_AVAILABLE`, `COPILOT_NOT_ENTITLED`. Billing: `INSUFFICIENT_POINTS` (HTTP 402), `RATE_CARD_UNAVAILABLE` (503), `IDEMPOTENCY_CONFLICT` (409). Provider: `PROVIDER_UNAVAILABLE`, `PROVIDER_AUTH_REQUIRED`. Referral: `INVALID_REFERRAL_CODE`, `REFERRAL_NOT_ELIGIBLE`. Throttle: `RATE_LIMITED`. Existing V1 aliases (`UNAUTHORIZED`, `MODEL_NOT_ALLOWED`, `SUBSCRIPTION_REQUIRED`, `MONTHLY_QUOTA_EXCEEDED`) remain during migration. Do not treat all 403/429 responses as point exhaustion.
+Auth and access: `AUTH_REQUIRED`, `TOKEN_EXPIRED`, `DEVICE_REVOKED`, `DEVICE_LIMIT_REACHED`, `SUBSCRIPTION_EXPIRED`, `MODEL_NOT_AVAILABLE`, `COPILOT_NOT_ENTITLED`. Billing: `INSUFFICIENT_POINTS` (HTTP 402), `BILLING_REVIEW_REQUIRED` (409), `RATE_CARD_UNAVAILABLE` (503), `IDEMPOTENCY_CONFLICT` (409). Provider: `PROVIDER_UNAVAILABLE`, `PROVIDER_AUTH_REQUIRED`, `PROVIDER_CONNECTION_UNAVAILABLE`. Referral: `INVALID_REFERRAL_CODE`, `REFERRAL_NOT_ELIGIBLE`. Throttle: `RATE_LIMITED`. Validation and unknown resources: `VALIDATION_ERROR`, `NOT_FOUND`. Existing V1 aliases (`UNAUTHORIZED`, `MODEL_NOT_ALLOWED`, `SUBSCRIPTION_REQUIRED`, `MONTHLY_QUOTA_EXCEEDED`) remain during migration. Do not treat all 403/429 responses as point exhaustion.
 
-`ai_requests.status` is `STARTED`, `COMPLETED`, `CLIENT_DISCONNECTED` or `PROVIDER_ERROR`. One final immutable event is stored per V2 request. A failed provider request with no observed usage has a zero counter event and `NO_USAGE`. A provider request that produced usage can still be billed when the client disconnects. If actual usage exceeds the wallet, the event is `UNPAID`; subsequent V2 requests return `INSUFFICIENT_POINTS`. The current V1 Mock integration does not use V2 billing and continues under its frozen contract.
+`ai_requests.status` is `CREATED`, `STARTED`, `COMPLETED`, `CLIENT_DISCONNECTED` or `PROVIDER_ERROR`; the current gateway creates at `STARTED`. One final immutable event is stored per V2 request. A failed provider request with no observed usage has a zero counter event and `NO_USAGE`. A provider request that produced usage can still be billed when the client disconnects. If actual usage exceeds the wallet, the event is `UNPAID`; subsequent V2 requests return `INSUFFICIENT_POINTS`. The current V1 Mock integration does not use V2 billing and continues under its frozen contract. Plan `rolloverPolicy:'NONE'` expires unspent subscription grant points at period end after earliest-expiry-first spending; `UNLIMITED` grants and purchased points do not expire under this policy. Public billing stays off until the release gates in [deployment-v2.md](deployment-v2.md) pass.

@@ -9,6 +9,19 @@ import { encryptSecret } from './security.js';
 import { DeepSeekProvider } from './provider.js';
 
 const uuidParam = (params: unknown) => z.uuid().parse((params as { id: string }).id);
+async function usageSummary(req: Parameters<typeof actor>[0]) {
+  const a = await actor(req); const active = await currentSubscription(a.user.id);
+  const [totals] = await db.select({ requests: sql<number>`count(*)`, pointsRated: sql<number>`coalesce(sum(${usageEvents.pointsRated}), 0)`, pointsCharged: sql<number>`coalesce(sum(${usageEvents.pointsCharged}), 0)` })
+    .from(usageEvents).where(eq(usageEvents.userId, a.user.id));
+  return { requests: Number(totals.requests), pointsRated: Number(totals.pointsRated), pointsCharged: Number(totals.pointsCharged),
+    legacy: active ? await currentUsage(a.user.id, active.subscription, active.plan) : null };
+}
+async function referralSummary(req: Parameters<typeof actor>[0]) {
+  const a = await actor(req);
+  const [counts] = await db.select({ total: sql<number>`count(*)`, rewarded: sql<number>`count(*) filter (where ${referrals.status} = 'REWARDED')` }).from(referrals).where(eq(referrals.referrerUserId, a.user.id));
+  const [points] = await db.select({ earned: sql<number>`coalesce(sum(${referralRewards.points}), 0)` }).from(referralRewards).where(eq(referralRewards.beneficiaryUserId, a.user.id));
+  return { code: (await referralCodeFor(a.user.id)).code, registered: Number(counts.total), rewarded: Number(counts.rewarded), pointsEarned: Number(points.earned) };
+}
 export async function registerV2Routes(app: FastifyInstance) {
   app.get('/api/v1/me', async req => {
     const a = await actor(req);
@@ -31,13 +44,8 @@ export async function registerV2Routes(app: FastifyInstance) {
       balanceAfter: walletTransactions.balanceAfter, referenceType: walletTransactions.referenceType, referenceId: walletTransactions.referenceId, createdAt: walletTransactions.createdAt })
       .from(walletTransactions).where(eq(walletTransactions.walletId, wallet.id)).orderBy(desc(walletTransactions.createdAt)).limit(100) : [] };
   });
-  app.get('/api/v1/me/usage', async req => {
-    const a = await actor(req); const active = await currentSubscription(a.user.id);
-    const [totals] = await db.select({ requests: sql<number>`count(*)`, pointsRated: sql<number>`coalesce(sum(${usageEvents.pointsRated}), 0)`, pointsCharged: sql<number>`coalesce(sum(${usageEvents.pointsCharged}), 0)` })
-      .from(usageEvents).where(eq(usageEvents.userId, a.user.id));
-    return { requests: Number(totals.requests), pointsRated: Number(totals.pointsRated), pointsCharged: Number(totals.pointsCharged),
-      legacy: active ? await currentUsage(a.user.id, active.subscription, active.plan) : null };
-  });
+  app.get('/api/v1/me/usage', usageSummary);
+  app.get('/api/v1/usage', usageSummary);
   app.get('/api/v1/providers', async req => {
     const a = await actor(req); const active = await currentSubscription(a.user.id);
     if (!active) return { data: [] };
@@ -116,12 +124,8 @@ export async function registerV2Routes(app: FastifyInstance) {
     const referral = await registerReferral(a.user.id, code, a.device?.id, req.ip);
     return { id: referral.id, status: referral.status, riskReviewRequired: referral.riskFlags.length > 0 };
   });
-  app.get('/api/v1/referral/stats', async req => {
-    const a = await actor(req);
-    const [counts] = await db.select({ total: sql<number>`count(*)`, rewarded: sql<number>`count(*) filter (where ${referrals.status} = 'REWARDED')` }).from(referrals).where(eq(referrals.referrerUserId, a.user.id));
-    const [points] = await db.select({ earned: sql<number>`coalesce(sum(${referralRewards.points}), 0)` }).from(referralRewards).where(eq(referralRewards.beneficiaryUserId, a.user.id));
-    return { code: (await referralCodeFor(a.user.id)).code, registered: Number(counts.total), rewarded: Number(counts.rewarded), pointsEarned: Number(points.earned) };
-  });
+  app.get('/api/v1/referral/stats', referralSummary);
+  app.get('/api/v1/referral', referralSummary);
   app.get('/api/v1/referral/history', async req => {
     const a = await actor(req);
     return { data: await db.select({ id: referrals.id, status: referrals.status, registeredAt: referrals.registeredAt, qualifiedAt: referrals.qualifiedAt })
