@@ -1,15 +1,15 @@
 # PRODUCTION_INTEGRATION_MANIFEST
 
-This is the **only App/Desktop production integration handoff**. Server/Contract ownership remains with the Server Agent. [api-v2.md](../api-v2.md), the generated [openapi.v2.json](openapi.v2.json), the shared Zod schemas and the deployed routes are frozen together as V2 `2.1.0`. Breaking changes require a reviewed new version.
+This is the **only App/Desktop production integration handoff**. Server/Contract ownership remains with the Server Agent. [api-v2.md](../api-v2.md), the generated [openapi.v2.json](openapi.v2.json), the shared Zod schemas and the deployed routes are frozen together as V2 `2.2.0`. Breaking changes require a reviewed new version.
 
 `SERVER_COMMIT` identifies the source in the deployed API image. Documentation-only commits may be newer. No password or provider secret is stored in this repository.
 
 ```text
 SERVER_BASE_URL: https://ai.mddxz.top
-CONTRACT_VERSION: 2.1.0
+CONTRACT_VERSION: 2.2.0
 SERVER_COMMIT: 0cb3307d9fce0ea8a5bf8ffef43e00364abf1738
 DEPLOYMENT_VERSION: api-image-sha256:20a67bd8151dcd5db1c8c808485ec858532eb43c982cdfaa1661a0f509890f9a
-OPENAPI_HASH: sha256:e7f84c5fb8811f4ede1aee4964a37ace8682cc3ae720ade0b5941362aff6b1c6
+OPENAPI_HASH: sha256:c8039a458af1adf9af9863c2bce6d54c729c5bbc71bf173778ad4072cc7de090
 ACCOUNT_MANAGEMENT_URL: https://ai.mddxz.top/dashboard
 TEST_ACCOUNT: production-integration@example.test
 TEST_ACCOUNT_PLAN: Pro (hidden integration fixture; commercial Pro PENDING)

@@ -2,6 +2,7 @@ import { db, providerAccountCredentials, providerAccounts, providerCredentials, 
 import { and, eq } from 'drizzle-orm';
 import { decryptSecret } from './security.js';
 import { MockProvider } from './mock-provider.js';
+import { CopilotFailure, CopilotProvider } from './copilot-provider.js';
 export { MockProvider } from './mock-provider.js';
 
 export type ResponseInput = string | Array<Record<string, unknown>>;
@@ -25,8 +26,8 @@ export interface ProviderAdapter {
   health(): Promise<{ ready: boolean; reason?: string }>;
   listModels(): Promise<string[]>;
   validateCredential?(): Promise<{ valid: boolean; reason?: string }>;
-  createResponse(request: CanonicalRequest, modelId: string, signal: AbortSignal): Promise<CanonicalResult>;
-  resumeSession(request: CanonicalRequest, modelId: string, _providerSessionId: string, signal: AbortSignal): Promise<CanonicalResult>;
+  createResponse(request: CanonicalRequest, modelId: string, signal: AbortSignal, onTextDelta?: (delta: string) => void): Promise<CanonicalResult>;
+  resumeSession(request: CanonicalRequest, modelId: string, _providerSessionId: string, signal: AbortSignal, onTextDelta?: (delta: string) => void): Promise<CanonicalResult>;
   closeSession(_providerSessionId: string): Promise<void>;
 }
 
@@ -85,8 +86,9 @@ export async function providerFor(providerId: string, code: string, connection?:
   const [credential] = account
     ? await db.select().from(providerAccountCredentials).where(eq(providerAccountCredentials.accountId, account.id)).limit(1)
     : await db.select().from(providerCredentials).where(eq(providerCredentials.providerId, providerId)).limit(1);
-  if (!credential) throw new Error('PROVIDER_UNAVAILABLE');
+  if (!credential) throw code === 'COPILOT' ? new CopilotFailure(503, 'PROVIDER_AUTH_REQUIRED') : new Error('PROVIDER_UNAVAILABLE');
   const key = decryptSecret(credential);
+  if (code === 'COPILOT') return new CopilotProvider(key, provider.timeoutMs);
   if (code === 'DEEPSEEK') return new DeepSeekProvider(provider.baseUrl ?? 'https://api.deepseek.com', key, provider.timeoutMs);
   throw new Error('PROVIDER_UNAVAILABLE');
 }

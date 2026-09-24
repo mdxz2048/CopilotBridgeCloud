@@ -13,6 +13,7 @@ import { hashRiskSignal } from './referral.js';
 import type { BillingPolicy } from './rating.js';
 import { currentBillingMode, type BillingMode } from './billing-mode.js';
 import { integrationMockAllowed } from './logic.js';
+import { CopilotFailure } from './copilot-provider.js';
 
 function responseBody(id: string, model: string, result: CanonicalResult, billing?: { points: number; points_rated: number; points_charged: number; remaining_points: number; request_id: string; billing_mode: Exclude<BillingMode, 'OFF'> }) {
   return { id, object: 'response', status: 'completed', model, output: result.output,
@@ -76,6 +77,7 @@ export async function registerGateway(app: FastifyInstance) {
     let ended = false;
     let clientDisconnected = false;
     let observedResult: CanonicalResult | undefined;
+    let copilotStreamOpened = false;
     reply.raw.on('close', () => {
       if (!ended && !reply.raw.writableEnded) {
         clientDisconnected = true; controller.abort();
@@ -87,9 +89,22 @@ export async function registerGateway(app: FastifyInstance) {
     try {
       const [existing] = await db.select().from(modelSessions).where(and(eq(modelSessions.userId, a.user.id), eq(modelSessions.deviceId, a.device!.id), eq(modelSessions.clientThreadId, threadId), gte(modelSessions.expiresAt, new Date()))).limit(1);
       const adapter = await providerFor(ent.provider.id, ent.provider.code, connection ? { id: connection.id, userId: a.user.id } : undefined);
+      if (body.stream && ent.provider.code === 'COPILOT') {
+        reply.hijack();
+        reply.raw.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform',
+          Connection: 'keep-alive', 'X-Accel-Buffering': 'no', ...(v2RequestId ? { 'X-Bridge-AI-Request-Id': v2RequestId } : {}) });
+        copilotStreamOpened = true;
+        writeEvent(reply.raw, 'response.created', { response: { id: responseId, status: 'in_progress', model: body.model } });
+        writeEvent(reply.raw, 'response.output_item.added', { response_id: responseId, output_index: 0,
+          item: { type: 'message', role: 'assistant', content: [] } });
+      }
+      const onTextDelta = copilotStreamOpened ? (delta: string) => {
+        if (!reply.raw.destroyed && !reply.raw.writableEnded)
+          writeEvent(reply.raw, 'response.output_text.delta', { response_id: responseId, output_index: 0, delta });
+      } : undefined;
       const result = !connection && existing?.modelId === ent.model.id && existing.providerSessionId
-        ? await adapter.resumeSession(body, ent.model.providerModelId, existing.providerSessionId, controller.signal)
-        : await adapter.createResponse(body, ent.model.providerModelId, controller.signal);
+        ? await adapter.resumeSession(body, ent.model.providerModelId, existing.providerSessionId, controller.signal, onTextDelta)
+        : await adapter.createResponse(body, ent.model.providerModelId, controller.signal, onTextDelta);
       observedResult = result;
       const total = result.inputTokens + result.outputTokens;
       const credit = usageCredit(total, weight);
@@ -109,6 +124,16 @@ export async function registerGateway(app: FastifyInstance) {
         ? { points: event.pointsCharged, points_rated: event.pointsRated, points_charged: event.pointsCharged,
           remaining_points: balance, request_id: v2RequestId, billing_mode: settlementMode! } : undefined);
       if (!body.stream) { ended = true; return response; }
+      if (copilotStreamOpened) {
+        if (!reply.raw.destroyed && !reply.raw.writableEnded) {
+          writeEvent(reply.raw, 'response.output_item.done', { response_id: responseId, output_index: 0, item: result.output[0] });
+          writeEvent(reply.raw, 'response.completed', { response });
+          reply.raw.write('data: [DONE]\n\n');
+          ended = true;
+          reply.raw.end();
+        }
+        return;
+      }
       reply.hijack();
       reply.raw.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
       writeEvent(reply.raw, 'response.created', { response: { id: responseId, status: 'in_progress', model: body.model } });
@@ -134,8 +159,21 @@ export async function registerGateway(app: FastifyInstance) {
           } : {}, settlementMode!);
         } catch (settlementError) { req.log.error({ settlementErrorType: settlementError instanceof Error ? settlementError.name : 'UnknownError', requestId: v2RequestId }, 'V2 settlement failed'); }
       }
-      await db.update(usageRecords).set({ status: controller.signal.aborted ? 'ABORTED' : 'FAILED', totalTokens: 0, usageCredit: '0', errorCode: controller.signal.aborted ? 'GATEWAY_TIMEOUT' : 'PROVIDER_UNAVAILABLE', durationMs: Date.now() - started, completedAt: new Date() }).where(eq(usageRecords.id, record.id));
-      throw new ApiError(controller.signal.aborted ? 504 : 503, controller.signal.aborted ? 'GATEWAY_TIMEOUT' : 'PROVIDER_UNAVAILABLE');
+      const failure = error instanceof CopilotFailure ? error : controller.signal.aborted
+        ? new CopilotFailure(504, 'GATEWAY_TIMEOUT') : new CopilotFailure(503, 'PROVIDER_UNAVAILABLE');
+      await db.update(usageRecords).set({ status: controller.signal.aborted ? 'ABORTED' : 'FAILED', totalTokens: 0, usageCredit: '0',
+        errorCode: failure.code, durationMs: Date.now() - started, completedAt: new Date() }).where(eq(usageRecords.id, record.id));
+      if (copilotStreamOpened) {
+        if (!reply.raw.destroyed && !reply.raw.writableEnded) {
+          writeEvent(reply.raw, 'response.failed', { response: { id: responseId, status: 'failed' },
+            error: { code: failure.code, message: failure.code, request_id: v2RequestId ?? req.id } });
+          reply.raw.write('data: [DONE]\n\n');
+          ended = true;
+          reply.raw.end();
+        }
+        return;
+      }
+      throw new ApiError(failure.status, failure.code);
     } finally { clearTimeout(timeout); }
   });
 }

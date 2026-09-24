@@ -1,6 +1,6 @@
 # Copilot Bridge Server V2 — billing contract
 
-Contract version `2.1.0`; canonical App wire fields and errors are in [api-v2.md](api-v2.md). This document defines server-side accounting rules. `V2_BILLING_MODE=SHADOW` rates observed usage, stores an immutable `SHADOW` event and leaves the wallet unchanged. No commercial point charging is live. `OFF` retains the V1 path; `ENFORCED` performs point preflight and debit and remains blocked from production cutover.
+Contract version `2.2.0`; canonical App wire fields and errors are in [api-v2.md](api-v2.md). This document defines server-side accounting rules. `V2_BILLING_MODE=SHADOW` rates observed usage, stores an immutable `SHADOW` event and leaves the wallet unchanged. No commercial point charging is live. `OFF` retains the V1 path; `ENFORCED` performs point preflight and debit and remains blocked from production cutover.
 
 ## Unit and authority
 
@@ -17,6 +17,12 @@ flowchart LR
 ```
 
 ## Rate cards and policies
+
+### V1 production Copilot metering policy
+
+The current release gate includes only managed GitHub Copilot. DeepSeek, Qwen, custom APIs and local models remain in the extensible architecture but are outside this release gate. The server uses the official Copilot SDK's `assistant.usage` events for each actual model call. It requires reported `inputTokens` and `outputTokens`; if either is absent or invalid, it fails the response with `COPILOT_USAGE_UNAVAILABLE` instead of deriving token counts from text. `cacheReadTokens` and `reasoningTokens` are used only when reported and validated as subsets of input/output; their absence means zero *observed special-category tokens*, not a claim that Copilot did no caching or reasoning. `cacheWriteTokens`, model, provider call ID, service request ID and Copilot's `cost` multiplier are kept in `providerReportedUsage` for audit. That multiplier is **not** a currency charge; `providerCost` remains null.
+
+For each request, the adapter sums validated counters from all Copilot usage events. The active model rate card is pinned before invocation. For `copilot/gpt-5.4-mini` version 1, the published shadow rates are 1 point/1,000 ordinary input tokens, 0.25 point/1,000 cache-read input tokens, 2 points/1,000 ordinary output tokens, 2 points/1,000 reasoning output tokens, with a 1-point minimum. The fixed-point rating engine rounds once. These are **Bridge AI Point rates**, not Copilot's upstream premium-request or monetary price. In `SHADOW`, settlement stores `pointsRated` but charges 0, and wallet balance remains unchanged. No production switch to `ENFORCED` is part of this gate.
 
 Each card is keyed by provider, model and trusted server-selected policy: `MANAGED_USAGE`, `BYOS_USAGE`, or `LOCAL_USAGE`. `MANAGED_USAGE` charges the managed provider's published rates; BYOS can use a separate service fee card; `LOCAL_USAGE` is zero points in the current engine. A client cannot choose its billing policy. Only one active version exists per card. A request pins `rate_card_version_id` before provider invocation; publication never changes a historical charge. A missing required active version rejects the request with `RATE_CARD_UNAVAILABLE`.
 
