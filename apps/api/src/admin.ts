@@ -7,8 +7,10 @@ import { admin, ApiError, audit } from './core.js';
 import { nextPeriod } from './logic.js';
 import { providerFor } from './provider.js';
 import { encryptSecret, hashPassword } from './security.js';
+import { grantSubscriptionPoints } from './wallet.js';
+import { qualifyReferralFromPaidOrder } from './referral.js';
 
-const planData = z.object({ name: z.string().min(1), description: z.string(), monthlyPrice: z.number().nonnegative(), currency: z.string().length(3), maxDevices: z.number().int().positive(), monthlyTokenLimit: z.number().int().positive(), monthlyUsageCreditLimit: z.number().positive(), maxConcurrentRequests: z.number().int().positive(), requestsPerMinute: z.number().int().positive(), enabled: z.boolean() });
+const planData = z.object({ name: z.string().min(1), description: z.string(), monthlyPrice: z.number().nonnegative(), currency: z.string().length(3), maxDevices: z.number().int().positive(), monthlyTokenLimit: z.number().int().positive(), monthlyUsageCreditLimit: z.number().positive(), maxConcurrentRequests: z.number().int().positive(), requestsPerMinute: z.number().int().positive(), enabled: z.boolean(), monthlyPoints: z.number().int().min(0).optional(), rolloverPolicy: z.enum(['NONE', 'UNLIMITED']).optional() });
 const modelData = z.object({ providerId: z.uuid(), providerModelId: z.string().min(1), publicId: z.string().min(1), displayName: z.string().min(1), enabled: z.boolean(), supportsTools: z.boolean(), supportsVision: z.boolean(), supportsReasoning: z.boolean(), supportsStreaming: z.boolean(), contextWindow: z.number().int().positive().nullable(), maxOutputTokens: z.number().int().positive().nullable(), usageWeight: z.number().positive(), sortOrder: z.number().int() });
 const idParam = (params: unknown) => z.uuid().parse((params as { id: string }).id);
 
@@ -17,8 +19,11 @@ async function grant(userId: string, planId: string, days?: number) {
   const [latest] = await db.select().from(subscriptions).where(eq(subscriptions.userId, userId)).orderBy(desc(subscriptions.createdAt)).limit(1);
   const periodStart = latest?.currentPeriodEnd && latest.currentPeriodEnd > now && latest.planId === planId ? latest.currentPeriodStart : now;
   const periodEnd = latest?.currentPeriodEnd && latest.currentPeriodEnd > now && latest.planId === planId ? new Date(latest.currentPeriodEnd.getTime() + (days ?? 30) * 86400000) : days ? new Date(now.getTime() + days * 86400000) : nextPeriod(now);
-  const [sub] = await db.insert(subscriptions).values({ userId, planId, status: 'ACTIVE', startedAt: now, currentPeriodStart: periodStart, currentPeriodEnd: periodEnd }).returning();
-  return sub;
+  return db.transaction(async tx => {
+    const [sub] = await tx.insert(subscriptions).values({ userId, planId, status: 'ACTIVE', startedAt: now, currentPeriodStart: periodStart, currentPeriodEnd: periodEnd }).returning();
+    await grantSubscriptionPoints(tx, sub.id);
+    return sub;
+  });
 }
 export async function registerAdmin(app: FastifyInstance) {
   app.get('/api/v1/admin/dashboard', async req => {
@@ -73,8 +78,8 @@ export async function registerAdmin(app: FastifyInstance) {
   app.get('/api/v1/admin/devices', async req => { await admin(req); return { data: await db.select().from(devices).orderBy(desc(devices.activatedAt)).limit(200) }; });
   app.patch('/api/v1/admin/devices/:id', async req => {
     const a = await admin(req); const id = idParam(req.params);
-    const data = z.object({ status: z.enum(['ACTIVE', 'REVOKED']) }).parse(req.body);
-    const [device] = await db.update(devices).set(data).where(eq(devices.id, id)).returning();
+    const data = z.object({ status: z.enum(['ACTIVE', 'REVOKED', 'BLOCKED']) }).parse(req.body);
+    const [device] = await db.update(devices).set({ ...data, updatedAt: new Date() }).where(eq(devices.id, id)).returning();
     if (!device) throw new ApiError(404, 'NOT_FOUND');
     await audit(a.user.id, 'DEVICE_STATUS_CHANGED', 'DEVICE', id, data);
     return device;
@@ -82,6 +87,9 @@ export async function registerAdmin(app: FastifyInstance) {
   app.get('/api/v1/admin/plans', async req => { await admin(req); return { data: await db.select().from(plans) }; });
   app.patch('/api/v1/admin/plans/:id', async req => {
     const a = await admin(req); const id = idParam(req.params); const data = planData.parse(req.body);
+    const [current] = await db.select().from(plans).where(eq(plans.id, id)).limit(1);
+    if (!current) throw new ApiError(404, 'NOT_FOUND');
+    if ((data.monthlyPoints ?? current.monthlyPoints) > 0 && (data.rolloverPolicy ?? current.rolloverPolicy) !== 'UNLIMITED') throw new ApiError(409, 'ROLLOVER_POLICY_NOT_IMPLEMENTED');
     const [plan] = await db.update(plans).set({ ...data, monthlyPrice: String(data.monthlyPrice), monthlyUsageCreditLimit: String(data.monthlyUsageCreditLimit) }).where(eq(plans.id, id)).returning();
     if (!plan) throw new ApiError(404, 'NOT_FOUND');
     await audit(a.user.id, 'PLAN_UPDATED', 'PLAN', id);
@@ -125,6 +133,8 @@ export async function registerAdmin(app: FastifyInstance) {
       if (!order) throw new ApiError(409, 'ORDER_NOT_PAYABLE');
       const now = new Date();
       const [sub] = await tx.insert(subscriptions).values({ userId: order.userId, planId: order.planId, status: 'ACTIVE', startedAt: now, currentPeriodStart: now, currentPeriodEnd: nextPeriod(now) }).returning();
+      await grantSubscriptionPoints(tx, sub.id);
+      await qualifyReferralFromPaidOrder(tx, order.userId, Number(order.amount));
       await tx.insert(auditLogs).values({ actorId: a.user.id, action: 'MANUAL_ORDER_PAID', targetType: 'ORDER', targetId: order.id, metadata: { subscriptionId: sub.id } });
       return { order, subscription: sub };
     });

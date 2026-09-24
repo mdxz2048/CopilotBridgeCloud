@@ -8,6 +8,13 @@
       "when": 1790144692666,
       "tag": "0000_tearful_selene",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790215727310,
+      "tag": "0001_abandoned_shotgun",
+      "breakpoints": true
     }
   ]
 }

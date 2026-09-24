@@ -20,7 +20,7 @@ async function registerDevice(userId: string, info: z.infer<typeof deviceSchema>
     const [existing] = await tx.select().from(devices).where(and(eq(devices.userId, userId), eq(devices.deviceId, info.deviceId))).limit(1);
     if (existing) {
       if (existing.status !== 'ACTIVE') throw new ApiError(403, 'DEVICE_REVOKED');
-      const [updated] = await tx.update(devices).set({ deviceName: info.deviceName, platform: info.platform, osVersion: info.osVersion, appVersion: info.appVersion, lastSeenAt: new Date() }).where(eq(devices.id, existing.id)).returning();
+      const [updated] = await tx.update(devices).set({ deviceName: info.deviceName, platform: info.platform, osVersion: info.osVersion, appVersion: info.appVersion, lastSeenAt: new Date(), updatedAt: new Date() }).where(eq(devices.id, existing.id)).returning();
       return updated;
     }
     const [sub] = await tx.select().from(subscriptions).where(eq(subscriptions.userId, userId)).orderBy(desc(subscriptions.createdAt)).limit(1);
@@ -40,6 +40,7 @@ async function issueRefresh(userId: string, deviceId: string) {
   return token;
 }
 function publicUser(user: typeof users.$inferSelect) { return { id: user.id, email: user.email, role: user.role, status: user.status }; }
+function publicV1Device(device: typeof devices.$inferSelect) { return { ...device, status: device.status === 'BLOCKED' ? 'REVOKED' : device.status }; }
 
 export async function registerRoutes(app: FastifyInstance) {
   app.get('/health', async () => ({ status: 'ok', version: '0.1.0' }));
@@ -57,7 +58,7 @@ export async function registerRoutes(app: FastifyInstance) {
     if (user.status !== 'ACTIVE') throw new ApiError(403, 'ACCOUNT_DISABLED');
     if (data.device) {
       const device = await registerDevice(user.id, data.device);
-      return { accessToken: await issueAccess(user.id, device.id, user.role), refreshToken: await issueRefresh(user.id, device.id), expiresIn: 1800, user: publicUser(user), device };
+      return { accessToken: await issueAccess(user.id, device.id, user.role), refreshToken: await issueRefresh(user.id, device.id), expiresIn: 1800, user: publicUser(user), device: publicV1Device(device) };
     }
     if (req.headers.origin !== config.PUBLIC_BASE_URL) throw new ApiError(403, 'CSRF_REJECTED');
     const session = newRefresh();
@@ -96,17 +97,17 @@ export async function registerRoutes(app: FastifyInstance) {
   app.post('/api/v1/devices/register', async req => {
     const a = await actor(req);
     const info = deviceSchema.parse(req.body);
-    return { device: await registerDevice(a.user.id, info) };
+    return { device: publicV1Device(await registerDevice(a.user.id, info)) };
   });
-  app.get('/api/v1/devices', async req => ({ data: await db.select().from(devices).where(eq(devices.userId, (await actor(req)).user.id)).orderBy(desc(devices.activatedAt)) }));
+  app.get('/api/v1/devices', async req => ({ data: (await db.select().from(devices).where(eq(devices.userId, (await actor(req)).user.id)).orderBy(desc(devices.activatedAt))).map(publicV1Device) }));
   app.delete('/api/v1/devices/:id', async req => {
     const a = await actor(req);
     const id = z.uuid().parse((req.params as { id: string }).id);
-    const [device] = await db.update(devices).set({ status: 'REVOKED' }).where(and(eq(devices.id, id), eq(devices.userId, a.user.id))).returning();
+    const [device] = await db.update(devices).set({ status: 'REVOKED', updatedAt: new Date() }).where(and(eq(devices.id, id), eq(devices.userId, a.user.id))).returning();
     if (!device) throw new ApiError(404, 'NOT_FOUND');
     await db.update(refreshTokens).set({ revokedAt: new Date() }).where(eq(refreshTokens.deviceId, device.id));
     await audit(a.user.id, 'DEVICE_REVOKED', 'DEVICE', device.id);
-    return { device };
+    return { device: publicV1Device(device) };
   });
   app.get('/api/v1/plans', async () => ({ data: await db.select().from(plans).where(eq(plans.enabled, true)) }));
   app.get('/api/v1/models', async req => {
@@ -130,7 +131,7 @@ export async function registerRoutes(app: FastifyInstance) {
     const a = await actor(req);
     const active = await currentSubscription(a.user.id);
     const deviceRows = await db.select().from(devices).where(eq(devices.userId, a.user.id));
-    return { user: publicUser(a.user), subscription: active?.subscription ?? null, plan: active?.plan ?? null, devices: deviceRows, usage: active ? await currentUsage(a.user.id, active.subscription, active.plan) : null };
+    return { user: publicUser(a.user), subscription: active?.subscription ?? null, plan: active?.plan ?? null, devices: deviceRows.map(publicV1Device), usage: active ? await currentUsage(a.user.id, active.subscription, active.plan) : null };
   });
   app.get('/api/v1/usage/current', async req => {
     const a = await actor(req);

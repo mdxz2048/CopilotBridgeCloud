@@ -1,0 +1,87 @@
+# Copilot Bridge V2 Domain API contract
+
+Version: `2.0.0-draft`. Base URL: `https://ai.mddxz.top`. Product routes remain under `/api/v1` as additive endpoints. AI routes remain `/v1/models` and `/v1/responses` with frozen Gateway V1 request semantics. **This is a draft App contract; production V2 point billing is disabled until its release gate passes.** Use [the production integration manifest](protocol/PRODUCTION_INTEGRATION_MANIFEST.md) for currently available Desktop production testing.
+
+All authenticated routes accept the existing bearer token; browser routes also accept the same-site HttpOnly session. Desktop AI requests still require `X-Device-Id` and `X-Client-Thread-Id`. JSON times are RFC 3339 UTC. Amounts named `points` are nonnegative integer AI points; transaction `points` is signed. Token counters are provider usage, never points. `null` means unknown or not yet settled, not zero.
+
+## Stable shapes
+
+```ts
+type AccountSummary = { id: string; email: string; status: 'ACTIVE'|'DISABLED'|'EXPIRED' };
+type SubscriptionSummary = { id: string; status: string; planCode: string; periodStart: string; periodEnd: string; monthlyPoints: number; maxDevices: number; rolloverPolicy: 'NONE'|'UNLIMITED' } | null;
+type WalletSummary = { balance: number; unit: 'AI_POINT' };
+type Device = { id: string; userId: string; deviceId: string; deviceName: string; platform: string; osVersion: string; appVersion: string; status: 'ACTIVE'|'REVOKED'|'BLOCKED'; activatedAt: string; lastSeenAt: string|null; updatedAt: string };
+type Provider = { id: string; code: string; name: string; ownership: 'MANAGED'; status: 'ACTIVE'|'DISABLED' };
+type Model = { id: string; publicId: string; displayName: string; capabilities: { tools: boolean; vision: boolean; reasoning: boolean; streaming: boolean } };
+type ReferralSummary = { code: string; registered: number; rewarded: number; pointsEarned: number };
+type UsageSummary = { requests: number; pointsRated: number; pointsCharged: number; legacy: unknown|null };
+type ErrorEnvelope = { error: { code: string; message: string; request_id: string; requestId: string } };
+```
+
+`requestId` remains as the V1 compatibility alias. `legacy` is the existing `/api/v1/usage/current` shape; App clients must not interpret its `credit` as AI points. V2 objects can gain fields, but names and meanings listed above require version review before change.
+
+## Account, wallet, and usage
+
+| Method and path | Request | Response | State/error |
+| --- | --- | --- | --- |
+| `GET /api/v1/me` | None | `{account: AccountSummary, subscription: SubscriptionSummary, wallet: WalletSummary, activeDevices: number}` | `401 AUTH_REQUIRED`, `403 ACCOUNT_DISABLED` |
+| `GET /api/v1/me/subscription` | None | `{subscription: object|null, plan: object|null}` | Existing V1 subscription state |
+| `GET /api/v1/me/wallet` | None | `WalletSummary` | Missing wallet reads as balance `0` |
+| `GET /api/v1/me/devices` | None | `{data: Device[]}` | V2 states include `BLOCKED` |
+| `GET /api/v1/me/wallet/transactions` | None | `{data: [{id,type,points,balanceAfter,referenceType,referenceId,createdAt}]}` latest 100 | Immutable ledger; no credential data |
+| `GET /api/v1/me/usage` | None | `UsageSummary` | V2 totals cover all immutable events; `legacy` tracks current V1 period |
+| `GET /api/v1/usage/requests/{id}` | UUID request ID | `{request,usage,wallet}` | `usage:null` while in progress; `404` for other users |
+| `GET /api/v1/usage/responses/{response_id}` | `resp_` plus 32 lowercase hex | Same `{request,usage,wallet}` | Useful when the App has only a Responses API ID |
+| `GET /api/v1/usage/history` | None | Existing V1 history | Kept for compatibility |
+
+Settled `usage` contains `inputTokens`, `outputTokens`, `cachedInputTokens`, `reasoningTokens`, `pointsRated`, `pointsCharged`, `billingStatus`, and `rateCardVersionId`. `billingStatus` is `SETTLED`, `UNPAID`, or `NO_USAGE`. When V2 billing is enabled, `/v1/responses` adds `usage.points`, `usage.remaining_points`, `usage.request_id`, and header `X-Bridge-AI-Request-Id`; these fields are optional until the cutover. SSE `response.completed` carries the same response object. The App should poll `/api/v1/usage/responses/{response_id}` after a disconnect or missing final frame. `/v1/responses` is not yet progressive upstream streaming: its SSE frames are emitted after the provider completes.
+
+## Devices
+
+| Method and path | Request | Response | State/error |
+| --- | --- | --- | --- |
+| `POST /api/v1/devices/register` | Existing `DeviceInfoSchema` with installation UUID `deviceId` | `{device: Device}` | `409 DEVICE_LIMIT_REACHED`, `403 DEVICE_REVOKED` |
+| `GET /api/v1/devices` | None | Frozen V1 device list | Includes revoked devices; a blocked device is presented as `REVOKED` for V1 compatibility |
+| `PATCH /api/v1/devices/{id}` | `{deviceName: string}` | `{device: Device}` | `404 NOT_FOUND` if not owned |
+| `POST /api/v1/devices/{id}/revoke` | None | `{device: Device}` | Revokes refresh tokens; idempotent status effect |
+| `DELETE /api/v1/devices/{id}` | None | Existing V1 `{device}` | Preserved alias |
+
+The active subscription's `maxDevices` determines capacity. `devices.deviceId` is a random installation UUID, not a MAC address. An App must generate and keep it stable per installation. AI requests tie `user_id` and internal `device_id` to the usage event.
+
+## Providers and models
+
+| Method and path | Request | Response |
+| --- | --- | --- |
+| `GET /api/v1/providers` | None | `{data: Provider[]}` permitted by current plan/model ACL |
+| `GET /api/v1/providers/{id}` | Provider UUID | `Provider` or `404` |
+| `GET /api/v1/providers/{id}/models` | Provider UUID | `{data: Model[]}` permitted by current plan/model ACL |
+| `GET /v1/models` | V1 Desktop headers | Frozen Gateway V1 model list |
+
+The provider list exposes managed catalog entries. BYOS currently supports only a validated DeepSeek connection: `GET /api/v1/me/provider-connections` lists masked connection metadata; `POST` accepts `{providerId,label,apiKey}`, validates the key with DeepSeek, encrypts it at rest, then returns `{id,providerId,ownership,status,label}`; `DELETE /api/v1/me/provider-connections/{id}` disables it and removes its encrypted secret. No endpoint returns the key. When V2 billing is enabled, the App may send `X-Provider-Connection-Id: {id}` on `/v1/responses`; the server validates ownership and uses the `BYOS_USAGE` rate card. A connection header while V2 billing is disabled returns `PROVIDER_CONNECTION_UNAVAILABLE`. Custom endpoint URLs, Copilot OAuth and local usage reporting are `PENDING`.
+
+## Referral
+
+| Method and path | Request | Response | State/error |
+| --- | --- | --- | --- |
+| `GET /api/v1/referral/code` | None | `{code,status}`; lazy creates one code per user | `REFERRAL_CODE_UNAVAILABLE` on collision failure |
+| `POST /api/v1/referral/apply` | `{code: string}` | `{id,status,riskReviewRequired}` | `INVALID_REFERRAL_CODE`, `REFERRAL_NOT_ELIGIBLE` |
+| `GET /api/v1/referral/stats` | None | `ReferralSummary` | Reward count and earned points |
+| `GET /api/v1/referral/history` | None | `{data: [{id,status,registeredAt,qualifiedAt}]}` | No referred user's email disclosed |
+
+Status: `REGISTERED → PENDING` if flagged, then Admin review; a paid order meeting the configured threshold can move it to `QUALIFIED → REWARDED`; Admin may set `REJECTED`. Registration never awards points. A user can apply one code, before a subscription exists. The server stores an HMAC of the registration IP, not the raw address in the referral row.
+
+## Admin V2 endpoints
+
+Admin role is required. `GET /api/v1/admin/wallets`, `GET /api/v1/admin/users/{id}/finance`, and `POST /api/v1/admin/users/{id}/wallet/adjust` expose balances, history and audited adjustment. Adjustment body: `{points: signed integer except 0, reason: string 10..500, idempotencyKey: UUID}`. The key makes retries safe; a changed payload with the same key returns `409 IDEMPOTENCY_CONFLICT`.
+
+`GET/POST /api/v1/admin/rate-cards`, `POST /api/v1/admin/rate-cards/{id}/versions`, and `POST /api/v1/admin/rate-card-versions/{id}/publish` implement draft/publish. Create a card with `{providerId,modelId,billingPolicy}`. Create a version with seven decimal strings (`inputRate`, `outputRate`, `cachedInputRate`, `reasoningRate`, `imageInputRate`, `imageOutputRate`, `toolRate`) and integer `minimumCharge`; `effectiveFrom` may be `null` or now/past. Publish retires the prior active version atomically and pins new requests to the new version. Future scheduling is currently rejected.
+
+`GET /api/v1/admin/referrals`, `PUT /api/v1/admin/referral-policy` and `POST /api/v1/admin/referrals/{id}/review` manage qualification. Policy body: `{enabled,minPaidAmount,referrerPoints,referredPoints}`. Review body: `{decision:'APPROVE'|'REJECT',reason}`. `GET /api/v1/admin/cost-analytics?groupBy=day|provider|model|user` returns request count, points charged, known provider cost, unpriced row count, and `estimatedRevenue:null`, `grossMargin:null`; results are separated by provider cost currency.
+
+The existing `/api/v1/admin/*` V1 routes remain. V2 Admin Web pages are not yet implemented.
+
+## Error codes and lifecycle
+
+Auth and access: `AUTH_REQUIRED`, `TOKEN_EXPIRED`, `DEVICE_REVOKED`, `DEVICE_LIMIT_REACHED`, `SUBSCRIPTION_EXPIRED`, `MODEL_NOT_AVAILABLE`, `COPILOT_NOT_ENTITLED`. Billing: `INSUFFICIENT_POINTS` (HTTP 402), `RATE_CARD_UNAVAILABLE` (503), `IDEMPOTENCY_CONFLICT` (409). Provider: `PROVIDER_UNAVAILABLE`, `PROVIDER_AUTH_REQUIRED`. Referral: `INVALID_REFERRAL_CODE`, `REFERRAL_NOT_ELIGIBLE`. Throttle: `RATE_LIMITED`. Existing V1 aliases (`UNAUTHORIZED`, `MODEL_NOT_ALLOWED`, `SUBSCRIPTION_REQUIRED`, `MONTHLY_QUOTA_EXCEEDED`) remain during migration. Do not treat all 403/429 responses as point exhaustion.
+
+`ai_requests.status` is `STARTED`, `COMPLETED`, `CLIENT_DISCONNECTED` or `PROVIDER_ERROR`. One final immutable event is stored per V2 request. A failed provider request with no observed usage has a zero counter event and `NO_USAGE`. A provider request that produced usage can still be billed when the client disconnects. If actual usage exceeds the wallet, the event is `UNPAID`; subsequent V2 requests return `INSUFFICIENT_POINTS`. The current V1 Mock integration does not use V2 billing and continues under its frozen contract.

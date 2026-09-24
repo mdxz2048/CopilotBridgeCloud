@@ -1,5 +1,5 @@
-import { db, providerCredentials, providers } from '@bridge/db';
-import { eq } from 'drizzle-orm';
+import { db, providerAccountCredentials, providerAccounts, providerCredentials, providers } from '@bridge/db';
+import { and, eq } from 'drizzle-orm';
 import { decryptSecret } from './security.js';
 import { MockProvider } from './mock-provider.js';
 export { MockProvider } from './mock-provider.js';
@@ -13,10 +13,18 @@ export type CanonicalResult = {
   providerSessionId?: string;
   costKind: 'UNKNOWN' | 'ESTIMATED' | 'ACTUAL';
   providerCost?: number;
+  providerCurrency?: string;
+  cachedInputTokens?: number;
+  reasoningTokens?: number;
+  imageInput?: number;
+  imageOutput?: number;
+  toolCalls?: number;
+  providerReportedUsage?: Record<string, unknown>;
 };
 export interface ProviderAdapter {
   health(): Promise<{ ready: boolean; reason?: string }>;
   listModels(): Promise<string[]>;
+  validateCredential?(): Promise<{ valid: boolean; reason?: string }>;
   createResponse(request: CanonicalRequest, modelId: string, signal: AbortSignal): Promise<CanonicalResult>;
   resumeSession(request: CanonicalRequest, modelId: string, _providerSessionId: string, signal: AbortSignal): Promise<CanonicalResult>;
   closeSession(_providerSessionId: string): Promise<void>;
@@ -45,6 +53,7 @@ export class DeepSeekProvider implements ProviderAdapter {
     const body = await r.json() as { data?: Array<{ id: string }> };
     return body.data?.map(m => m.id) ?? [];
   }
+  async validateCredential() { const status = await this.health(); return { valid: status.ready, reason: status.reason }; }
   async createResponse(request: CanonicalRequest, modelId: string, signal: AbortSignal): Promise<CanonicalResult> {
     const tools = request.tools?.map(t => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.parameters ?? {} } }));
     const r = await fetch(`${this.baseUrl}/chat/completions`, {
@@ -52,23 +61,30 @@ export class DeepSeekProvider implements ProviderAdapter {
       body: JSON.stringify({ model: modelId, messages: toMessages(request.input), tools: tools?.length ? tools : undefined, stream: false }),
     });
     if (!r.ok) throw new Error(`Provider returned ${r.status}`);
-    const body = await r.json() as { choices?: Array<{ message: { content?: string; tool_calls?: Array<{ id: string; function: { name: string; arguments: string } }> } }>; usage?: { prompt_tokens?: number; completion_tokens?: number } };
+    const body = await r.json() as { choices?: Array<{ message: { content?: string; tool_calls?: Array<{ id: string; function: { name: string; arguments: string } }> } }>; usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_cache_hit_tokens?: number; completion_tokens_details?: { reasoning_tokens?: number } } };
     const message = body.choices?.[0]?.message;
     if (!message) throw new Error('Empty provider response');
     const output: Array<Record<string, unknown>> = [];
     if (message.content) output.push({ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: message.content }] });
     for (const call of message.tool_calls ?? []) output.push({ type: 'function_call', call_id: call.id, name: call.function.name, arguments: call.function.arguments });
-    return { output, inputTokens: body.usage?.prompt_tokens ?? 0, outputTokens: body.usage?.completion_tokens ?? 0, costKind: 'UNKNOWN' };
+    return { output, inputTokens: body.usage?.prompt_tokens ?? 0, outputTokens: body.usage?.completion_tokens ?? 0,
+      cachedInputTokens: body.usage?.prompt_cache_hit_tokens ?? 0, reasoningTokens: body.usage?.completion_tokens_details?.reasoning_tokens ?? 0,
+      toolCalls: message.tool_calls?.length ?? 0, providerReportedUsage: body.usage as Record<string, unknown> | undefined, costKind: 'UNKNOWN' };
   }
   async resumeSession(request: CanonicalRequest, modelId: string, _id: string, signal: AbortSignal) { return this.createResponse(request, modelId, signal); }
   async closeSession() {}
 }
 
-export async function providerFor(providerId: string, code: string): Promise<ProviderAdapter> {
+export async function providerFor(providerId: string, code: string, connection?: { id: string; userId: string }): Promise<ProviderAdapter> {
   if (code === 'MOCK') return new MockProvider();
   const [provider] = await db.select().from(providers).where(eq(providers.id, providerId)).limit(1);
   if (!provider?.enabled) throw new Error('PROVIDER_UNAVAILABLE');
-  const [credential] = await db.select().from(providerCredentials).where(eq(providerCredentials.providerId, providerId)).limit(1);
+  const [account] = connection ? await db.select().from(providerAccounts).where(and(eq(providerAccounts.id, connection.id), eq(providerAccounts.userId, connection.userId),
+    eq(providerAccounts.providerId, providerId), eq(providerAccounts.ownership, 'BYOS'), eq(providerAccounts.status, 'ACTIVE'))).limit(1) : [];
+  if (connection && !account) throw new Error('PROVIDER_AUTH_REQUIRED');
+  const [credential] = account
+    ? await db.select().from(providerAccountCredentials).where(eq(providerAccountCredentials.accountId, account.id)).limit(1)
+    : await db.select().from(providerCredentials).where(eq(providerCredentials.providerId, providerId)).limit(1);
   if (!credential) throw new Error('PROVIDER_UNAVAILABLE');
   const key = decryptSecret(credential);
   if (code === 'DEEPSEEK') return new DeepSeekProvider(provider.baseUrl ?? 'https://api.deepseek.com', key, provider.timeoutMs);
