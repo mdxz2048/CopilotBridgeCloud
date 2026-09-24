@@ -207,4 +207,66 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
       expect((await db.select().from(rateCardVersions)).filter(version => version.status === 'ACTIVE')).toHaveLength(1);
     } finally { await app.close(); }
   });
+
+  it('registers a referred account atomically and rejects invalid, duplicate and self referrals', async () => {
+    const { db, users, referralCodes, referrals, referralRewards } = dbModule;
+    const { eq } = await import('drizzle-orm');
+    const codeText = `ONBOARD${randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase()}`;
+    await db.insert(referralCodes).values({ userId: ids.secondUser, code: codeText });
+    const app = await (await import('./server.js')).createServer();
+    const email = `v2-onboard-${randomUUID()}@example.test`;
+    const invalidEmail = `v2-invalid-${randomUUID()}@example.test`;
+    const rollbackEmail = `v2-rollback-${randomUUID()}@example.test`;
+    try {
+      const register = (candidate: string, referralCode: string) => app.inject({ method: 'POST', url: '/api/v1/auth/register',
+        payload: { email: candidate, password: 'testpassword123', referralCode } });
+      const invalid = await register(invalidEmail, 'INVALIDCODE');
+      expect(invalid.statusCode).toBe(404);
+      expect(invalid.json().error.code).toBe('INVALID_REFERRAL_CODE');
+      expect(await db.select().from(users).where(eq(users.email, invalidEmail))).toHaveLength(0);
+
+      await db.execute(sql.raw("create function reject_v2_test_referral() returns trigger language plpgsql as $$ begin raise exception 'TEST_REFERRAL_INSERT_FAILED'; end $$"));
+      await db.execute(sql.raw('create trigger reject_v2_test_referral before insert on referrals for each row execute function reject_v2_test_referral()'));
+      try {
+        const failed = await register(rollbackEmail, codeText);
+        expect(failed.statusCode).toBe(500);
+        expect(await db.select().from(users).where(eq(users.email, rollbackEmail))).toHaveLength(0);
+      } finally {
+        await db.execute(sql.raw('drop trigger reject_v2_test_referral on referrals'));
+        await db.execute(sql.raw('drop function reject_v2_test_referral()'));
+      }
+
+      const created = await register(email, codeText);
+      expect(created.statusCode).toBe(201);
+      const [account] = await db.select().from(users).where(eq(users.email, email));
+      const [referral] = await db.select().from(referrals).where(eq(referrals.referredUserId, account.id));
+      expect(referral.referrerUserId).toBe(ids.secondUser);
+      expect(referral.status).toBe('REGISTERED');
+      expect(await db.select().from(referralRewards).where(eq(referralRewards.referralId, referral.id))).toHaveLength(0);
+      const duplicate = await register(email, codeText);
+      expect(duplicate.statusCode).toBe(409);
+      expect(duplicate.json().error.code).toBe('EMAIL_IN_USE');
+      await expect(referralModule.registerReferral(account.id, codeText)).rejects.toMatchObject({ code: 'REFERRAL_NOT_ELIGIBLE' });
+      await expect(referralModule.registerReferral(ids.secondUser, codeText)).rejects.toMatchObject({ code: 'REFERRAL_NOT_ELIGIBLE' });
+    } finally { await app.close(); }
+  });
+
+  it('rates SHADOW usage without changing the wallet or creating a usage debit', async () => {
+    const { db, aiRequests, walletTransactions } = dbModule;
+    const { eq } = await import('drizzle-orm');
+    const before = await walletModule.walletSummary(ids.secondUser);
+    const [request] = await db.insert(aiRequests).values({ responseId: `resp_${randomUUID().replaceAll('-', '')}`, userId: ids.secondUser,
+      deviceId: ids.secondDevice, providerId: ids.provider, modelId: ids.model, billingPolicy: 'MANAGED_USAGE',
+      rateCardVersionId: ids.rateVersion, status: 'STARTED' }).returning();
+    const event = await meterModule.settleAiRequest(request.id, 'COMPLETED', {
+      usage: { inputTokens: 1000, outputTokens: 1000 }, providerReportedUsage: { input_tokens: 1000, output_tokens: 1000 },
+    }, 'SHADOW');
+    expect(event.billingStatus).toBe('SHADOW');
+    expect(event.pointsRated).toBe(30);
+    expect(event.pointsCharged).toBe(0);
+    expect(event.rateCardVersionId).toBe(ids.rateVersion);
+    expect((await walletModule.walletSummary(ids.secondUser)).balance).toBe(before.balance);
+    expect(await db.select().from(walletTransactions).where(eq(walletTransactions.referenceId, request.id))).toHaveLength(0);
+    expect((await meterModule.settleAiRequest(request.id, 'COMPLETED', {}, 'SHADOW')).id).toBe(event.id);
+  });
 });

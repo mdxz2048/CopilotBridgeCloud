@@ -22,7 +22,9 @@ export class MockProvider implements ProviderAdapter {
       : [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: toolOutputs.length
         ? `Tool result received:\n${toolOutputs.join('\n')}`
         : `Mock response: ${input}` }] }];
-    return { output, inputTokens: Math.ceil(input.length / 4), outputTokens: 8, costKind: 'UNKNOWN' };
+    const inputTokens = Math.ceil(input.length / 4);
+    const outputTokens = 8;
+    return { output, inputTokens, outputTokens, providerReportedUsage: { input_tokens: inputTokens, output_tokens: outputTokens }, costKind: 'UNKNOWN' };
   }
   async resumeSession(request: CanonicalRequest, modelId: string, _id: string, signal: AbortSignal) { return this.createResponse(request, modelId, signal); }
   async closeSession() {}

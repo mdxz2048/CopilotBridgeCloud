@@ -8,6 +8,7 @@
     "typecheck": "pnpm -r typecheck",
     "dev": "pnpm --parallel --filter './apps/*' dev",
     "contract:generate": "pnpm --filter @bridge/contract generate",
+    "contract:generate:v2": "pnpm --filter @bridge/contract generate:v2",
     "dev:mock": "pnpm --filter @bridge/api dev:mock",
     "test:e2e": "playwright test"
   },

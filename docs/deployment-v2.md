@@ -1,6 +1,6 @@
 # Copilot Bridge Server V2 — deployment status and runbook
 
-Contract version `2.0.0`; live Desktop V1 manifest: [PRODUCTION_INTEGRATION_MANIFEST.md](protocol/PRODUCTION_INTEGRATION_MANIFEST.md). The host is `linuxuser@66.245.221.236`, public base `https://ai.mddxz.top`. Existing host Nginx owns 80/443 and forwards this site to loopback Caddy; dedicated Docker Compose API, Web, Caddy and PostgreSQL 17 containers are persistent. Other host services must remain untouched.
+Contract version `2.1.0`; live Desktop handoff: [PRODUCTION_INTEGRATION_MANIFEST.md](protocol/PRODUCTION_INTEGRATION_MANIFEST.md). The host is `linuxuser@66.245.221.236`, public base `https://ai.mddxz.top`. Existing host Nginx owns 80/443 and forwards this site to loopback Caddy; dedicated Docker Compose API, Web, Caddy and PostgreSQL 17 containers are persistent. Other host services must remain untouched.
 
 ## Actual status, 2026-09-24
 

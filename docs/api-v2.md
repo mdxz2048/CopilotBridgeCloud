@@ -1,6 +1,6 @@
 # Copilot Bridge V2 Domain API contract
 
-**Contract version: `2.0.0` — frozen 2026-09-24 at Git tag `api-v2.0.0`.** Base URL: `https://ai.mddxz.top`. This file is the sole V2 App/Server wire contract. Product routes remain under `/api/v1` as additive endpoints. AI routes remain `/v1/models` and `/v1/responses` with frozen Gateway V1 request semantics. Production V2 point billing is disabled until its release gate passes. Contract freeze does not imply production availability: use [the production integration manifest](protocol/PRODUCTION_INTEGRATION_MANIFEST.md) for currently available Desktop testing. Changes to required fields, types, meanings, states, status codes or error codes require a new reviewed contract version; optional additive fields are allowed.
+**Contract version: `2.1.0` — frozen 2026-09-24.** Base URL: `https://ai.mddxz.top`. This file is the sole V2 App/Server wire contract. Its machine-readable form is [openapi.v2.json](protocol/openapi.v2.json), generated from the shared Zod schemas and pinned in [CONTRACT_VERSION.json](protocol/CONTRACT_VERSION.json). Product routes remain under `/api/v1` as additive endpoints. AI routes remain `/v1/models` and `/v1/responses` with frozen Gateway V1 request semantics. Production V2 charging remains disabled in `SHADOW` mode until its release gate passes. Contract freeze does not imply production availability: use [the production integration manifest](protocol/PRODUCTION_INTEGRATION_MANIFEST.md) for current testing. Changes to required fields, types, meanings, states, status codes or error codes require a new reviewed contract version; optional additive fields are allowed. Gateway V1 `1.0.0` remains pinned separately.
 
 All authenticated routes accept the existing bearer token; browser routes also accept the same-site HttpOnly session. Desktop AI requests still require `X-Device-Id` and `X-Client-Thread-Id`. JSON times are RFC 3339 UTC. Amounts named `points` are nonnegative integer AI points; transaction `points` is signed. Token counters are provider usage, never points. `null` means unknown or not yet settled, not zero.
 
@@ -18,7 +18,7 @@ type Model = { id: string; publicId: string; displayName: string; capabilities: 
 type ReferralSummary = { code: string; registered: number; rewarded: number; pointsEarned: number };
 type ReferralRecord = { id: string; status: 'REGISTERED'|'PENDING'|'QUALIFIED'|'REWARDED'|'REJECTED'; registeredAt: string; qualifiedAt: string|null };
 type UsageSummary = { requests: number; pointsRated: number; pointsCharged: number; legacy: unknown|null };
-type UsageRecord = { inputTokens: number; outputTokens: number; cachedInputTokens: number; reasoningTokens: number; pointsRated: number; pointsCharged: number; billingStatus: 'SETTLED'|'UNPAID'|'NO_USAGE'|'METERING_ERROR'|'UNRATED'; rateCardVersionId: string|null };
+type UsageRecord = { inputTokens: number; outputTokens: number; cachedInputTokens: number; reasoningTokens: number; pointsRated: number; pointsCharged: number; billingStatus: 'SETTLED'|'SHADOW'|'UNPAID'|'NO_USAGE'|'METERING_ERROR'|'UNRATED'; rateCardVersionId: string|null };
 type ErrorResponse = { error: { code: string; message: string; request_id: string; requestId: string } };
 ```
 
@@ -28,7 +28,7 @@ type ErrorResponse = { error: { code: string; message: string; request_id: strin
 
 | Method and path | Request | Response | State/error |
 | --- | --- | --- | --- |
-| `POST /api/v1/auth/register` | `{email,password}`; password length 12–256 | `201 {user:{id,email,role,status}}` | `EMAIL_IN_USE`, `VALIDATION_ERROR` |
+| `POST /api/v1/auth/register` | `{email,password,referralCode?}`; password length 12–256 | `201 {user:{id,email,role,status}}` | `EMAIL_IN_USE`, `INVALID_REFERRAL_CODE`, `VALIDATION_ERROR` |
 | `POST /api/v1/auth/login` | `{email,password,device:{deviceId,deviceName,platform,osVersion?,appVersion?}}` | `DeviceCredential` | `INVALID_CREDENTIALS`, `DEVICE_LIMIT_REACHED`, `DEVICE_REVOKED`, `SUBSCRIPTION_EXPIRED` |
 | `POST /api/v1/auth/refresh` | `{refreshToken}` | `{accessToken,refreshToken,expiresIn:1800}` | `UNAUTHORIZED`, `DEVICE_REVOKED` |
 | `POST /api/v1/auth/logout` | Authenticated | `{ok:true}` | `UNAUTHORIZED` |
@@ -47,10 +47,10 @@ type ErrorResponse = { error: { code: string; message: string; request_id: strin
 | `GET /api/v1/me/usage` | None | `UsageSummary` | V2 totals cover all immutable events; `legacy` tracks current V1 period |
 | `GET /api/v1/usage` | None | `UsageSummary` | Stable alias of `/api/v1/me/usage` |
 | `GET /api/v1/usage/requests/{id}` | UUID request ID | `{request,usage,wallet}` | `usage:null` while in progress; `404` for other users |
-| `GET /api/v1/usage/responses/{response_id}` | `resp_` plus 32 lowercase hex | Same `{request,usage,wallet}` | Useful when the App has only a Responses API ID |
+| `GET /api/v1/usage/responses/{id}` | `id` is `resp_` plus 32 lowercase hex | Same `{request,usage,wallet}` | Useful when the App has only a Responses API ID |
 | `GET /api/v1/usage/history` | None | Existing V1 history | Kept for compatibility |
 
-Settled `usage` has the exact `UsageRecord` shape above. `UNPAID` means the rated amount was not debited; `METERING_ERROR` means invalid provider usage; `UNRATED` means a rating failure. These states block further billed V2 requests pending review. When V2 billing is enabled, `/v1/responses` adds `usage.points`, `usage.remaining_points`, `usage.request_id`, and header `X-Bridge-AI-Request-Id`; these fields are optional until the cutover. SSE `response.completed` carries the same response object. The App should poll `/api/v1/usage/responses/{response_id}` after a disconnect or missing final frame. `/v1/responses` is not yet progressive upstream streaming: its SSE frames are emitted after the provider completes.
+Settled `usage` has the exact `UsageRecord` shape above. `SHADOW` means the server rated observed usage without debiting the wallet. `UNPAID` means the rated amount was not debited; `METERING_ERROR` means invalid provider usage; `UNRATED` means a rating failure. Review states block further `ENFORCED` requests. In `SHADOW` or `ENFORCED` mode, `/v1/responses` adds `usage.points_rated`, `usage.points_charged`, `usage.remaining_points`, `usage.request_id`, `usage.billing_mode`, and header `X-Bridge-AI-Request-Id`; the legacy `usage.points` alias equals `points_charged`. These fields are absent in `OFF`. SSE `response.completed` carries the same response object. The App should poll `/api/v1/usage/responses/{id}` after a disconnect or missing final frame. `/v1/responses` is not yet progressive upstream streaming: its SSE frames are emitted after the provider completes.
 
 ## Devices
 
@@ -87,6 +87,8 @@ The provider list exposes managed catalog entries. BYOS currently supports only 
 
 Status: `REGISTERED → PENDING` if flagged, then Admin review; a paid order meeting the configured threshold can move it to `QUALIFIED → REWARDED`; Admin may set `REJECTED`. Registration never awards points. A user can apply one code, before a subscription exists. The server stores an HMAC of the registration IP, not the raw address in the referral row.
 
+New accounts may provide `referralCode` in the registration request. Code validation, user creation, referral creation and the registration audit row commit in one database transaction. An invalid code rejects the registration. No points are granted at registration; qualification and reward still require the paid-order policy. The `/referral/apply` route remains for accounts registered without a code.
+
 `ReferralRecord` is the exact item shape in `/history`.
 
 ## Admin V2 endpoints
@@ -104,5 +106,7 @@ The existing `/api/v1/admin/*` V1 routes remain. Admin Web panels now expose the
 Auth and access: `AUTH_REQUIRED`, `TOKEN_EXPIRED`, `DEVICE_REVOKED`, `DEVICE_LIMIT_REACHED`, `SUBSCRIPTION_EXPIRED`, `MODEL_NOT_AVAILABLE`, `COPILOT_NOT_ENTITLED`. Billing: `INSUFFICIENT_POINTS` (HTTP 402), `BILLING_REVIEW_REQUIRED` (409), `RATE_CARD_UNAVAILABLE` (503), `IDEMPOTENCY_CONFLICT` (409). Provider: `PROVIDER_UNAVAILABLE`, `PROVIDER_AUTH_REQUIRED`, `PROVIDER_CONNECTION_UNAVAILABLE`. Referral: `INVALID_REFERRAL_CODE`, `REFERRAL_NOT_ELIGIBLE`. Throttle: `RATE_LIMITED`. Validation and unknown resources: `VALIDATION_ERROR`, `NOT_FOUND`. Existing V1 aliases (`UNAUTHORIZED`, `MODEL_NOT_ALLOWED`, `SUBSCRIPTION_REQUIRED`, `MONTHLY_QUOTA_EXCEEDED`) remain during migration. Do not treat all 403/429 responses as point exhaustion.
 
 The shared V1 authentication middleware currently emits `UNAUTHORIZED` for a missing bearer token or browser session. `AUTH_REQUIRED` is reserved for a coordinated V2 auth cutover and is not an observed production response today; App clients must handle `UNAUTHORIZED` as the missing-auth case. Likewise, `MODEL_NOT_AVAILABLE` and `COPILOT_NOT_ENTITLED` are reserved V2 names while the frozen Gateway may emit `MODEL_NOT_ALLOWED` or `MODEL_UNAVAILABLE`. These names must not be substituted silently on an existing V1 endpoint.
+
+`V2_BILLING_MODE` has three states: `OFF` leaves the Gateway V1 billing path intact, `SHADOW` writes immutable AI request and usage events with `pointsRated > 0` and `pointsCharged = 0` when usage is observed, and `ENFORCED` performs wallet preflight and debit. The production gate permits `SHADOW` only. A dedicated integration account may use the gated Mock provider for metered testing in `SHADOW`; public accounts cannot access it. `ENFORCED` requires separate approval and real-provider evidence.
 
 `ai_requests.status` is `CREATED`, `STARTED`, `COMPLETED`, `CLIENT_DISCONNECTED` or `PROVIDER_ERROR`; the current gateway creates at `STARTED`. One final immutable event is stored per V2 request. A failed provider request with no observed usage has a zero counter event and `NO_USAGE`. A provider request that produced usage can still be billed when the client disconnects. If actual usage exceeds the wallet, the event is `UNPAID`; subsequent V2 requests return `INSUFFICIENT_POINTS`. The current V1 Mock integration does not use V2 billing and continues under its frozen contract. Plan `rolloverPolicy:'NONE'` expires unspent subscription grant points at period end after earliest-expiry-first spending; `UNLIMITED` grants and purchased points do not expire under this policy. Public billing stays off until the release gates in [deployment-v2.md](deployment-v2.md) pass.

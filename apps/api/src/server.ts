@@ -9,8 +9,10 @@ import { registerAdmin } from './admin.js';
 import { registerGateway } from './gateway.js';
 import { registerV2Routes } from './v2-routes.js';
 import { registerV2Admin } from './v2-admin.js';
+import { currentBillingMode } from './billing-mode.js';
 
 export async function createServer() {
+  currentBillingMode();
   const app = Fastify({
     trustProxy: true, bodyLimit: 1024 * 1024,
     logger: { level: process.env.LOG_LEVEL ?? 'info', redact: { paths: ['req.headers.authorization', 'req.headers.cookie', 'req.body', 'res.body'], censor: '[REDACTED]' } },

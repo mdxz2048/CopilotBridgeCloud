@@ -1,7 +1,15 @@
 import { z } from 'zod';
+import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
+
+extendZodWithOpenApi(z);
 
 const instant = z.iso.datetime({ offset: true });
 const id = z.uuid();
+export const BillingModeV2Schema = z.enum(['OFF', 'SHADOW', 'ENFORCED']);
+
+export const RegisterRequestV2Schema = z.object({
+  email: z.email(), password: z.string().min(12).max(256), referralCode: z.string().trim().min(8).max(24).optional(),
+});
 
 export const AccountSummaryV2Schema = z.object({ id, email: z.email(), status: z.enum(['ACTIVE', 'DISABLED', 'EXPIRED']) });
 export const SubscriptionSummaryV2Schema = z.object({
@@ -38,7 +46,7 @@ export const UsageRecordV2Schema = z.object({
   inputTokens: z.number().int().nonnegative(), outputTokens: z.number().int().nonnegative(),
   cachedInputTokens: z.number().int().nonnegative(), reasoningTokens: z.number().int().nonnegative(),
   pointsRated: z.number().int().nonnegative(), pointsCharged: z.number().int().nonnegative(),
-  billingStatus: z.enum(['SETTLED', 'UNPAID', 'NO_USAGE', 'METERING_ERROR', 'UNRATED']), rateCardVersionId: id.nullable(),
+  billingStatus: z.enum(['SETTLED', 'SHADOW', 'UNPAID', 'NO_USAGE', 'METERING_ERROR', 'UNRATED']), rateCardVersionId: id.nullable(),
 });
 export const ReferralSummaryV2Schema = z.object({
   code: z.string(), registered: z.number().int().nonnegative(), rewarded: z.number().int().nonnegative(), pointsEarned: z.number().int().nonnegative(),
@@ -47,6 +55,18 @@ export const ReferralRecordV2Schema = z.object({
   id, status: z.enum(['REGISTERED', 'PENDING', 'QUALIFIED', 'REWARDED', 'REJECTED']),
   registeredAt: instant, qualifiedAt: instant.nullable(),
 });
+export const ErrorCodeV2Schema = z.enum([
+  'ACCOUNT_DISABLED', 'AUTH_REQUIRED', 'BILLING_REVIEW_REQUIRED', 'CANNOT_DISABLE_SELF', 'CLIENT_THREAD_ID_REQUIRED', 'COPILOT_NOT_ENTITLED',
+  'CSRF_REJECTED', 'DEVICE_LIMIT_REACHED', 'DEVICE_NOT_REGISTERED', 'DEVICE_REVOKED', 'EMAIL_IN_USE', 'FORBIDDEN',
+  'GATEWAY_TIMEOUT', 'IDEMPOTENCY_CONFLICT', 'INSUFFICIENT_POINTS', 'INTERNAL_ERROR', 'INVALID_CREDENTIALS', 'INVALID_POINTS',
+  'INVALID_PROVIDER_CONNECTION', 'INVALID_REFERRAL_CODE', 'MODEL_NOT_ALLOWED', 'MODEL_NOT_AVAILABLE', 'MODEL_PROVIDER_MISMATCH',
+  'MODEL_UNAVAILABLE', 'MONTHLY_QUOTA_EXCEEDED', 'NOT_FOUND', 'ORDER_NOT_PAYABLE', 'PAYMENT_PROVIDER_NOT_CONNECTED',
+  'PLAN_NOT_FOUND', 'PLAN_REQUIRED', 'PROVIDER_AUTH_REQUIRED', 'PROVIDER_CONNECTION_UNAVAILABLE', 'PROVIDER_UNAVAILABLE',
+  'RATE_CARD_EXISTS', 'RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED', 'RATE_CARD_NOT_DRAFT', 'RATE_CARD_UNAVAILABLE', 'RATE_LIMITED',
+  'REFERRAL_CODE_UNAVAILABLE', 'REFERRAL_NOT_ELIGIBLE', 'REFERRAL_NOT_REVIEWABLE', 'REQUEST_NOT_FOUND', 'ROLLOVER_POLICY_INVALID',
+  'SUBSCRIPTION_EXPIRED', 'SUBSCRIPTION_NOT_FOUND', 'SUBSCRIPTION_REQUIRED', 'TOKEN_EXPIRED', 'UNAUTHORIZED', 'VALIDATION_ERROR',
+  'WALLET_LEDGER_MISMATCH', 'WALLET_LIMIT_REACHED',
+]);
 export const ErrorResponseV2Schema = z.object({ error: z.object({
-  code: z.string().min(1), message: z.string(), request_id: z.string(), requestId: z.string(),
+  code: ErrorCodeV2Schema, message: z.string(), request_id: z.string(), requestId: z.string(),
 }).refine(error => error.request_id === error.requestId) });

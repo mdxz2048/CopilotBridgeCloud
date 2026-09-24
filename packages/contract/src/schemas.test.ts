@@ -6,9 +6,9 @@ import { DeviceInfoSchema, LatestReleaseResponseSchema, ResponseRequestSchema } 
 describe('Desktop V1 contract', () => {
   it('requires an explicit version update for OpenAPI wire changes', () => {
     const spec = readFileSync(new URL('../../../docs/protocol/openapi.v1.json', import.meta.url));
-    const freeze = JSON.parse(readFileSync(new URL('../../../docs/protocol/CONTRACT_VERSION.json', import.meta.url), 'utf8')) as { version: string; openapiSha256: string };
-    expect(JSON.parse(spec.toString()).info.version).toBe(freeze.version);
-    expect(createHash('sha256').update(spec).digest('hex')).toBe(freeze.openapiSha256);
+    const freeze = JSON.parse(readFileSync(new URL('../../../docs/protocol/CONTRACT_VERSION.json', import.meta.url), 'utf8')) as { gatewayV1: { version: string; openapiSha256: string } };
+    expect(JSON.parse(spec.toString()).info.version).toBe(freeze.gatewayV1.version);
+    expect(createHash('sha256').update(spec).digest('hex')).toBe(freeze.gatewayV1.openapiSha256);
   });
   it('rejects hardware fingerprints and malformed device IDs', () => {
     expect(DeviceInfoSchema.safeParse({ deviceId: 'MAC:00:11', deviceName: 'PC', platform: 'windows' }).success).toBe(false);

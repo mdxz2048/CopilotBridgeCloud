@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "exports": { ".": "./src/schemas.ts" },
-  "scripts": { "build": "tsc -p tsconfig.json", "typecheck": "tsc --noEmit -p tsconfig.json", "test": "vitest run", "generate": "tsx src/generate.ts" },
+  "scripts": { "build": "tsc -p tsconfig.json", "typecheck": "tsc --noEmit -p tsconfig.json", "test": "vitest run", "generate": "tsx src/generate.ts", "generate:v2": "tsx src/generate-v2.ts" },
   "dependencies": { "zod": "^4.0.0", "@asteasolutions/zod-to-openapi": "^9.1.0" },
   "devDependencies": { "@types/node": "^22.0.0", "tsx": "^4.20.0", "typescript": "^5.9.0", "vitest": "^3.2.0" }
 }

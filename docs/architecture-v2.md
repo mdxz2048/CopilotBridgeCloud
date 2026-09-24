@@ -1,6 +1,6 @@
 # Copilot Bridge Server V2 architecture
 
-Contract version `2.0.0`; implementation and production rollout remain staged. [api-v2.md](api-v2.md) is the sole V2 App/Server wire contract. V1 Gateway contract `1.0.0` and its production integration manifest remain authoritative for Desktop V1 integration. V2 billing is disabled unless `V2_BILLING_ENABLED=true`; the production Mock path is excluded even when enabled.
+Contract version `2.1.0`; implementation and production rollout remain staged. [api-v2.md](api-v2.md) is the sole V2 App/Server wire contract and [openapi.v2.json](protocol/openapi.v2.json) is its generated schema. Gateway V1 contract `1.0.0` remains pinned for compatibility. `V2_BILLING_MODE=SHADOW` records ratings without wallet debits. Production Mock access is restricted to the dedicated integration account; `ENFORCED` does not permit Mock billing.
 
 ## Domain boundaries
 

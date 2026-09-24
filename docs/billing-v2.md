@@ -1,6 +1,6 @@
 # Copilot Bridge Server V2 — billing contract
 
-Contract version `2.0.0`; canonical App wire fields and errors are in [api-v2.md](api-v2.md). This document defines server-side accounting rules. Public production currently has `V2_BILLING_ENABLED=false`; no commercial point charging is live.
+Contract version `2.1.0`; canonical App wire fields and errors are in [api-v2.md](api-v2.md). This document defines server-side accounting rules. `V2_BILLING_MODE=SHADOW` rates observed usage, stores an immutable `SHADOW` event and leaves the wallet unchanged. No commercial point charging is live. `OFF` retains the V1 path; `ENFORCED` performs point preflight and debit and remains blocked from production cutover.
 
 ## Unit and authority
 
@@ -24,7 +24,7 @@ Rates are decimal points per 1,000 tokens for ordinary, cached and reasoning cat
 
 ## Settlement and insufficient funds
 
-Every started billed request has at most one immutable final `usage_event`, keyed by its AI request ID. Provider-observed usage and cost are recorded separately from points. Missing provider cost stays `null`; it is never interpreted as free inference. A wallet debit locks the wallet row, checks nonnegative balance and appends an immutable transaction with a globally unique idempotency key. Concurrent requests cannot overdraw. If observed usage exceeds available points, the event records `pointsRated>0`, `pointsCharged=0`, `billingStatus='UNPAID'`; further billed requests return `INSUFFICIENT_POINTS`. Invalid provider counters produce `METERING_ERROR`, and rating failure produces `UNRATED`; both retain the event and block further billed requests with `BILLING_REVIEW_REQUIRED`. `NO_USAGE` has zero observed counters. A client disconnect with observed provider usage can still be rated and charged; native progressive upstream streaming and partial-usage recovery remain pending.
+Every started metered request has at most one immutable final `usage_event`, keyed by its AI request ID. Provider-observed usage and cost are recorded separately from points. Missing provider cost stays `null`; it is never interpreted as free inference. In `SHADOW`, observed usage is rated but no debit is attempted: `pointsRated>0`, `pointsCharged=0`, `billingStatus='SHADOW'`. In `ENFORCED`, a wallet debit locks the wallet row, checks nonnegative balance and appends an immutable transaction with a globally unique idempotency key. Concurrent requests cannot overdraw. If observed usage exceeds available points, the event records `pointsRated>0`, `pointsCharged=0`, `billingStatus='UNPAID'`; further billed requests return `INSUFFICIENT_POINTS`. Invalid provider counters produce `METERING_ERROR`, and rating failure produces `UNRATED`; both retain the event and block further enforced requests with `BILLING_REVIEW_REQUIRED`. `NO_USAGE` has zero observed counters. A client disconnect with observed provider usage can still be rated; native progressive upstream streaming and partial-usage recovery remain pending.
 
 ## Grants, lots and expiry
 

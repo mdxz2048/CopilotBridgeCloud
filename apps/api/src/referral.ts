@@ -22,14 +22,22 @@ export async function referralCodeFor(userId: string) {
 }
 
 export async function registerReferral(referredUserId: string, code: string, sourceDeviceId?: string, ip?: string) {
-  return db.transaction(async tx => {
+  return db.transaction(tx => registerReferralInTransaction(tx, referredUserId, code, sourceDeviceId, ip));
+}
+
+export async function validateReferralCode(tx: DbTransaction, code: string) {
+  const [refCode] = await tx.select().from(referralCodes).where(and(eq(referralCodes.code, code.toUpperCase()), eq(referralCodes.status, 'ACTIVE'))).limit(1);
+  if (!refCode) throw new ApiError(404, 'INVALID_REFERRAL_CODE');
+  return refCode;
+}
+
+export async function registerReferralInTransaction(tx: DbTransaction, referredUserId: string, code: string, sourceDeviceId?: string, ip?: string) {
     await tx.execute(sql`select id from users where id = ${referredUserId} for update`);
     const [owned] = await tx.select().from(referrals).where(eq(referrals.referredUserId, referredUserId)).limit(1);
     if (owned) throw new ApiError(409, 'REFERRAL_NOT_ELIGIBLE');
     const [priorSub] = await tx.select({ id: subscriptions.id }).from(subscriptions).where(eq(subscriptions.userId, referredUserId)).limit(1);
     if (priorSub) throw new ApiError(409, 'REFERRAL_NOT_ELIGIBLE');
-    const [refCode] = await tx.select().from(referralCodes).where(and(eq(referralCodes.code, code.toUpperCase()), eq(referralCodes.status, 'ACTIVE'))).limit(1);
-    if (!refCode) throw new ApiError(404, 'INVALID_REFERRAL_CODE');
+    const refCode = await validateReferralCode(tx, code);
     if (refCode.userId === referredUserId) throw new ApiError(409, 'REFERRAL_NOT_ELIGIBLE');
     const riskFlags: string[] = [];
     if (sourceDeviceId) {
@@ -47,7 +55,6 @@ export async function registerReferral(referredUserId: string, code: string, sou
     const [referral] = await tx.insert(referrals).values({ referrerUserId: refCode.userId, referredUserId, referralCodeId: refCode.id,
       sourceDeviceId: sourceDeviceId ?? null, registrationIpHash, riskFlags, status: riskFlags.length ? 'PENDING' : 'REGISTERED' }).returning();
     return referral;
-  });
 }
 
 export async function referralPolicy(tx: DbTransaction): Promise<ReferralPolicy | null> {

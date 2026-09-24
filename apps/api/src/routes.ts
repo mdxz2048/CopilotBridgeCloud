@@ -1,16 +1,16 @@
 import type { FastifyInstance } from 'fastify';
-import { db, billingOrders, devices, models, plans, refreshTokens, releases, subscriptions, usageRecords, users, webSessions } from '@bridge/db';
+import { db, auditLogs, billingOrders, devices, models, plans, refreshTokens, releases, subscriptions, usageRecords, users, webSessions } from '@bridge/db';
 import { and, desc, eq, gte, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { DeviceInfoSchema, LoginRequestSchema, RefreshRequestSchema } from '@bridge/contract';
+import { DeviceInfoSchema, LoginRequestSchema, RefreshRequestSchema, RegisterRequestV2Schema } from '@bridge/contract';
 import { actor, admin, ApiError, audit, currentSubscription, currentUsage, allowedModels, subscriptionError } from './core.js';
 import { config } from './config.js';
 import { hashPassword, hashRefresh, issueAccess, newRefresh, verifyPassword } from './security.js';
+import { registerReferralInTransaction, validateReferralCode } from './referral.js';
 
 const deviceSchema = DeviceInfoSchema;
 const loginSchema = LoginRequestSchema.extend({ device: DeviceInfoSchema.optional() });
-const passwordSchema = z.string().min(12).max(256);
 const secure = config.PUBLIC_BASE_URL.startsWith('https:');
 const cookieOptions = { httpOnly: true, secure, sameSite: 'strict' as const, path: '/', maxAge: 60 * 60 * 24 * 7 };
 
@@ -45,10 +45,16 @@ function publicV1Device(device: typeof devices.$inferSelect) { return { ...devic
 export async function registerRoutes(app: FastifyInstance) {
   app.get('/health', async () => ({ status: 'ok', version: '0.1.0' }));
   app.post('/api/v1/auth/register', { config: { rateLimit: { max: 5, timeWindow: '1 hour' } } }, async (req, reply) => {
-    const data = z.object({ email: z.email(), password: passwordSchema }).parse(req.body);
-    const [user] = await db.insert(users).values({ email: data.email.toLowerCase(), passwordHash: await hashPassword(data.password) }).onConflictDoNothing().returning();
-    if (!user) throw new ApiError(409, 'EMAIL_IN_USE');
-    await audit(user.id, 'USER_REGISTERED', 'USER', user.id);
+    const data = RegisterRequestV2Schema.parse(req.body);
+    const passwordHash = await hashPassword(data.password);
+    const user = await db.transaction(async tx => {
+      if (data.referralCode) await validateReferralCode(tx, data.referralCode);
+      const [created] = await tx.insert(users).values({ email: data.email.toLowerCase(), passwordHash }).onConflictDoNothing().returning();
+      if (!created) throw new ApiError(409, 'EMAIL_IN_USE');
+      if (data.referralCode) await registerReferralInTransaction(tx, created.id, data.referralCode, undefined, req.ip);
+      await tx.insert(auditLogs).values({ actorId: created.id, action: 'USER_REGISTERED', targetType: 'USER', targetId: created.id });
+      return created;
+    });
     return reply.code(201).send({ user: publicUser(user) });
   });
   app.post('/api/v1/auth/login', { config: { rateLimit: { max: 10, timeWindow: '15 minutes' } } }, async (req, reply) => {

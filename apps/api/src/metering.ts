@@ -3,6 +3,7 @@ import { and, desc, eq, gt, isNull, lte, or } from 'drizzle-orm';
 import { ApiError } from './core.js';
 import { normalizeUsage, ratePoints, type BillingPolicy, type NormalizedUsage } from './rating.js';
 import { applyWalletChange, walletSummary } from './wallet.js';
+import type { BillingMode } from './billing-mode.js';
 
 export type RequestState = 'COMPLETED' | 'CLIENT_DISCONNECTED' | 'PROVIDER_ERROR';
 export type MeteredResult = {
@@ -42,7 +43,7 @@ export async function createAiRequest(input: {
   return request;
 }
 
-export async function settleAiRequest(requestId: string, state: RequestState, result: MeteredResult) {
+export async function settleAiRequest(requestId: string, state: RequestState, result: MeteredResult, mode: Exclude<BillingMode, 'OFF'> = 'ENFORCED') {
   return db.transaction(async tx => {
     const [request] = await tx.select().from(aiRequests).where(eq(aiRequests.id, requestId)).for('update').limit(1);
     if (!request) throw new ApiError(404, 'REQUEST_NOT_FOUND');
@@ -64,8 +65,8 @@ export async function settleAiRequest(requestId: string, state: RequestState, re
       catch { ratingError = true; }
     }
     let charged = 0;
-    let billingStatus = meteringError ? 'METERING_ERROR' : ratingError ? 'UNRATED' : 'SETTLED';
-    if (rated > 0) {
+    let billingStatus = meteringError ? 'METERING_ERROR' : ratingError ? 'UNRATED' : !hasObservedUsage ? 'NO_USAGE' : mode === 'SHADOW' ? 'SHADOW' : 'SETTLED';
+    if (rated > 0 && mode === 'ENFORCED') {
       try {
         await applyWalletChange(tx, { userId: request.userId, points: -rated, type: 'USAGE', referenceType: 'AI_REQUEST', referenceId: request.id, idempotencyKey: `usage:${request.id}` });
         charged = rated;
@@ -73,7 +74,7 @@ export async function settleAiRequest(requestId: string, state: RequestState, re
         if (!(error instanceof ApiError && error.code === 'INSUFFICIENT_POINTS')) throw error;
         billingStatus = 'UNPAID';
       }
-    } else if (!hasObservedUsage && !meteringError) billingStatus = 'NO_USAGE';
+    }
     const [event] = await tx.insert(usageEvents).values({
       requestId, eventKey: `final:${requestId}`, userId: request.userId, deviceId: request.deviceId,
       providerId: request.providerId, modelId: request.modelId, ...usage,
