@@ -6,6 +6,8 @@ The service is installed at `https://ai.mddxz.top` on `linuxuser@66.245.221.236`
 
 The public home page, `/health`, `/api/v1/plans`, registration, browser login, authenticated account, RBAC rejection, logout, and public page layouts were tested over HTTPS. Production plans remain disabled until prices and limits are chosen. Admin bootstrap, DeepSeek key, Copilot authorization, and payment integrations are still outstanding; see [Release Gate](acceptance/SERVER_RELEASE_GATE.md).
 
+For Desktop production integration, a dedicated test account has a hidden Pro fixture and a server-gated Mock model. See the [Integration Manifest](protocol/PRODUCTION_INTEGRATION_MANIFEST.md) and [four-axis gate](acceptance/PRODUCTION_INTEGRATION_GATE.md). The fixed loopback Mock password and `X-Mock-Error-Code` are unavailable in production. The integration gate is explicitly enabled only for the named test email in the server-only environment file. Disable `INTEGRATION_MOCK_ENABLED` and the Mock provider after real-provider acceptance.
+
 ## Deploy and inspect
 
 Connect using the existing SSH configuration. Do not read, print, copy or commit the SSH private key. On the server:

@@ -54,10 +54,10 @@ Device Register:
 PASS (Mock only)
 
 Device Limit:
-FAIL (release criterion not yet verified or configured)
+PASS (Mock limit test; hidden production test plan configured)
 
 Device Revoke:
-FAIL (release criterion not yet verified or configured)
+PASS (production HTTPS; revoked token rejected)
 
 Device Restore:
 FAIL (release criterion not yet verified or configured)
@@ -114,13 +114,13 @@ NOT_CONNECTED
 ## Usage
 
 Usage Records:
-FAIL (release criterion not yet verified or configured)
+PASS (production gated Mock only)
 
 Input Tokens:
-FAIL (release criterion not yet verified or configured)
+PASS (production gated Mock only)
 
 Output Tokens:
-FAIL (release criterion not yet verified or configured)
+PASS (production gated Mock only)
 
 Usage Credit:
 PASS
@@ -141,7 +141,7 @@ FAIL (release criterion not yet verified or configured)
 ## Model
 
 Model Catalog:
-FAIL (release criterion not yet verified or configured)
+PASS (test-only Mock catalog; commercial models unconfigured)
 
 Model Enable:
 FAIL (release criterion not yet verified or configured)
@@ -180,7 +180,7 @@ POST /v1/responses:
 PASS (Mock only)
 
 Streaming SSE:
-PASS (Mock framing); FAIL (progressive production stream)
+PASS (production Mock SSE framing); FAIL (progressive real-provider stream)
 
 Text:
 PASS (Mock only)
@@ -204,7 +204,7 @@ Session Isolation User:
 FAIL (release criterion not yet verified or configured)
 
 Session Isolation Device:
-FAIL (release criterion not yet verified or configured)
+PASS (Mock test)
 
 Disconnect:
 FAIL (release criterion not yet verified or configured)
