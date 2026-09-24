@@ -80,6 +80,11 @@ export async function registerV2Admin(app: FastifyInstance) {
   app.get('/api/v1/admin/referrals', async req => {
     await admin(req); return { data: await db.select().from(referrals).orderBy(desc(referrals.registeredAt)).limit(200) };
   });
+  app.get('/api/v1/admin/referral-policy', async req => {
+    await admin(req);
+    const [setting] = await db.select().from(systemSettings).where(eq(systemSettings.key, 'referral_policy')).limit(1);
+    return { policy: setting?.value ?? { enabled: false, minPaidAmount: 0, referrerPoints: 0, referredPoints: 0 } };
+  });
   app.put('/api/v1/admin/referral-policy', async req => {
     const a = await admin(req); const value = referralPolicy.parse(req.body);
     return db.transaction(async tx => {
@@ -94,13 +99,14 @@ export async function registerV2Admin(app: FastifyInstance) {
     return db.transaction(async tx => {
       const [referral] = await tx.select().from(referrals).where(eq(referrals.id, id)).for('update').limit(1);
       if (!referral || !['PENDING', 'REGISTERED'].includes(referral.status)) throw new ApiError(409, 'REFERRAL_NOT_REVIEWABLE');
-      const [updated] = await tx.update(referrals).set({ status: decision === 'REJECT' ? 'REJECTED' : 'REGISTERED', riskFlags: decision === 'APPROVE' ? [] : referral.riskFlags }).where(eq(referrals.id, id)).returning();
+      await tx.update(referrals).set({ status: decision === 'REJECT' ? 'REJECTED' : 'REGISTERED', riskFlags: decision === 'APPROVE' ? [] : referral.riskFlags }).where(eq(referrals.id, id));
       if (decision === 'APPROVE') {
         const [paid] = await tx.select().from(billingOrders).where(and(eq(billingOrders.userId, referral.referredUserId), eq(billingOrders.status, 'PAID'))).orderBy(desc(billingOrders.paidAt)).limit(1);
         if (paid) await qualifyReferralFromPaidOrder(tx, referral.referredUserId, Number(paid.amount));
       }
       await tx.insert(auditLogs).values({ actorId: a.user.id, action: `REFERRAL_${decision}`, targetType: 'REFERRAL', targetId: id, metadata: { reason } });
-      return updated;
+      const [final] = await tx.select().from(referrals).where(eq(referrals.id, id)).limit(1);
+      return final;
     });
   });
   app.get('/api/v1/admin/cost-analytics', async req => {

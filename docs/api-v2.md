@@ -76,9 +76,9 @@ Admin role is required. `GET /api/v1/admin/wallets`, `GET /api/v1/admin/users/{i
 
 `GET/POST /api/v1/admin/rate-cards`, `POST /api/v1/admin/rate-cards/{id}/versions`, and `POST /api/v1/admin/rate-card-versions/{id}/publish` implement draft/publish. Create a card with `{providerId,modelId,billingPolicy}`. Create a version with seven decimal strings (`inputRate`, `outputRate`, `cachedInputRate`, `reasoningRate`, `imageInputRate`, `imageOutputRate`, `toolRate`) and integer `minimumCharge`; `effectiveFrom` may be `null` or now/past. Publish retires the prior active version atomically and pins new requests to the new version. Future scheduling is currently rejected.
 
-`GET /api/v1/admin/referrals`, `PUT /api/v1/admin/referral-policy` and `POST /api/v1/admin/referrals/{id}/review` manage qualification. Policy body: `{enabled,minPaidAmount,referrerPoints,referredPoints}`. Review body: `{decision:'APPROVE'|'REJECT',reason}`. `GET /api/v1/admin/cost-analytics?groupBy=day|provider|model|user` returns request count, points charged, known provider cost, unpriced row count, and `estimatedRevenue:null`, `grossMargin:null`; results are separated by provider cost currency.
+`GET /api/v1/admin/referrals`, `GET/PUT /api/v1/admin/referral-policy` and `POST /api/v1/admin/referrals/{id}/review` manage qualification. Policy body: `{enabled,minPaidAmount,referrerPoints,referredPoints}`. Review body: `{decision:'APPROVE'|'REJECT',reason}`. `GET /api/v1/admin/cost-analytics?groupBy=day|provider|model|user` returns request count, points charged, known provider cost, unpriced row count, and `estimatedRevenue:null`, `grossMargin:null`; results are separated by provider cost currency.
 
-The existing `/api/v1/admin/*` V1 routes remain. V2 Admin Web pages are not yet implemented.
+The existing `/api/v1/admin/*` V1 routes remain. Admin Web panels now expose the V2 wallet, rate, referral and cost endpoints; production rollout remains gated.
 
 ## Error codes and lifecycle
 

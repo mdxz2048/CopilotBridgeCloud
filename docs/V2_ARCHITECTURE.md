@@ -66,7 +66,7 @@ Wallet changes lock the user wallet row, inspect a globally unique idempotency k
 
 Invitation codes belong to users. A referred user may apply one code before a subscription exists; self-invitation is rejected. Registration stores a keyed IP hash and optional source device; matching installation and high registration velocity become review flags. Registration alone does not grant points. A successful manual paid order can qualify a referral according to `referral_policy`; this policy defaults **disabled** until Admin configures it. Reward transactions use unique beneficiary keys and a unique reward constraint. Admin review is required for flagged referrals and is audited.
 
-Admin API includes wallets and adjustments, rate-card draft/publish, referral policy/review and cost aggregation by day, provider, model or user. Costs are grouped by currency; revenue and gross margin are `null` until a valid monetary point valuation and payment accounting source exist. This avoids invented commercial metrics. The existing Web Admin UI has not yet been extended to these V2 endpoints.
+Admin API and Web panels include wallets and adjustments, rate-card draft/publish, referral policy/review and cost aggregation by day, provider, model or user. Costs are grouped by currency; revenue and gross margin are `null` until a valid monetary point valuation and payment accounting source exist. This avoids invented commercial metrics.
 
 ## Security and traceability
 
@@ -74,4 +74,4 @@ Bearer JWTs are short lived, refresh tokens and browser sessions are stored hash
 
 ## Release boundary
 
-This document describes the implemented data and API surfaces and states remaining limits. It is not evidence of a V2 commercial production launch. The cutover requires PostgreSQL integration tests, subscription rollover policy, real provider usage verification, progressive streaming reconciliation, Web Admin UX, and payment/cost configuration. See [migration guide](V2_MIGRATION_AND_ROLLBACK.md) and [API contract](api-v2.md).
+This document describes the implemented data and API surfaces and states remaining limits. It is not evidence of a V2 commercial production launch. The cutover requires full PostgreSQL integration coverage, subscription rollover policy, real provider usage verification, progressive streaming reconciliation, Admin/browser E2E, and payment/cost configuration. See [migration guide](V2_MIGRATION_AND_ROLLBACK.md) and [API contract](api-v2.md).

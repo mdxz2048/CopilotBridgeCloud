@@ -3,12 +3,15 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppShell, type NavItem } from '../../components/app-shell';
 import { api, patch, post, put, type Plan } from '../../lib/api';
+import { V2AdminPanel } from '../../components/v2-admin-panels';
 
 const items: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: 'Gauge' }, { id: 'users', label: 'Users', icon: 'Users' }, { id: 'devices', label: 'Devices', icon: 'HardDrive' },
   { id: 'plans', label: 'Plans', icon: 'Package' }, { id: 'subscriptions', label: 'Subscriptions', icon: 'BadgeCheck' }, { id: 'usage', label: 'Usage', icon: 'Activity' },
   { id: 'orders', label: 'Orders', icon: 'ShoppingBag' }, { id: 'providers', label: 'Providers', icon: 'Server' }, { id: 'models', label: 'Models', icon: 'Boxes' },
   { id: 'releases', label: 'Releases', icon: 'Download' }, { id: 'audit', label: 'Audit', icon: 'ScrollText' }, { id: 'system', label: 'System', icon: 'Settings2' },
+  { id: 'v2-wallets', label: 'AI 点数钱包', icon: 'CreditCard' }, { id: 'v2-rates', label: '费率卡', icon: 'Package' },
+  { id: 'v2-referrals', label: '邀请审核', icon: 'Users' }, { id: 'v2-costs', label: 'Provider 成本', icon: 'Activity' },
 ];
 type Row = Record<string, unknown> & { id?: string };
 const resourcePaths: Record<string, string> = { users: 'users', devices: 'devices', plans: 'plans', subscriptions: 'subscriptions', usage: 'usage', orders: 'orders', providers: 'providers', models: 'models', releases: 'releases', audit: 'audit' };
@@ -29,6 +32,7 @@ export default function AdminPage() {
       const me = await api<{ user: { email: string; role: string } }>('/api/v1/auth/me');
       if (me.user.role !== 'ADMIN') { router.replace('/dashboard'); return; }
       setEmail(me.user.email);
+      if (active.startsWith('v2-')) return;
       if (active === 'dashboard') setDashboard(await api<Record<string, number>>('/api/v1/admin/dashboard'));
       else if (active === 'system') setSystem(await api<Record<string, unknown>>('/api/v1/admin/system'));
       else { const result = await api<{ data: Row[] }>(`/api/v1/admin/${resourcePaths[active]}${active === 'users' && search ? `?search=${encodeURIComponent(search)}` : ''}`); setRows(result.data); }
@@ -45,6 +49,7 @@ export default function AdminPage() {
   return <AppShell title={title} description="管理账号、权限、订阅与服务状态。" items={items} active={active} onChange={id => {setActive(id);setSelected(null);setForm({});setSearch('');setMessage('');}} email={email || 'Admin'} admin>
     {message && <div className="notice" role="status">{message}</div>}{error && <div className="error-text" role="alert">{error} <button className="mini-button" onClick={load}>重试</button></div>}
     {loading && <div className="loading-skeleton"/>}
+    {!loading && active.startsWith('v2-') && <V2AdminPanel section={active as 'v2-wallets' | 'v2-rates' | 'v2-referrals' | 'v2-costs'}/>}
     {!loading && active === 'dashboard' && <div className="stat-grid">{Object.entries(dashboard).map(([key, value]) => <div className="stat" key={key}><span className="stat-label">{key.toUpperCase()}</span><strong>{value}</strong></div>)}</div>}
     {!loading && active === 'system' && <section className="panel"><h2>系统诊断</h2><p>Database: {display(system.database)}</p><p>Gateway: {display(system.gateway)}</p><p>配置项：{Array.isArray(system.settings) ? system.settings.length : 0}</p></section>}
     {!loading && resourcePaths[active] && <><div className="toolbar"><h2>{title} <span style={{fontSize:12,color:'#9aa69b'}}>({rows.length})</span></h2>{active === 'users' && <input className="search-input" value={search} onChange={e => setSearch(e.target.value)} placeholder="搜索邮箱" aria-label="搜索用户"/>}</div><section className="panel" style={{marginTop:0,padding:0}}>{rows.length ? <div className="table-wrap"><table className="data-table"><thead><tr>{columns[active]?.map(c => <th key={c}>{c}</th>)}<th>操作</th></tr></thead><tbody>{rows.map((row, idx) => <tr key={row.id ?? idx}>{columns[active]?.map(c => <td key={c}>{c === 'status' || c === 'enabled' || c === 'published' ? <span className={`badge ${row[c] === 'ACTIVE' || row[c] === true || row[c] === 'COMPLETED' ? '' : 'muted'}`}>{display(row[c])}</span> : display(row[c])}</td>)}<td><div className="inline-actions">

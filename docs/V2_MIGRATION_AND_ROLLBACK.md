@@ -1,6 +1,6 @@
 # V2 database migration and rollback
 
-The V2 migration is additive: `packages/db/migrations/0001_abandoned_shotgun.sql`. It creates V2 domain tables, adds `plans.monthly_points`, `plans.rollover_policy`, and `devices.updated_at`, plus constraints and immutable-ledger triggers. It does **not** delete or reinterpret `usage_records`, subscription rows, existing device UUIDs, provider credentials, or Gateway V1 contract data. Historical V1 usage remains legacy usage; neither point debits nor provider costs are inferred from it.
+The V2 migrations are additive: `packages/db/migrations/0001_abandoned_shotgun.sql` creates the domain tables, plan/device fields, constraints and immutable-ledger triggers; `0002_heavy_makkari.sql` pins the rate-card version on each AI request and makes the final event unique per request. They do **not** delete or reinterpret `usage_records`, subscription rows, existing device UUIDs, provider credentials, or Gateway V1 contract data. Historical V1 usage remains legacy usage; neither point debits nor provider costs are inferred from it.
 
 ## Migration gate
 
@@ -11,7 +11,7 @@ The V2 migration is additive: `packages/db/migrations/0001_abandoned_shotgun.sql
 5. Configure exactly one active rate version per billable provider/model/policy, grant wallet points through audited subscription or Admin flows, and validate a real provider's reported usage/cost. Set `monthly_points>0` only with `rollover_policy=UNLIMITED` until point-lot expiration is built.
 6. Enable V2 billing only for a controlled real-provider cohort after the preceding checks and App contract review. The current flag is global; cohort selection is pending, so leave it false in public production until that control exists.
 
-The V2 migration was executed successfully on the dedicated empty database `bridge_v2_test_0924` on 2026-09-24. This proves SQL syntax and DDL order, not financial service behavior or production compatibility. The production database has not yet been migrated as of this document's creation.
+Both migrations were executed successfully on the dedicated empty database `bridge_v2_test_0924` on 2026-09-24. The first real-DB run caught a missing rate-version column; the second migration fixed it and the five initial PostgreSQL integration tests passed. Expanded Admin/risk tests are being added. The production database has not yet been migrated as of this document's creation.
 
 ## Data integrity and reconciliation
 

@@ -15,6 +15,13 @@
       "when": 1790215727310,
       "tag": "0001_abandoned_shotgun",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790217505992,
+      "tag": "0002_heavy_makkari",
+      "breakpoints": true
     }
   ]
 }

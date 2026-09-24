@@ -8,7 +8,7 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
   let meterModule: typeof import('./metering.js');
   let referralModule: typeof import('./referral.js');
   let sql: typeof import('drizzle-orm').sql;
-  let ids: { user: string; secondUser: string; device: string; secondDevice: string; provider: string; model: string; plan: string; rateVersion: string };
+  let ids: { user: string; secondUser: string; admin: string; device: string; secondDevice: string; provider: string; model: string; plan: string; rateCard: string; rateVersion: string };
 
   beforeAll(async () => {
     process.env.DATABASE_URL = process.env.V2_TEST_DATABASE_URL;
@@ -27,6 +27,7 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
     await db.execute(sql`truncate table users, plans, providers, system_settings restart identity cascade`);
     const [user] = await db.insert(users).values({ email: `v2-${randomUUID()}@example.test`, passwordHash: 'test' }).returning();
     const [secondUser] = await db.insert(users).values({ email: `v2-${randomUUID()}@example.test`, passwordHash: await (await import('./security.js')).hashPassword('testpassword123') }).returning();
+    const [admin] = await db.insert(users).values({ email: `v2-admin-${randomUUID()}@example.test`, passwordHash: 'test', role: 'ADMIN' }).returning();
     const [device] = await db.insert(devices).values({ userId: user.id, deviceId: randomUUID(), deviceName: 'test', platform: 'test' }).returning();
     const [secondDevice] = await db.insert(devices).values({ userId: secondUser.id, deviceId: randomUUID(), deviceName: 'test', platform: 'test' }).returning();
     const [provider] = await db.insert(providers).values({ code: 'V2_TEST', name: 'V2 Test', enabled: true }).returning();
@@ -36,7 +37,7 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
     const [card] = await db.insert(rateCards).values({ providerId: provider.id, modelId: model.id, billingPolicy: 'MANAGED_USAGE' }).returning();
     const [rateVersion] = await db.insert(rateCardVersions).values({ rateCardId: card.id, version: 1, status: 'ACTIVE', inputRate: '10', outputRate: '20',
       cachedInputRate: '2', reasoningRate: '30', imageInputRate: '3', imageOutputRate: '4', toolRate: '1' }).returning();
-    ids = { user: user.id, secondUser: secondUser.id, device: device.id, secondDevice: secondDevice.id, provider: provider.id, model: model.id, plan: plan.id, rateVersion: rateVersion.id };
+    ids = { user: user.id, secondUser: secondUser.id, admin: admin.id, device: device.id, secondDevice: secondDevice.id, provider: provider.id, model: model.id, plan: plan.id, rateCard: card.id, rateVersion: rateVersion.id };
   });
   afterAll(async () => { await dbModule?.pool.end(); });
 
@@ -134,5 +135,50 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
     const [updated] = await db.select().from(referrals).where((await import('drizzle-orm')).eq(referrals.id, referral.id));
     expect(updated.status).toBe('REWARDED');
     expect(await db.select().from(referralRewards)).toHaveLength(2);
+  });
+
+  it('flags a shared installation and requires an audited Admin review', async () => {
+    const { db, billingOrders, devices, referralRewards, referrals, users } = dbModule;
+    const [ownerDevice] = await db.select().from(devices).where((await import('drizzle-orm')).eq(devices.id, ids.secondDevice));
+    const [referred] = await db.insert(users).values({ email: `v2-risk-${randomUUID()}@example.test`, passwordHash: 'test' }).returning();
+    const [sameInstallation] = await db.insert(devices).values({ userId: referred.id, deviceId: ownerDevice.deviceId, deviceName: 'duplicate', platform: 'test' }).returning();
+    const flagged = await referralModule.registerReferral(referred.id, 'V2TESTCODE', sameInstallation.id, '192.0.2.2');
+    expect(flagged.riskFlags).toContain('SAME_INSTALLATION');
+    expect(flagged.status).toBe('PENDING');
+    await db.insert(billingOrders).values({ orderNo: randomUUID(), userId: referred.id, planId: ids.plan, amount: '5', currency: 'CNY', provider: 'MANUAL', status: 'PAID', paidAt: new Date() });
+    const app = await (await import('./server.js')).createServer();
+    try {
+      const token = await (await import('./security.js')).issueAccess(ids.admin, undefined, 'ADMIN');
+      const review = await app.inject({ method: 'POST', url: `/api/v1/admin/referrals/${flagged.id}/review`, headers: { authorization: `Bearer ${token}` },
+        payload: { decision: 'APPROVE', reason: 'Verified paid user and device ownership' } });
+      expect(review.statusCode).toBe(200);
+      const [updated] = await db.select().from(referrals).where((await import('drizzle-orm')).eq(referrals.id, flagged.id));
+      expect(updated.status).toBe('REWARDED');
+      expect((await db.select().from(referralRewards)).filter(reward => reward.referralId === flagged.id)).toHaveLength(2);
+    } finally { await app.close(); }
+  });
+
+  it('audits Admin point adjustments and publishes new rate versions without rewriting history', async () => {
+    const { db, auditLogs, rateCardVersions, usageEvents } = dbModule;
+    const app = await (await import('./server.js')).createServer();
+    try {
+      const token = await (await import('./security.js')).issueAccess(ids.admin, undefined, 'ADMIN');
+      const headers = { authorization: `Bearer ${token}` };
+      const idempotencyKey = randomUUID();
+      const payload = { points: 5, reason: 'Correct verified billing dispute', idempotencyKey };
+      const first = await app.inject({ method: 'POST', url: `/api/v1/admin/users/${ids.user}/wallet/adjust`, headers, payload });
+      const repeat = await app.inject({ method: 'POST', url: `/api/v1/admin/users/${ids.user}/wallet/adjust`, headers, payload });
+      expect(first.statusCode).toBe(200);
+      expect(repeat.json().duplicate).toBe(true);
+      const create = await app.inject({ method: 'POST', url: `/api/v1/admin/rate-cards/${ids.rateCard}/versions`, headers,
+        payload: { inputRate:'5', outputRate:'6', cachedInputRate:'1', reasoningRate:'8', imageInputRate:'0', imageOutputRate:'0', toolRate:'0', minimumCharge:0, effectiveFrom:null } });
+      expect(create.statusCode).toBe(201);
+      const publish = await app.inject({ method: 'POST', url: `/api/v1/admin/rate-card-versions/${create.json().id}/publish`, headers, payload: {} });
+      expect(publish.statusCode).toBe(200);
+      expect((await meterModule.activeRateVersion(ids.provider, ids.model, 'MANAGED_USAGE'))?.version).toBe(3);
+      expect((await db.select().from(usageEvents)).some(event => event.rateCardVersionId === ids.rateVersion)).toBe(true);
+      expect((await db.select().from(auditLogs)).some(log => log.action === 'WALLET_ADJUSTED')).toBe(true);
+      expect((await db.select().from(rateCardVersions)).filter(version => version.status === 'ACTIVE')).toHaveLength(1);
+    } finally { await app.close(); }
   });
 });
