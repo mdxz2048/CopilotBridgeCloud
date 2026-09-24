@@ -70,6 +70,26 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
     expect(wallet.balance).toBe(100);
   });
 
+  it('expires only unspent non-rollover grants and preserves purchased points', async () => {
+    const { db, plans, subscriptions, users, walletLots, walletTransactions } = dbModule;
+    const [account] = await db.insert(users).values({ email: `v2-expiry-${randomUUID()}@example.test`, passwordHash: 'test' }).returning();
+    const [plan] = await db.insert(plans).values({ code: 'NO_ROLLOVER', name: 'No rollover', monthlyPrice: '1', maxDevices: 1,
+      monthlyTokenLimit: 10000, monthlyUsageCreditLimit: '10000', maxConcurrentRequests: 1, requestsPerMinute: 10, monthlyPoints: 50,
+      rolloverPolicy: 'NONE' }).returning();
+    const start = new Date(); const end = new Date(start.getTime() + 86400000);
+    const [subscription] = await db.insert(subscriptions).values({ userId: account.id, planId: plan.id, status: 'ACTIVE', startedAt: start,
+      currentPeriodStart: start, currentPeriodEnd: end }).returning();
+    await db.transaction(tx => walletModule.grantSubscriptionPoints(tx, subscription.id));
+    await db.transaction(tx => walletModule.applyWalletChange(tx, { userId: account.id, points: 20, type: 'PURCHASE', referenceType: 'TEST', referenceId: 'purchase', idempotencyKey: 'purchase-expiry' }));
+    await db.transaction(tx => walletModule.applyWalletChange(tx, { userId: account.id, points: -30, type: 'USAGE', referenceType: 'TEST', referenceId: 'usage', idempotencyKey: 'usage-expiry' }));
+    expect(await walletModule.expireDueWalletLots(account.id, new Date(end.getTime() + 1000))).toBe(20);
+    expect(await walletModule.expireDueWalletLots(account.id, new Date(end.getTime() + 2000))).toBe(20);
+    const lots = await db.select().from(walletLots);
+    expect(lots.some(lot => lot.expiresAt && lot.remainingPoints === 0)).toBe(true);
+    expect(lots.some(lot => !lot.expiresAt && lot.remainingPoints === 20)).toBe(true);
+    expect((await db.select().from(walletTransactions)).filter(entry => entry.type === 'EXPIRATION' && entry.points === -20)).toHaveLength(1);
+  });
+
   it('registers, limits, revokes and replaces a user-owned device', async () => {
     const { db, users } = dbModule;
     const [user] = await db.select().from(users).where((await import('drizzle-orm')).eq(users.id, ids.secondUser));
@@ -122,6 +142,12 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
     expect(unpaid.billingStatus).toBe('UNPAID');
     expect(unpaid.pointsCharged).toBe(0);
     await expect(meterModule.preflightPoints(ids.secondUser, ids.provider, ids.model, 'MANAGED_USAGE')).rejects.toMatchObject({ code: 'INSUFFICIENT_POINTS' });
+    const [invalid] = await db.insert(aiRequests).values({ responseId: `resp_${randomUUID().replaceAll('-', '')}`, userId: ids.user,
+      deviceId: ids.device, providerId: ids.provider, modelId: ids.model, billingPolicy: 'MANAGED_USAGE', rateCardVersionId: ids.rateVersion, status: 'STARTED' }).returning();
+    const invalidEvent = await meterModule.settleAiRequest(invalid.id, 'COMPLETED', { usage: { inputTokens: -1 }, providerReportedUsage: { input_tokens: -1 } });
+    expect(invalidEvent.billingStatus).toBe('METERING_ERROR');
+    expect(invalidEvent.pointsCharged).toBe(0);
+    await expect(meterModule.preflightPoints(ids.user, ids.provider, ids.model, 'MANAGED_USAGE')).rejects.toMatchObject({ code: 'BILLING_REVIEW_REQUIRED' });
   });
 
   it('records a referral and awards a qualified paid referral once', async () => {

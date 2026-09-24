@@ -1,0 +1,11 @@
+[Unit]
+Description=Hourly Copilot Bridge Cloud AI point expiry
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+RandomizedDelaySec=5m
+Unit=copilot-bridge-cloud-points-expiry.service
+
+[Install]
+WantedBy=timers.target

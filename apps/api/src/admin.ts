@@ -89,7 +89,6 @@ export async function registerAdmin(app: FastifyInstance) {
     const a = await admin(req); const id = idParam(req.params); const data = planData.parse(req.body);
     const [current] = await db.select().from(plans).where(eq(plans.id, id)).limit(1);
     if (!current) throw new ApiError(404, 'NOT_FOUND');
-    if ((data.monthlyPoints ?? current.monthlyPoints) > 0 && (data.rolloverPolicy ?? current.rolloverPolicy) !== 'UNLIMITED') throw new ApiError(409, 'ROLLOVER_POLICY_NOT_IMPLEMENTED');
     const [plan] = await db.update(plans).set({ ...data, monthlyPrice: String(data.monthlyPrice), monthlyUsageCreditLimit: String(data.monthlyUsageCreditLimit) }).where(eq(plans.id, id)).returning();
     if (!plan) throw new ApiError(404, 'NOT_FOUND');
     await audit(a.user.id, 'PLAN_UPDATED', 'PLAN', id);

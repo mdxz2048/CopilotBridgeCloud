@@ -11,7 +11,7 @@ export type PointRates = {
 export function normalizeUsage(raw: Partial<NormalizedUsage>): NormalizedUsage {
   const count = (value: number | undefined) => {
     if (value === undefined) return 0;
-    if (!Number.isSafeInteger(value) || value < 0) throw new Error('INVALID_PROVIDER_USAGE');
+    if (!Number.isSafeInteger(value) || value < 0 || value > 2_147_483_647) throw new Error('INVALID_PROVIDER_USAGE');
     return value;
   };
   const usage = {
@@ -41,6 +41,6 @@ export function ratePoints(policy: BillingPolicy, raw: Partial<NormalizedUsage>,
     + BigInt(u.toolCalls) * micros(rates.toolRate);
   const points = (tokenMicros + itemMicros * 1000n + 999_999_999n) / 1_000_000_000n;
   const result = points > BigInt(rates.minimumCharge) ? points : BigInt(rates.minimumCharge);
-  if (result > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error('RATE_OVERFLOW');
+  if (result > 2_147_483_647n) throw new Error('RATE_OVERFLOW');
   return Number(result);
 }

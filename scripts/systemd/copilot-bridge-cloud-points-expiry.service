@@ -1,0 +1,10 @@
+[Unit]
+Description=Expire Copilot Bridge Cloud AI point lots
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/linuxuser/copilot-bridge-cloud/src
+Environment=SHARED_HOST=1
+ExecStart=/bin/sh /home/linuxuser/copilot-bridge-cloud/src/scripts/expire-points.sh

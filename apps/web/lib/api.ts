@@ -9,7 +9,7 @@ export const post = <T>(path: string, body: unknown) => api<T>(path, { method: '
 export const patch = <T>(path: string, body: unknown) => api<T>(path, { method: 'PATCH', body: JSON.stringify(body) });
 export const put = <T>(path: string, body: unknown) => api<T>(path, { method: 'PUT', body: JSON.stringify(body) });
 export const del = <T>(path: string) => api<T>(path, { method: 'DELETE' });
-export type Plan = { id: string; code: string; name: string; description: string; monthlyPrice: string; currency: string; maxDevices: number; monthlyTokenLimit: number; monthlyUsageCreditLimit: string; maxConcurrentRequests: number; requestsPerMinute: number; enabled: boolean };
+export type Plan = { id: string; code: string; name: string; description: string; monthlyPrice: string; currency: string; maxDevices: number; monthlyTokenLimit: number; monthlyUsageCreditLimit: string; maxConcurrentRequests: number; requestsPerMinute: number; monthlyPoints: number; rolloverPolicy: 'NONE' | 'UNLIMITED'; enabled: boolean };
 export type Device = { id: string; deviceId: string; deviceName: string; platform: string; appVersion: string; status: string; activatedAt: string; lastSeenAt: string | null };
 export type Subscription = { id: string; status: string; currentPeriodStart: string; currentPeriodEnd: string; cancelAtPeriodEnd: boolean; pendingPlanId: string | null };
 export type Usage = { tokens: number; credit: number; requests: number; tokenLimit: number; creditLimit: number; percent: number; threshold: number };

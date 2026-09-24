@@ -22,6 +22,13 @@
       "when": 1790217505992,
       "tag": "0002_heavy_makkari",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790219476897,
+      "tag": "0003_motionless_quasimodo",
+      "breakpoints": true
     }
   ]
 }

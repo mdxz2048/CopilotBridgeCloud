@@ -1,8 +1,8 @@
-import { aiRequests, db, rateCards, rateCardVersions, usageEvents, wallets } from '@bridge/db';
+import { aiRequests, db, rateCards, rateCardVersions, usageEvents } from '@bridge/db';
 import { and, desc, eq, gt, isNull, lte, or } from 'drizzle-orm';
 import { ApiError } from './core.js';
 import { normalizeUsage, ratePoints, type BillingPolicy, type NormalizedUsage } from './rating.js';
-import { applyWalletChange } from './wallet.js';
+import { applyWalletChange, walletSummary } from './wallet.js';
 
 export type RequestState = 'COMPLETED' | 'CLIENT_DISCONNECTED' | 'PROVIDER_ERROR';
 export type MeteredResult = {
@@ -26,11 +26,11 @@ export async function preflightPoints(userId: string, providerId: string, modelI
   if (!rate) throw new ApiError(503, 'RATE_CARD_UNAVAILABLE');
   const requiresBalance = rate.minimumCharge > 0 || [rate.inputRate, rate.outputRate, rate.cachedInputRate, rate.reasoningRate,
     rate.imageInputRate, rate.imageOutputRate, rate.toolRate].some(value => Number(value) > 0);
-  if (!requiresBalance) return { rate };
-  const [wallet] = await db.select().from(wallets).where(eq(wallets.userId, userId)).limit(1);
-  if (!wallet || wallet.balance <= 0) throw new ApiError(402, 'INSUFFICIENT_POINTS');
   const [unpaid] = await db.select({ id: usageEvents.id }).from(usageEvents).where(and(eq(usageEvents.userId, userId), eq(usageEvents.billingStatus, 'UNPAID'))).limit(1);
   if (unpaid) throw new ApiError(402, 'INSUFFICIENT_POINTS');
+  const [review] = await db.select({ id: usageEvents.id }).from(usageEvents).where(and(eq(usageEvents.userId, userId), or(eq(usageEvents.billingStatus, 'METERING_ERROR'), eq(usageEvents.billingStatus, 'UNRATED')))).limit(1);
+  if (review) throw new ApiError(409, 'BILLING_REVIEW_REQUIRED');
+  if (requiresBalance && (await walletSummary(userId)).balance <= 0) throw new ApiError(402, 'INSUFFICIENT_POINTS');
   return { rate };
 }
 
@@ -48,15 +48,23 @@ export async function settleAiRequest(requestId: string, state: RequestState, re
     if (!request) throw new ApiError(404, 'REQUEST_NOT_FOUND');
     const [existing] = await tx.select().from(usageEvents).where(eq(usageEvents.requestId, requestId)).limit(1);
     if (existing) return existing;
-    const usage = normalizeUsage(result.usage ?? {});
+    let meteringError = false;
+    let usage;
+    try { usage = normalizeUsage(result.usage ?? {}); }
+    catch { meteringError = true; usage = normalizeUsage({}); }
     const [version] = request.rateCardVersionId
       ? await tx.select().from(rateCardVersions).where(eq(rateCardVersions.id, request.rateCardVersionId)).limit(1)
       : [];
     const hasObservedUsage = Object.values(usage).some(value => value > 0);
     const billable = hasObservedUsage;
-    const rated = billable ? ratePoints(request.billingPolicy as BillingPolicy, usage, version ?? undefined) : 0;
+    let rated = 0;
+    let ratingError = false;
+    if (billable && !meteringError) {
+      try { rated = ratePoints(request.billingPolicy as BillingPolicy, usage, version ?? undefined); }
+      catch { ratingError = true; }
+    }
     let charged = 0;
-    let billingStatus = 'SETTLED';
+    let billingStatus = meteringError ? 'METERING_ERROR' : ratingError ? 'UNRATED' : 'SETTLED';
     if (rated > 0) {
       try {
         await applyWalletChange(tx, { userId: request.userId, points: -rated, type: 'USAGE', referenceType: 'AI_REQUEST', referenceId: request.id, idempotencyKey: `usage:${request.id}` });
@@ -65,15 +73,16 @@ export async function settleAiRequest(requestId: string, state: RequestState, re
         if (!(error instanceof ApiError && error.code === 'INSUFFICIENT_POINTS')) throw error;
         billingStatus = 'UNPAID';
       }
-    } else if (!hasObservedUsage) billingStatus = 'NO_USAGE';
+    } else if (!hasObservedUsage && !meteringError) billingStatus = 'NO_USAGE';
     const [event] = await tx.insert(usageEvents).values({
       requestId, eventKey: `final:${requestId}`, userId: request.userId, deviceId: request.deviceId,
       providerId: request.providerId, modelId: request.modelId, ...usage,
-      providerReportedUsage: result.providerReportedUsage ?? null, providerCost: result.providerCost ?? null, providerCurrency: result.providerCurrency ?? null,
+      providerReportedUsage: result.providerReportedUsage ?? (meteringError ? result.usage as Record<string, unknown> : null), providerCost: result.providerCost ?? null, providerCurrency: result.providerCurrency ?? null,
       rateCardVersionId: request.rateCardVersionId, pointsRated: rated, pointsCharged: charged, billingStatus,
       billingPolicy: request.billingPolicy, startedAt: request.startedAt ?? request.createdAt, completedAt: result.completedAt ?? new Date(),
     }).returning();
-    await tx.update(aiRequests).set({ status: state, completedAt: event.completedAt, errorCode: state === 'PROVIDER_ERROR' ? 'PROVIDER_UNAVAILABLE' : null }).where(eq(aiRequests.id, requestId));
+    await tx.update(aiRequests).set({ status: state, completedAt: event.completedAt,
+      errorCode: meteringError ? 'INVALID_PROVIDER_USAGE' : ratingError ? 'UNRATED_USAGE' : state === 'PROVIDER_ERROR' ? 'PROVIDER_UNAVAILABLE' : null }).where(eq(aiRequests.id, requestId));
     return event;
   });
 }

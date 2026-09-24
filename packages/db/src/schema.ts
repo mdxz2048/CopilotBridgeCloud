@@ -87,6 +87,15 @@ export const walletTransactions = pgTable('wallet_transactions', {
   referenceType: varchar('reference_type', { length: 32 }).notNull(), referenceId: text('reference_id').notNull(),
   idempotencyKey: text('idempotency_key').notNull().unique(), metadata: jsonb('metadata').$type<Record<string, unknown>>().notNull().default({}), createdAt: created(),
 }, t => [index('wallet_transactions_wallet_date_idx').on(t.walletId, t.createdAt)]);
+export const walletLots = pgTable('wallet_lots', {
+  id: id(), walletId: uuid('wallet_id').notNull().references(() => wallets.id), sourceTransactionId: uuid('source_transaction_id').notNull().references(() => walletTransactions.id).unique(),
+  grantedPoints: integer('granted_points').notNull(), remainingPoints: integer('remaining_points').notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }), createdAt: created(),
+}, t => [index('wallet_lots_expiry_idx').on(t.walletId, t.expiresAt)]);
+export const walletLotSpends = pgTable('wallet_lot_spends', {
+  id: id(), lotId: uuid('lot_id').notNull().references(() => walletLots.id), transactionId: uuid('transaction_id').notNull().references(() => walletTransactions.id),
+  points: integer('points').notNull(), createdAt: created(),
+}, t => [uniqueIndex('wallet_lot_spend_unique').on(t.lotId, t.transactionId)]);
 export const rateCards = pgTable('rate_cards', {
   id: id(), providerId: uuid('provider_id').notNull().references(() => providers.id), modelId: uuid('model_id').notNull().references(() => models.id),
   billingPolicy: varchar('billing_policy', { length: 24 }).notNull(), createdAt: created(),
