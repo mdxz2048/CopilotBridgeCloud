@@ -1,6 +1,6 @@
 # Status as of 2026-09-23
 Overall: **FAIL — integration preview, not V1 release candidate.** PASS means verified locally or over production HTTPS; PASS (Mock only) means the local loopback MockProvider test passed and the production path is not yet validated. FAIL includes implemented code that has not passed its full release criterion. See the deployment document for test scope.
-Current blockers: no production administrator, no configured plan prices and quotas, no DeepSeek key, Copilot integration needs authorization/review, WeChat Pay and Alipay are not connected, progressive production streaming is not implemented, and full device/subscription/usage/restore acceptance is pending.
+Current blockers: no configured commercial plan prices and quotas, no DeepSeek key, Copilot integration needs authorization/review, WeChat Pay and Alipay are not connected, progressive production streaming is not implemented, and full device/subscription/usage/restore acceptance is pending. The production administrator is bootstrapped; Admin mutation and UI acceptance remain pending.
 
 ---
 

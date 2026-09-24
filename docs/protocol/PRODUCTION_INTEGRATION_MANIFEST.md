@@ -7,17 +7,17 @@ This is the **only Desktop production integration handoff manifest**. Server/Con
 ```text
 SERVER_BASE_URL: https://ai.mddxz.top
 CONTRACT_VERSION: 1.0.0
-SERVER_COMMIT: 534cb791f2dc412722b1b14bc719d3e615a160eb
+SERVER_COMMIT: d02a961f83e3af3f6b788f04ae0f4757f3775ed8
 OPENAPI_HASH: sha256:4c72178606ecd71ec047c9618e89eff6581e489f53d80ff54f4035d7152a2d85
 ACCOUNT_MANAGEMENT_URL: https://ai.mddxz.top/dashboard
 TEST_ACCOUNT: production-integration@example.test
 TEST_ACCOUNT_PLAN: Pro (hidden integration fixture; commercial Pro PENDING)
-TEST_DEVICE_LIMIT: 3 (gate-test devices revoked; three slots available)
+TEST_DEVICE_LIMIT: 3 (all three currently active; reuse an existing registered installation or free a slot through account management)
 AVAILABLE_MODELS: mock/mock-chat (test account only; real models BLOCKED)
 LATEST_RELEASE_ENDPOINT: https://ai.mddxz.top/api/v1/releases/latest
 MOCK_PROVIDER: ENABLED_FOR_TEST_ACCOUNT_ONLY
 REAL_PROVIDERS: Copilot=NEEDS_USER_ACTION; DeepSeek=BLOCKED (API key missing)
-PRODUCTION_STATUS: PARTIAL — HTTPS and gated Mock integration verified; real-provider and commercial release BLOCKED
+PRODUCTION_STATUS: PARTIAL — HTTPS, gated Mock integration and additive V2 schema deployed; V2 point billing DISABLED; real-provider and commercial release BLOCKED
 ```
 
 `LATEST_RELEASE_ENDPOINT` currently returns `{ "release": null }`; publishing a Desktop release is **PENDING**.
@@ -30,6 +30,6 @@ $credential = [pscredential]::new('production-integration@example.test', $secure
 # Pass $credential.GetNetworkCredential().Password directly to POST /api/v1/auth/login.
 ```
 
-Desktop must generate a new stable random UUID for its device ID. The production test account has a live hidden Pro subscription and a three-device limit. The production gateway has passed login, device activation and revocation, account and subscription reads, `/v1/models`, JSON response, SSE completion, two sequential local tool calls with both outputs returned, and usage persistence after container restart. This is a **Mock-only** production integration path; it does not prove a real AI provider, progressive upstream streaming, payment, or commercial plan readiness.
+Desktop must generate a stable random UUID for its device ID and persist it. The production test account has a live hidden Pro subscription and a three-device limit. All three slots were occupied on 2026-09-24 by registered Desktop installations; another new installation will receive `DEVICE_LIMIT_REACHED` until a slot is freed. Do not silently revoke a Desktop installation. The production gateway has passed login, account and subscription reads, `/v1/models`, JSON response, SSE completion, two sequential local tool calls with both outputs returned, and V2 wallet read after the additive deployment. Earlier V1 testing also verified usage persistence after restart. This is a **Mock-only** production integration path; it does not prove a real AI provider, progressive upstream streaming, payment, or commercial plan readiness.
 
 Production rejects the fixed loopback Mock password and has no `/mock/desktop.exe` route. `X-Mock-Error-Code` is ignored in production. Public `/api/v1/plans` remains empty until commercial prices and quotas are configured. The local loopback Mock environment in [DESKTOP_INTEGRATION.md](DESKTOP_INTEGRATION.md) remains separate.

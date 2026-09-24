@@ -27,7 +27,7 @@ Status vocabulary: **PASS**, **PARTIAL**, **BLOCKED**, **NOT_IMPLEMENTED**. `IMP
 | Release | PASS | PASS | PARTIAL | PARTIAL | Nullable latest-release response is frozen; no production release published. |
 | Website | PASS | PASS | PASS | PASS | HTTPS Playwright at 375/768/1280/1440/1920; home, pricing, download and auth pages. |
 | User Dashboard | PARTIAL | PARTIAL | PARTIAL | PARTIAL | UI and account endpoints exist; subscribed production UI acceptance pending. |
-| Admin | PARTIAL | PARTIAL | BLOCKED | PARTIAL | API/UI exist; production administrator awaits password entry on the server. |
+| Admin | PARTIAL | PARTIAL | PARTIAL | PARTIAL | Production administrator authenticated; dashboard, wallet, rates, referrals and cost read routes passed over HTTPS. UI/mutations await acceptance. |
 | Audit | PASS | PARTIAL | PARTIAL | PASS | Registration/admin operations write audit rows; event review incomplete. |
 | Docker | PASS | PASS | PASS | PASS | Four Compose services running on the server. |
 | PostgreSQL | PASS | PASS | PASS | PASS | Dedicated persistent PostgreSQL 17 volume; account survived container restart. |

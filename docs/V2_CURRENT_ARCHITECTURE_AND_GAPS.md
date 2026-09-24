@@ -1,6 +1,6 @@
 # Copilot Bridge Server V2 — Current Architecture and Gap Analysis
 
-Baseline: deployed Server source commit `534cb791f2dc412722b1b14bc719d3e615a160eb`. Gateway API V1 contract `1.0.0` is frozen at tag `gateway-api-v1.0.0`; the current production integration manifest is [PRODUCTION_INTEGRATION_MANIFEST.md](protocol/PRODUCTION_INTEGRATION_MANIFEST.md). This analysis precedes V2 schema or API changes.
+Analysis baseline: Server source commit `534cb791f2dc412722b1b14bc719d3e615a160eb`, before V2 implementation. Gateway API V1 contract `1.0.0` is frozen at tag `gateway-api-v1.0.0`; the current production integration manifest is [PRODUCTION_INTEGRATION_MANIFEST.md](protocol/PRODUCTION_INTEGRATION_MANIFEST.md). This analysis was written before V2 schema or API changes.
 
 ## Current architecture
 

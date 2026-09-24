@@ -1,4 +1,4 @@
-# DEVELOPMENT HANDOFF — 2026-09-23
+# DEVELOPMENT HANDOFF — updated 2026-09-24
 
 | Gate | Status | Scope |
 | --- | --- | --- |
@@ -14,12 +14,12 @@
 | PRODUCTION TOOL CONTINUATION | PASS | Production gated Mock completed read → write → final answer with both local outputs. |
 | WEBSITE | PASS | Public pages and five viewport widths passed production Playwright. |
 | USER DASHBOARD | PARTIAL | UI and account data exist; subscribed UI acceptance pending. |
-| ADMIN | PARTIAL | Routes/UI exist; initial production admin still needs terminal bootstrap and live acceptance. |
+| ADMIN | PARTIAL | Administrator login and V2 Admin read routes passed over HTTPS; full UI and mutating workflows still need acceptance. |
 | BILLING | PARTIAL | Manual order and mark-paid transaction exist; commercial plan and payment E2E pending. |
 | REAL PROVIDER | BLOCKED | DeepSeek API key absent; Copilot requires approved integration and user authorization. |
 | ai.mddxz.top | PASS | DNS, Nginx, loopback Caddy, Web, API, PostgreSQL and HTTPS verified. |
 
-**Server source commit:** `534cb791f2dc412722b1b14bc719d3e615a160eb`.
+**Server source commit:** `d02a961f83e3af3f6b788f04ae0f4757f3775ed8` (V2 schema and API deployed with point billing disabled).
 
 **Contract version:** `1.0.0`; **OpenAPI SHA-256:** `4c72178606ecd71ec047c9618e89eff6581e489f53d80ff54f4035d7152a2d85`.
 
