@@ -20,7 +20,7 @@ Contract version `2.0.0`. PostgreSQL 17 with Drizzle migrations is the system of
 1. `0000`: V1 baseline.
 2. `0001_abandoned_shotgun.sql`: additive V2 domain tables, fields, immutable event/ledger and rate-card constraints.
 3. `0002_heavy_makkari.sql`: request rate-version pin and unique final event per request.
-4. `0003_motionless_quasimodo.sql`: wallet lots, allocations, checks and immutability guards. This migration has passed SQL application on a fresh isolated test DB; full application tests and production rollout are tracked in [deployment-v2.md](deployment-v2.md).
+4. `0003_motionless_quasimodo.sql`: wallet lots, allocations, checks and immutability guards. The full migration chain and eight PostgreSQL invariants passed on an isolated fresh database. Production migration and the hourly expiry job passed with point charging disabled; see [deployment-v2.md](deployment-v2.md).
 
 No migration fabricates points, provider cost or revenue from legacy `usage_records`. V1 records remain the quota history. Production V2 wallets currently contain no ledger rows and no nonzero balances; before applying `0003` to another environment, check these counts and reconcile/backfill any preexisting V2 credits. Migration is forward only. Rollback switches API/Web images while leaving additive schema in place; dropping tables would destroy billing evidence.
 

@@ -13,6 +13,8 @@ The mock API listens on `http://127.0.0.1:3001` and has no database dependency. 
 
 Contract: [Gateway API](docs/protocol/GATEWAY_API_V1.md), [Desktop Integration](docs/protocol/DESKTOP_INTEGRATION.md), [OpenAPI 3.1](docs/protocol/openapi.v1.json), [Zod schemas](packages/contract/src/schemas.ts). Regenerate OpenAPI with `pnpm contract:generate`.
 
+V2 App/Server contract `2.0.0`: [API contract](docs/api-v2.md) (sole V2 wire authority), [architecture](docs/architecture-v2.md), [billing](docs/billing-v2.md), [database](docs/database-v2.md), [migration](docs/migration-v2.md), and [deployment status](docs/deployment-v2.md). The corresponding additive Zod shapes are in [v2-schemas.ts](packages/contract/src/v2-schemas.ts). The [production integration manifest](docs/protocol/PRODUCTION_INTEGRATION_MANIFEST.md) describes what is actually live; production V2 point billing is disabled.
+
 ## Development
 
 1. Copy `.env.example` to `.env` and set database URL and random secrets. Set `PUBLIC_BASE_URL=http://localhost:3000` for browser CSRF checks.

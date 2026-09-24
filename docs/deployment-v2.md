@@ -7,14 +7,14 @@ Contract version `2.0.0`; live Desktop V1 manifest: [PRODUCTION_INTEGRATION_MANI
 | Capability | Status | Evidence/limit |
 | --- | --- | --- |
 | HTTPS, V1 Mock-only Desktop integration | PASS | Public auth, models, JSON/SSE responses and two-step tool continuation smoke passed. |
-| V2 additive schema `0001`–`0002`, API/Web | PASS | Deployed source commit `d02a961f83e3af3f6b788f04ae0f4757f3775ed8`; production health and Admin read routes passed. |
+| V2 additive schema `0001`–`0003`, API/Web | PASS | Deployed source commit `b669b60acb49cdc95bee526c75ff3cefbc60f1bc`; production health and Admin read routes passed. |
 | V2 wallet/usage reads | PASS | Production read smoke passed; point charging remains disabled. |
-| Migration `0003` and expiring lot code | PENDING | Tested SQL on isolated DB; integration tests and controlled production migration are next. |
+| Migration `0003` and expiring lot code | PASS | Full migration chain and eight invariants passed on isolated DB; production migration and hourly expiry timer succeeded. Public point charging remains off. |
 | V2 point charging, BYOS inference, progressive upstream streaming | BLOCKED | Global `V2_BILLING_ENABLED=false`; real provider E2E and cohort gate absent. |
 | DeepSeek/Copilot real inference | BLOCKED | DeepSeek server key absent; Copilot authorization needs user action. |
 | Commercial plans, real QR payment, revenue/margin | BLOCKED | Prices/merchant parameters and valuation absent; public plan list is empty. |
 
-The V1 gateway contract is tag `gateway-api-v1.0.0` at `15ceb492349aa20cd5948b270efdfb11a730e17c`, OpenAPI SHA-256 `4c72178606ecd71ec047c9618e89eff6581e489f53d80ff54f4035d7152a2d85`. Do not change it silently. The deployed V2 API/Web commit above is distinct from later documentation commits.
+The V1 gateway contract is tag `gateway-api-v1.0.0` at `15ceb492349aa20cd5948b270efdfb11a730e17c`, OpenAPI SHA-256 `4c72178606ecd71ec047c9618e89eff6581e489f53d80ff54f4035d7152a2d85`. Do not change it silently. The deployed V2 API/Web commit above is distinct from later documentation commits. Production backup `backups/bridge-20260924T034328Z.dump` is a verified 0600 custom-format archive (210 archive-list lines). Pre-migration V2 wallet transactions and nonzero wallets were both zero. After rollout, public Desktop Mock and Admin smoke passed; API/Web restart preserved users and usage; public Playwright passed. The test account's existing device was reused, with no revocation.
 
 ## Controlled forward rollout
 

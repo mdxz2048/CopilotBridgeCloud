@@ -53,6 +53,15 @@ try {
   $wallet = Invoke-RestMethod -Uri "$BaseUrl/api/v1/me/wallet" -Headers $headers
   if ($wallet.unit -ne 'AI_POINT') { throw 'V2 wallet endpoint failed' }
   Write-Output 'V2_WALLET_READ PASS'
+  $me = Invoke-RestMethod -Uri "$BaseUrl/api/v1/me" -Headers $headers
+  if ($me.account.email -ne 'production-integration@example.test' -or $me.subscription.planCode -ne 'PRO' -or $me.wallet.unit -ne 'AI_POINT') { throw 'V2 account contract failed' }
+  $usage = Invoke-RestMethod -Uri "$BaseUrl/api/v1/usage" -Headers $headers
+  $usageCanonical = Invoke-RestMethod -Uri "$BaseUrl/api/v1/me/usage" -Headers $headers
+  if ($usage.requests -ne $usageCanonical.requests -or $usage.pointsCharged -ne $usageCanonical.pointsCharged) { throw 'V2 usage aliases differ' }
+  $referral = Invoke-RestMethod -Uri "$BaseUrl/api/v1/referral" -Headers $headers
+  $referralCanonical = Invoke-RestMethod -Uri "$BaseUrl/api/v1/referral/stats" -Headers $headers
+  if ($referral.code -ne $referralCanonical.code) { throw 'V2 referral aliases differ' }
+  Write-Output 'V2_CONTRACT_READS PASS'
 } finally {
   if (-not $reuseDevice -and $accessToken -and $registeredDeviceId) {
     try { Invoke-RestMethod -Uri "$BaseUrl/api/v1/devices/$registeredDeviceId" -Method Delete -Headers @{ Authorization = "Bearer $accessToken" } | Out-Null }
