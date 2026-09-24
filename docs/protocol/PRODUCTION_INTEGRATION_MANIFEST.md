@@ -7,8 +7,8 @@ This is the **only App/Desktop production integration handoff**. Server/Contract
 ```text
 SERVER_BASE_URL: https://ai.mddxz.top
 CONTRACT_VERSION: 2.2.0
-SERVER_COMMIT: 0cb3307d9fce0ea8a5bf8ffef43e00364abf1738
-DEPLOYMENT_VERSION: api-image-sha256:20a67bd8151dcd5db1c8c808485ec858532eb43c982cdfaa1661a0f509890f9a
+SERVER_COMMIT: c987b4d77898595831f0c9e7740c71068a5e1646
+DEPLOYMENT_VERSION: api-image-sha256:d7bfa3bfbad917705cb52389ad0262ffad499da0f4fbfe7676a47d84a0b12b80
 OPENAPI_HASH: sha256:c8039a458af1adf9af9863c2bce6d54c729c5bbc71bf173778ad4072cc7de090
 ACCOUNT_MANAGEMENT_URL: https://ai.mddxz.top/dashboard
 TEST_ACCOUNT: production-integration@example.test
@@ -18,11 +18,11 @@ AVAILABLE_MODELS: mock/mock-chat (test account only)
 LATEST_RELEASE_ENDPOINT: https://ai.mddxz.top/api/v1/releases/latest
 MOCK_PROVIDER: ENABLED_FOR_TEST_ACCOUNT_ONLY
 METERED_TEST_PROVIDER: mock/mock-chat; SHADOW rated usage and settlement PASS
-REAL_PROVIDERS: Copilot=NEEDS_USER_ACTION; DeepSeek=BLOCKED (API key missing)
-REAL_PROVIDER: BLOCKED (no real-provider production E2E)
+REAL_PROVIDERS: Copilot=BLOCKED (server SDK authentication false; server Device Flow pending); all others OUT_OF_V1_RELEASE_GATE
+REAL_PROVIDER: BLOCKED (local SDK entitlement verified; production real-provider E2E pending)
 BILLING_MODE: SHADOW (V2_BILLING_ENABLED=false; ENFORCED disabled)
 TEST_WALLET: 10000 AI_POINT via idempotent TEST_GRANT ledger fixture
-PRODUCTION_STATUS: PARTIAL — HTTPS, V2 Contract, referral onboarding DB tests, gated Mock, wallet/ledger/usage/rate/Shadow settlement PASS; real provider and commercial charging BLOCKED
+PRODUCTION_STATUS: PARTIAL — HTTPS, V2.2 Contract, gated Mock Shadow settlement and API health PASS; server Copilot authentication and real-provider E2E BLOCKED; ENFORCED remains disabled
 GATEWAY_V1_CONTRACT_VERSION: 1.0.0
 GATEWAY_V1_OPENAPI_HASH: sha256:4c72178606ecd71ec047c9618e89eff6581e489f53d80ff54f4035d7152a2d85
 ```
