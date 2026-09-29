@@ -19,7 +19,7 @@ The V1 gateway contract is tag `gateway-api-v1.0.0` at `15ceb492349aa20cd5948b27
 
 ## 2026-09-29 API/Web rollout and incremental migration `0004`
 
-**DEPLOYED, with commercial and real-provider gates still closed.** The reviewed deployment came from an uncommitted source archive, SHA-256 `26047678958dc76f6280cf3e39d0aa08f75529f5d03f79254b7042a74f388c12`; the release commit mapping is pending and must be added after the source is committed. API and Web images were switched together; their deployed digests are recorded in the [production integration manifest](protocol/PRODUCTION_INTEGRATION_MANIFEST.md). Do not attribute this release to the older API commit in the 2026-09-24 history above.
+**DEPLOYED, with commercial and real-provider gates still closed.** The reviewed deployment came from source archive SHA-256 `26047678958dc76f6280cf3e39d0aa08f75529f5d03f79254b7042a74f388c12`; commit `6cea3f8233ecb4aebe09bca6d910e9365ea9b576` recorded matching API/Web runtime code afterward, with documentation and a production-origin browser test correction. API and Web images were switched together; their deployed digests are recorded in the [production integration manifest](protocol/PRODUCTION_INTEGRATION_MANIFEST.md). The archive and image digests, not the later commit, identify the exact build. Do not attribute this release to the older API commit in the 2026-09-24 history above.
 
 The full migration chain and PostgreSQL tests passed **14/14 on an isolated database** before the incremental `0004_dear_gressill.sql` production migration and API/Web cutover. `0004` adds `devices.auth_version` with default `0`: old device JWTs without the claim remain compatible while the stored version is `0`; revocation and Admin status transitions invalidate old device credentials, and restoration requires a new login. Production health, Admin reads, gated Mock JSON/SSE and two-step tool continuation, SHADOW settlement (`pointsRated=1`, `pointsCharged=0`), unchanged 10000-point test wallet, and API restart persistence passed. This does **not** verify real Copilot inference or payment.
 
@@ -34,7 +34,7 @@ Copilot GitHub OAuth reports `NOT_AUTHENTICATED` in production; Copilot Provider
 3. Record the running API/Web image IDs and source artifact/commit mapping. For future deployments, take and verify a new production DB backup unless a new, explicit risk decision waives it; the 2026-09-29 waiver did not create a DB rollback point.
 4. Build API/Web images from one reviewed source artifact. Apply only migrations not yet present **before** starting the API code that needs them; `0004` was applied on 2026-09-29. Preserve previous API/Web tags and source archive for rollback.
 5. Switch only this project's services as reviewed. Run `/health`, authorized auth/device/subscription/model/JSON/SSE/tool continuation, V2 reads and Shadow settlement, Admin, public Web and restart-persistence smoke. Verify `V2_BILLING_MODE=SHADOW` inside the running API.
-6. Confirm the existing hourly expiry timer continues to run. Sync the Desktop manifest with the actual deployed source digest, and add the commit mapping only after committing the identical source. Do not advertise real providers or point billing until their separate E2E passes.
+6. Confirm the existing hourly expiry timer continues to run. Sync the Desktop manifest with the deployed image digests and archive fingerprint. Do not advertise real providers or point billing until their separate E2E passes.
 
 ## Commercial cutover gate
 

@@ -2,12 +2,12 @@
 
 This is the **only App/Desktop production integration handoff**. Server/Contract ownership remains with the Server Agent. [api-v2.md](../api-v2.md), the generated [openapi.v2.json](openapi.v2.json), the shared Zod schemas and the deployed routes are frozen together as V2 `2.2.0`. Breaking changes require a reviewed new version.
 
-The 2026-09-29 deployment was built from a reviewed, uncommitted source archive; its SHA-256 and image digests identify the deployed source until a release commit is created. No password or provider secret is stored in this repository.
+The 2026-09-29 deployment was built from a reviewed source archive before commit `6cea3f8233ecb4aebe09bca6d910e9365ea9b576` was created. The archive SHA-256 and image digests identify the exact build; the later commit records matching API/Web runtime code plus documentation and a production-origin browser test correction. No password or provider secret is stored in this repository.
 
 ```text
 SERVER_BASE_URL: https://ai.mddxz.top
 CONTRACT_VERSION: 2.2.0
-SERVER_COMMIT: none (uncommitted release snapshot; base HEAD 1977cc6)
+SERVER_COMMIT: 6cea3f8233ecb4aebe09bca6d910e9365ea9b576 (recorded after build; use archive/image digests for exact artifact)
 SOURCE_ARCHIVE_SHA256: 26047678958dc76f6280cf3e39d0aa08f75529f5d03f79254b7042a74f388c12
 DEPLOYMENT_VERSION: api-image-sha256:a27056c896899c7db1d4bb19c0ba25e43abbbc10d1842d38de5b7db7066123c7
 WEB_DEPLOYMENT_VERSION: web-image-sha256:8cc16eb6c975afc0f34219bc76e29ccd3bfba392f8ec75ac44134f369f163a4a
