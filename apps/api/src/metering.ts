@@ -1,15 +1,39 @@
 import { aiRequests, db, rateCards, rateCardVersions, usageEvents } from '@bridge/db';
 import { and, desc, eq, gt, isNull, lte, or } from 'drizzle-orm';
 import { ApiError } from './core.js';
-import { normalizeUsage, ratePoints, type BillingPolicy, type NormalizedUsage } from './rating.js';
+import { normalizeUsage, ratePoints, type BillingPolicy, type NormalizedUsage, type PointRates } from './rating.js';
 import { applyWalletChange, walletSummary } from './wallet.js';
 import type { BillingMode } from './billing-mode.js';
 
 export type RequestState = 'COMPLETED' | 'CLIENT_DISCONNECTED' | 'PROVIDER_ERROR';
 export type MeteredResult = {
-  usage?: Partial<NormalizedUsage>; providerReportedUsage?: Record<string, unknown>;
+  usage?: Partial<NormalizedUsage>; usageUnavailable?: boolean; providerReportedUsage?: Record<string, unknown>;
   providerCost?: string; providerCurrency?: string; completedAt?: Date;
 };
+
+export function hasObservedUpstreamTextDelta(previous: boolean, delta: string) {
+  return previous || delta.length > 0;
+}
+
+export function interruptedStreamUsageUnavailable(observedTextDelta: boolean, observedUsage: boolean) {
+  return observedTextDelta && !observedUsage;
+}
+
+export function evaluateMeteredUsage(result: MeteredResult, policy: BillingPolicy, version: PointRates | undefined, mode: Exclude<BillingMode, 'OFF'>) {
+  let meteringError = result.usageUnavailable === true;
+  let usage;
+  try { usage = normalizeUsage(result.usage ?? {}); }
+  catch { meteringError = true; usage = normalizeUsage({}); }
+  const hasObservedUsage = Object.values(usage).some(value => value > 0);
+  let rated = 0;
+  let ratingError = false;
+  if (hasObservedUsage && !meteringError) {
+    try { rated = ratePoints(policy, usage, version); }
+    catch { ratingError = true; }
+  }
+  const billingStatus = meteringError ? 'METERING_ERROR' : ratingError ? 'UNRATED' : !hasObservedUsage ? 'NO_USAGE' : mode === 'SHADOW' ? 'SHADOW' : 'SETTLED';
+  return { usage, rated, meteringError, ratingError, billingStatus };
+}
 
 export async function activeRateVersion(providerId: string, modelId: string, billingPolicy: BillingPolicy, at = new Date()) {
   const [rate] = await db.select({ version: rateCardVersions }).from(rateCardVersions)
@@ -49,23 +73,13 @@ export async function settleAiRequest(requestId: string, state: RequestState, re
     if (!request) throw new ApiError(404, 'REQUEST_NOT_FOUND');
     const [existing] = await tx.select().from(usageEvents).where(eq(usageEvents.requestId, requestId)).limit(1);
     if (existing) return existing;
-    let meteringError = false;
-    let usage;
-    try { usage = normalizeUsage(result.usage ?? {}); }
-    catch { meteringError = true; usage = normalizeUsage({}); }
     const [version] = request.rateCardVersionId
       ? await tx.select().from(rateCardVersions).where(eq(rateCardVersions.id, request.rateCardVersionId)).limit(1)
       : [];
-    const hasObservedUsage = Object.values(usage).some(value => value > 0);
-    const billable = hasObservedUsage;
-    let rated = 0;
-    let ratingError = false;
-    if (billable && !meteringError) {
-      try { rated = ratePoints(request.billingPolicy as BillingPolicy, usage, version ?? undefined); }
-      catch { ratingError = true; }
-    }
+    const { usage, rated, meteringError, ratingError, billingStatus: initialStatus } = evaluateMeteredUsage(
+      result, request.billingPolicy as BillingPolicy, version ?? undefined, mode);
     let charged = 0;
-    let billingStatus = meteringError ? 'METERING_ERROR' : ratingError ? 'UNRATED' : !hasObservedUsage ? 'NO_USAGE' : mode === 'SHADOW' ? 'SHADOW' : 'SETTLED';
+    let billingStatus = initialStatus;
     if (rated > 0 && mode === 'ENFORCED') {
       try {
         await applyWalletChange(tx, { userId: request.userId, points: -rated, type: 'USAGE', referenceType: 'AI_REQUEST', referenceId: request.id, idempotencyKey: `usage:${request.id}` });
@@ -78,12 +92,12 @@ export async function settleAiRequest(requestId: string, state: RequestState, re
     const [event] = await tx.insert(usageEvents).values({
       requestId, eventKey: `final:${requestId}`, userId: request.userId, deviceId: request.deviceId,
       providerId: request.providerId, modelId: request.modelId, ...usage,
-      providerReportedUsage: result.providerReportedUsage ?? (meteringError ? result.usage as Record<string, unknown> : null), providerCost: result.providerCost ?? null, providerCurrency: result.providerCurrency ?? null,
+      providerReportedUsage: result.providerReportedUsage ?? (meteringError && result.usage ? result.usage as Record<string, unknown> : null), providerCost: result.providerCost ?? null, providerCurrency: result.providerCurrency ?? null,
       rateCardVersionId: request.rateCardVersionId, pointsRated: rated, pointsCharged: charged, billingStatus,
       billingPolicy: request.billingPolicy, startedAt: request.startedAt ?? request.createdAt, completedAt: result.completedAt ?? new Date(),
     }).returning();
     await tx.update(aiRequests).set({ status: state, completedAt: event.completedAt,
-      errorCode: meteringError ? 'INVALID_PROVIDER_USAGE' : ratingError ? 'UNRATED_USAGE' : state === 'PROVIDER_ERROR' ? 'PROVIDER_UNAVAILABLE' : null }).where(eq(aiRequests.id, requestId));
+      errorCode: result.usageUnavailable ? 'COPILOT_USAGE_UNAVAILABLE' : meteringError ? 'INVALID_PROVIDER_USAGE' : ratingError ? 'UNRATED_USAGE' : state === 'PROVIDER_ERROR' ? 'PROVIDER_UNAVAILABLE' : null }).where(eq(aiRequests.id, requestId));
     return event;
   });
 }

@@ -7,7 +7,7 @@ import { ResponseRequestSchema } from '@bridge/contract';
 import { actor, allowedModels, ApiError, currentSubscription, requireEntitlement, subscriptionError } from './core.js';
 import { usageCredit } from './logic.js';
 import { providerFor, type CanonicalRequest, type CanonicalResult } from './provider.js';
-import { activeRateVersion, preflightPoints, settleAiRequest } from './metering.js';
+import { activeRateVersion, hasObservedUpstreamTextDelta, interruptedStreamUsageUnavailable, preflightPoints, settleAiRequest } from './metering.js';
 import { walletSummary } from './wallet.js';
 import { hashRiskSignal } from './referral.js';
 import type { BillingPolicy } from './rating.js';
@@ -78,6 +78,7 @@ export async function registerGateway(app: FastifyInstance) {
     let clientDisconnected = false;
     let observedResult: CanonicalResult | undefined;
     let copilotStreamOpened = false;
+    let observedTextDelta = false;
     reply.raw.on('close', () => {
       if (!ended && !reply.raw.writableEnded) {
         clientDisconnected = true; controller.abort();
@@ -99,8 +100,10 @@ export async function registerGateway(app: FastifyInstance) {
           item: { type: 'message', role: 'assistant', content: [] } });
       }
       const onTextDelta = copilotStreamOpened ? (delta: string) => {
-        if (!reply.raw.destroyed && !reply.raw.writableEnded)
+        observedTextDelta = hasObservedUpstreamTextDelta(observedTextDelta, delta);
+        if (delta && !reply.raw.destroyed && !reply.raw.writableEnded) {
           writeEvent(reply.raw, 'response.output_text.delta', { response_id: responseId, output_index: 0, delta });
+        }
       } : undefined;
       const result = !connection && existing?.modelId === ent.model.id && existing.providerSessionId
         ? await adapter.resumeSession(body, ent.model.providerModelId, existing.providerSessionId, controller.signal, onTextDelta)
@@ -156,7 +159,7 @@ export async function registerGateway(app: FastifyInstance) {
             usage: { inputTokens: observedResult.inputTokens, outputTokens: observedResult.outputTokens, cachedInputTokens: observedResult.cachedInputTokens,
               reasoningTokens: observedResult.reasoningTokens, imageInput: observedResult.imageInput, imageOutput: observedResult.imageOutput, toolCalls: observedResult.toolCalls },
             providerReportedUsage: observedResult.providerReportedUsage,
-          } : {}, settlementMode!);
+          } : { usageUnavailable: interruptedStreamUsageUnavailable(observedTextDelta, Boolean(observedResult)) }, settlementMode!);
         } catch (settlementError) { req.log.error({ settlementErrorType: settlementError instanceof Error ? settlementError.name : 'UnknownError', requestId: v2RequestId }, 'V2 settlement failed'); }
       }
       const failure = error instanceof CopilotFailure ? error : controller.signal.aborted

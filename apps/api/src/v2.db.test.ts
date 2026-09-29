@@ -1,4 +1,4 @@
-import { beforeAll, afterAll, describe, expect, it } from 'vitest';
+import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 
 const enabled = Boolean(process.env.V2_TEST_DATABASE_URL);
@@ -111,6 +111,61 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
     } finally { await app.close(); }
   });
 
+  it('keeps old access and refresh tokens revoked after Admin and user device restoration', async () => {
+    const { db, plans, subscriptions, users } = dbModule;
+    const [user] = await db.insert(users).values({ email: `v2-device-auth-${randomUUID()}@example.test`,
+      passwordHash: await (await import('./security.js')).hashPassword('testpassword123') }).returning();
+    const [plan] = await db.insert(plans).values({ code: `DEVICE_${randomUUID().slice(0, 8)}`, name: 'Device Test', monthlyPrice: '1',
+      maxDevices: 2, monthlyTokenLimit: 1000, monthlyUsageCreditLimit: '1000', maxConcurrentRequests: 1, requestsPerMinute: 10 }).returning();
+    const now = new Date();
+    await db.insert(subscriptions).values({ userId: user.id, planId: plan.id, status: 'ACTIVE', startedAt: now,
+      currentPeriodStart: now, currentPeriodEnd: new Date(now.getTime() + 86400000) });
+    const app = await (await import('./server.js')).createServer();
+    try {
+      const adminToken = await (await import('./security.js')).issueAccess(ids.admin, undefined, 'ADMIN');
+      const device = { deviceId: randomUUID(), deviceName: 'Restored Desktop', platform: 'Windows', osVersion: '11', appVersion: '2.0' };
+      const login = async () => {
+        const response = await app.inject({ method: 'POST', url: '/api/v1/auth/login',
+          payload: { email: user.email, password: 'testpassword123', device } });
+        expect(response.statusCode).toBe(200);
+        return response.json() as { accessToken: string; refreshToken: string; device: { id: string } };
+      };
+      const first = await login();
+      const deviceId = first.device.id;
+      const adminStatus = async (status: 'ACTIVE' | 'REVOKED' | 'BLOCKED') => {
+        const response = await app.inject({ method: 'PATCH', url: `/api/v1/admin/devices/${deviceId}`,
+          headers: { authorization: `Bearer ${adminToken}` }, payload: { status } });
+        expect(response.statusCode).toBe(200);
+      };
+      const assertStale = async (credentials: { accessToken: string; refreshToken: string }) => {
+        const access = await app.inject({ method: 'GET', url: '/api/v1/auth/me',
+          headers: { authorization: `Bearer ${credentials.accessToken}` } });
+        expect(access.statusCode).toBe(403);
+        expect(access.json().error.code).toBe('DEVICE_REVOKED');
+        const refresh = await app.inject({ method: 'POST', url: '/api/v1/auth/refresh',
+          payload: { refreshToken: credentials.refreshToken } });
+        expect(refresh.statusCode).toBe(401);
+      };
+      await adminStatus('REVOKED');
+      await adminStatus('ACTIVE');
+      await assertStale(first);
+      const second = await login();
+      expect(second.device.id).toBe(deviceId);
+      await adminStatus('BLOCKED');
+      await adminStatus('ACTIVE');
+      await assertStale(second);
+      const third = await login();
+      for (const [method, path] of [['DELETE', `/api/v1/devices/${deviceId}`], ['POST', `/api/v1/devices/${deviceId}/revoke`]] as const) {
+        const current = method === 'DELETE' ? third : await login();
+        const revoke = await app.inject({ method, url: path, headers: { authorization: `Bearer ${current.accessToken}` } });
+        expect(revoke.statusCode).toBe(200);
+        await adminStatus('ACTIVE');
+        await assertStale(current);
+      }
+      expect((await login()).device.id).toBe(deviceId);
+    } finally { await app.close(); }
+  });
+
   it('pins a rate version, bills observed disconnect usage once, and preserves failed requests', async () => {
     const { db, aiRequests, rateCardVersions, usageEvents, walletTransactions } = dbModule;
     const [request] = await db.insert(aiRequests).values({ responseId: `resp_${randomUUID().replaceAll('-', '')}`, userId: ids.secondUser,
@@ -148,6 +203,137 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
     expect(invalidEvent.billingStatus).toBe('METERING_ERROR');
     expect(invalidEvent.pointsCharged).toBe(0);
     await expect(meterModule.preflightPoints(ids.user, ids.provider, ids.model, 'MANAGED_USAGE')).rejects.toMatchObject({ code: 'BILLING_REVIEW_REQUIRED' });
+  });
+
+  it('flags observed upstream text after disconnect without final usage for review without debiting points', async () => {
+    const { db, aiRequests, devices, usageEvents, users, walletTransactions } = dbModule;
+    const { eq } = await import('drizzle-orm');
+    const [user] = await db.insert(users).values({ email: `v2-interrupted-${randomUUID()}@example.test`, passwordHash: 'test' }).returning();
+    const [device] = await db.insert(devices).values({ userId: user.id, deviceId: randomUUID(), deviceName: 'test', platform: 'test' }).returning();
+    await db.transaction(tx => walletModule.applyWalletChange(tx, { userId: user.id, points: 100, type: 'TEST_GRANT',
+      referenceType: 'TEST', referenceId: user.id, idempotencyKey: `interrupted:${user.id}` }));
+    const [request] = await db.insert(aiRequests).values({ responseId: `resp_${randomUUID().replaceAll('-', '')}`, userId: user.id,
+      deviceId: device.id, providerId: ids.provider, modelId: ids.model, billingPolicy: 'MANAGED_USAGE',
+      rateCardVersionId: ids.rateVersion, status: 'STARTED' }).returning();
+    const event = await meterModule.settleAiRequest(request.id, 'CLIENT_DISCONNECTED', { usageUnavailable: true }, 'SHADOW');
+    expect(event).toMatchObject({ billingStatus: 'METERING_ERROR', pointsRated: 0, pointsCharged: 0 });
+    expect(await walletModule.walletSummary(user.id)).toMatchObject({ balance: 100 });
+    expect(await db.select().from(walletTransactions).where(eq(walletTransactions.referenceId, request.id))).toHaveLength(0);
+    const [updated] = await db.select().from(aiRequests).where(eq(aiRequests.id, request.id));
+    expect(updated).toMatchObject({ status: 'CLIENT_DISCONNECTED', errorCode: 'COPILOT_USAGE_UNAVAILABLE' });
+    const retry = await meterModule.settleAiRequest(request.id, 'PROVIDER_ERROR', {}, 'SHADOW');
+    expect(retry.id).toBe(event.id);
+    expect(await db.select().from(usageEvents).where(eq(usageEvents.requestId, request.id))).toHaveLength(1);
+    await expect(meterModule.preflightPoints(user.id, ids.provider, ids.model, 'MANAGED_USAGE'))
+      .rejects.toMatchObject({ code: 'BILLING_REVIEW_REQUIRED' });
+  });
+
+  it('persists only verified Copilot credentials and audit without enabling the provider', async () => {
+    const { auditLogs, db, providerCredentials, providers, webSessions } = dbModule;
+    const { eq } = await import('drizzle-orm');
+    const [provider] = await db.insert(providers).values({ code: 'COPILOT', name: 'Copilot', enabled: false }).returning();
+    const token = 'gho_local-test-user-token';
+    const fetcher = vi.fn(async (url: string | URL | Request) => Response.json(String(url).endsWith('/device/code')
+      ? { device_code: 'hidden-device-code', user_code: 'TEST-CODE', verification_uri: 'https://github.com/login/device',
+        expires_in: 120, interval: 5 }
+      : { access_token: token, token_type: 'bearer' })) as unknown as typeof fetch;
+    const { createCopilotAuthService } = await import('./copilot-auth.js');
+    const service = createCopilotAuthService({ clientId: 'Iv1.testclientid', fetcher, wait: async () => {},
+      discover: async () => ({ authenticated: true, login: 'test-copilot-user', models: [{ id: 'gpt-5.4-mini' }] }) });
+    expect((await service.start(ids.admin)).status).toBe('PENDING');
+    await vi.waitFor(async () => expect(await service.status()).toEqual({ status: 'AUTHENTICATED', login: 'test-copilot-user' }));
+    const [credential] = await db.select().from(providerCredentials).where(eq(providerCredentials.providerId, provider.id));
+    expect(credential.ciphertext).not.toContain(token);
+    expect((await import('./security.js')).decryptSecret(credential)).toBe(token);
+    const [unchanged] = await db.select().from(providers).where(eq(providers.id, provider.id));
+    expect(unchanged.enabled).toBe(false);
+    const audit = (await db.select().from(auditLogs)).find(row => row.action === 'COPILOT_DEVICE_AUTHENTICATED');
+    expect(audit?.actorId).toBe(ids.admin);
+    expect(JSON.stringify(audit?.metadata)).not.toMatch(/gho_|hidden-device-code/);
+    const restored = createCopilotAuthService({ clientId: undefined,
+      discover: async () => ({ authenticated: true, login: 'test-copilot-user', models: [{ id: 'gpt-5.4-mini' }] }) });
+    expect(await restored.status()).toEqual({ status: 'AUTHENTICATED', login: 'test-copilot-user' });
+    const app = await (await import('./server.js')).createServer();
+    try {
+      const { decryptSecret, hashRefresh, issueAccess, newRefresh } = await import('./security.js');
+      const nonAdminToken = await issueAccess(ids.secondUser, undefined, 'USER');
+      for (const method of ['GET', 'POST'] as const) {
+        const denied = await app.inject({ method, url: '/api/v1/admin/copilot/auth',
+          headers: { authorization: `Bearer ${nonAdminToken}` } });
+        expect(denied.statusCode).toBe(403);
+        expect(denied.json().error.code).toBe('FORBIDDEN');
+      }
+      const patchUrl = `/api/v1/admin/providers/${provider.id}`;
+      const forbidden = await app.inject({ method: 'PATCH', url: patchUrl,
+        headers: { authorization: `Bearer ${nonAdminToken}` }, payload: { apiKey: 'replacement-key' } });
+      expect(forbidden.statusCode).toBe(403);
+      expect(forbidden.json().error.code).toBe('FORBIDDEN');
+      const session = newRefresh();
+      await db.insert(webSessions).values({ userId: ids.admin, tokenHash: hashRefresh(session),
+        expiresAt: new Date(Date.now() + 60000) });
+      const csrf = await app.inject({ method: 'PATCH', url: patchUrl,
+        headers: { cookie: `bridge_session=${session}`, origin: 'https://not-the-admin-origin.example' },
+        payload: { apiKey: 'replacement-key' } });
+      expect(csrf.statusCode).toBe(403);
+      expect(csrf.json().error.code).toBe('CSRF_REJECTED');
+      const adminToken = await issueAccess(ids.admin, undefined, 'ADMIN');
+      const headers = { authorization: `Bearer ${adminToken}` };
+      for (const payload of [{ apiKey: 'replacement-key' }, { apiKey: 'replacement-key', enabled: false }]) {
+        const rejected = await app.inject({ method: 'PATCH', url: patchUrl, headers, payload });
+        expect(rejected.statusCode).toBe(409);
+        expect(rejected.json().error.code).toBe('PROVIDER_CONNECTION_UNAVAILABLE');
+      }
+      const enable = await app.inject({ method: 'PATCH', url: patchUrl, headers, payload: { enabled: true } });
+      expect(enable.statusCode).toBe(503);
+      const [protectedCredential] = await db.select().from(providerCredentials).where(eq(providerCredentials.providerId, provider.id));
+      expect(protectedCredential).toMatchObject({ ciphertext: credential.ciphertext, iv: credential.iv, tag: credential.tag });
+      const [stillDisabled] = await db.select().from(providers).where(eq(providers.id, provider.id));
+      expect(stillDisabled.enabled).toBe(false);
+      const other = await app.inject({ method: 'PATCH', url: `/api/v1/admin/providers/${ids.provider}`, headers,
+        payload: { apiKey: 'ordinary-provider-key' } });
+      expect(other.statusCode).toBe(200);
+      const [otherCredential] = await db.select().from(providerCredentials).where(eq(providerCredentials.providerId, ids.provider));
+      expect(decryptSecret(otherCredential)).toBe('ordinary-provider-key');
+    } finally { await app.close(); }
+    service.cancel();
+  });
+
+  it('reads configured ACL and effective user models after admin assignment and revocation', async () => {
+    const { db, subscriptions, users } = dbModule;
+    const [user] = await db.insert(users).values({ email: `v2-access-${randomUUID()}@example.test`, passwordHash: 'test' }).returning();
+    const now = new Date();
+    await db.insert(subscriptions).values({ userId: user.id, planId: ids.plan, status: 'ACTIVE', startedAt: now,
+      currentPeriodStart: now, currentPeriodEnd: new Date(now.getTime() + 86400000) });
+    const app = await (await import('./server.js')).createServer();
+    try {
+      const issueAccess = (await import('./security.js')).issueAccess;
+      const adminToken = await issueAccess(ids.admin, undefined, 'ADMIN');
+      const userToken = await issueAccess(user.id, undefined, 'USER');
+      const endpoint = `/api/v1/admin/model-access?userId=${user.id}`;
+      const headers = { authorization: `Bearer ${adminToken}` };
+      expect((await app.inject({ method: 'GET', url: endpoint, headers: { authorization: `Bearer ${userToken}` } })).statusCode).toBe(403);
+      const read = async () => {
+        const response = await app.inject({ method: 'GET', url: endpoint, headers });
+        expect(response.statusCode).toBe(200);
+        return response.json() as { planAccess: Array<{planId:string;modelId:string}>;
+          overrides: Array<{modelId:string;access:string}>; effectiveModelIds: string[] };
+      };
+      expect((await read()).effectiveModelIds).not.toContain(ids.model);
+      const allow = await app.inject({ method: 'PUT', url: `/api/v1/admin/models/${ids.model}/plans/${ids.plan}`, headers,
+        payload: { allowed: true } });
+      expect(allow.statusCode).toBe(200);
+      expect((await read()).effectiveModelIds).toContain(ids.model);
+      const deny = await app.inject({ method: 'PUT', url: `/api/v1/admin/users/${user.id}/models/${ids.model}`, headers,
+        payload: { access: 'DENY' } });
+      expect(deny.statusCode).toBe(200);
+      const denied = await read();
+      expect(denied.overrides).toContainEqual({ modelId: ids.model, access: 'DENY' });
+      expect(denied.effectiveModelIds).not.toContain(ids.model);
+      const reset = await app.inject({ method: 'PUT', url: `/api/v1/admin/users/${user.id}/models/${ids.model}`, headers,
+        payload: { access: 'DEFAULT' } });
+      expect(reset.statusCode).toBe(200);
+      expect((await read()).effectiveModelIds).toContain(ids.model);
+    } finally { await app.close(); }
   });
 
   it('records a referral and awards a qualified paid referral once', async () => {

@@ -8,13 +8,14 @@ export const hashPassword = (password: string) => argon2.hash(password, { type: 
 export const verifyPassword = (hash: string, password: string) => argon2.verify(hash, password);
 export const hashRefresh = (token: string) => createHmac('sha256', config.REFRESH_TOKEN_PEPPER).update(token).digest('hex');
 export const newRefresh = () => randomBytes(48).toString('base64url');
-export async function issueAccess(userId: string, deviceId?: string, role = 'USER') {
-  return new SignJWT({ deviceId, role }).setProtectedHeader({ alg: 'HS256' }).setSubject(userId).setIssuedAt().setExpirationTime('30m').sign(accessKey);
+export async function issueAccess(userId: string, deviceId?: string, role = 'USER', deviceVersion = 0) {
+  return new SignJWT({ deviceId, role, ...(deviceId ? { deviceVersion } : {}) }).setProtectedHeader({ alg: 'HS256' }).setSubject(userId).setIssuedAt().setExpirationTime('30m').sign(accessKey);
 }
 export async function readAccess(token: string) {
   const { payload } = await jwtVerify(token, accessKey, { algorithms: ['HS256'] });
   if (!payload.sub) throw new Error('Missing subject');
-  return { userId: payload.sub, deviceId: payload.deviceId as string | undefined, role: payload.role as string };
+  return { userId: payload.sub, deviceId: payload.deviceId as string | undefined, role: payload.role as string,
+    deviceVersion: typeof payload.deviceVersion === 'number' && Number.isInteger(payload.deviceVersion) ? payload.deviceVersion : undefined };
 }
 const masterKey = Buffer.from(config.PROVIDER_MASTER_KEY, 'hex');
 export function encryptSecret(value: string) {

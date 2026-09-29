@@ -9,6 +9,7 @@ import { registerAdmin } from './admin.js';
 import { registerGateway } from './gateway.js';
 import { registerV2Routes } from './v2-routes.js';
 import { registerV2Admin } from './v2-admin.js';
+import { registerCopilotAuthRoutes } from './copilot-auth.js';
 import { currentBillingMode } from './billing-mode.js';
 
 export async function createServer() {
@@ -28,6 +29,7 @@ export async function createServer() {
   });
   await registerRoutes(app);
   await registerAdmin(app);
+  await registerCopilotAuthRoutes(app);
   await registerGateway(app);
   await registerV2Routes(app);
   await registerV2Admin(app);

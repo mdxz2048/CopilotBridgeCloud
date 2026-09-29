@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { aiRequests, db, devices, providerAccountCredentials, providerAccounts, providers, referralRewards, referrals, refreshTokens, usageEvents, walletTransactions, wallets } from '@bridge/db';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { actor, allowedModels, ApiError, audit, currentSubscription, currentUsage } from './core.js';
+import { actor, allowedModels, ApiError, audit, changeDeviceStatus, currentSubscription, currentUsage } from './core.js';
 import { referralCodeFor, registerReferral } from './referral.js';
 import { walletSummary } from './wallet.js';
 import { encryptSecret } from './security.js';
@@ -100,9 +100,7 @@ export async function registerV2Routes(app: FastifyInstance) {
   });
   app.post('/api/v1/devices/:id/revoke', async req => {
     const a = await actor(req); const id = uuidParam(req.params);
-    const [device] = await db.update(devices).set({ status: 'REVOKED', updatedAt: new Date() }).where(and(eq(devices.id, id), eq(devices.userId, a.user.id))).returning();
-    if (!device) throw new ApiError(404, 'NOT_FOUND');
-    await db.update(refreshTokens).set({ revokedAt: new Date() }).where(eq(refreshTokens.deviceId, id));
+    const device = await changeDeviceStatus(id, 'REVOKED', a.user.id);
     await audit(a.user.id, 'DEVICE_REVOKED', 'DEVICE', id);
     return { device };
   });

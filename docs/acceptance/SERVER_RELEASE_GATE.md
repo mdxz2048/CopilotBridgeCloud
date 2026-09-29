@@ -1,6 +1,12 @@
-# Status as of 2026-09-23
+# Status as of 2026-09-29
+Overall: **PARTIAL — deployed API/Web and gated Mock integration, not a commercial V1 release.** The 2026-09-29 isolated database migration/tests passed **14/14**; production `0004`, API/Web switch, health, Admin reads, Mock JSON/SSE/two-step tool continuation, SHADOW settlement without wallet debit, and API restart persistence passed. These are limited to the dedicated test fixture and do not prove real-provider, production device-restore end-to-end, full Admin UI mutation, or paid checkout. See [deployment-v2.md](../deployment-v2.md) and the [production manifest](../protocol/PRODUCTION_INTEGRATION_MANIFEST.md) for scope and deployed source digests; source archive SHA-256 is `26047678958dc76f6280cf3e39d0aa08f75529f5d03f79254b7042a74f388c12` (commit mapping pending).
+
+**Gates still closed:** production Copilot OAuth is `NOT_AUTHENTICATED`; no real-provider inference acceptance, commercial plans/prices, WeChat/Alipay payment or Desktop release (`/api/v1/releases/latest` returns `{ "release": null }`). `V2_BILLING_MODE=SHADOW`, `V2_BILLING_ENABLED=false`: rated points are **not charged**; `ENFORCED` remains disabled. The website QR is test activation information, **not** a payment QR; no real collection, order or automatic activation follows. No new DB backup was taken for this rollout by explicit user decision; old API/Web Docker tags provide code rollback only. About **1.58 GB** disk remained; clean up before the next deployment. Full release and restore acceptance remain open.
+
+## Historical 2026-09-23 gate snapshot (itemized below; not current full-release PASS)
+
 Overall: **FAIL — integration preview, not V1 release candidate.** PASS means verified locally or over production HTTPS; PASS (Mock only) means the local loopback MockProvider test passed and the production path is not yet validated. FAIL includes implemented code that has not passed its full release criterion. See the deployment document for test scope.
-Current blockers: no configured commercial plan prices and quotas, no DeepSeek key, Copilot integration needs authorization/review, WeChat Pay and Alipay are not connected, progressive production streaming is not implemented, and full device/subscription/usage/restore acceptance is pending. The production administrator is bootstrapped; Admin mutation and UI acceptance remain pending.
+Blockers at that date: no configured commercial plan prices and quotas, no DeepSeek key, Copilot integration needs authorization/review, WeChat Pay and Alipay are not connected, progressive production streaming is not implemented, and full device/subscription/usage/restore acceptance is pending. The production administrator is bootstrapped; Admin mutation and UI acceptance remain pending.
 
 ---
 

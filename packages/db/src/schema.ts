@@ -23,6 +23,7 @@ export const subscriptions = pgTable('subscriptions', {
 export const devices = pgTable('devices', {
   id: id(), userId: uuid('user_id').notNull().references(() => users.id), deviceId: uuid('device_id').notNull(), deviceName: text('device_name').notNull(), platform: text('platform').notNull(),
   osVersion: text('os_version').notNull().default(''), appVersion: text('app_version').notNull().default(''), status: varchar('status', { length: 16 }).notNull().default('ACTIVE'),
+  authVersion: integer('auth_version').notNull().default(0),
   activatedAt: created(), lastSeenAt: timestamp('last_seen_at', { withTimezone: true }), updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [uniqueIndex('devices_user_device_idx').on(t.userId, t.deviceId)]);
 export const refreshTokens = pgTable('refresh_tokens', {

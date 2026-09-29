@@ -1,0 +1,92 @@
+import { expect, test } from '@playwright/test';
+
+test('registration accepts a prefilled or manually entered referral without awarding at signup', async ({ page }) => {
+  const registrations: Record<string, unknown>[] = [];
+  await page.route('**/api/v1/auth/register', route => {
+    registrations.push(route.request().postDataJSON() as Record<string, unknown>);
+    return route.fulfill({ status: 201, contentType: 'application/json', body: '{}' });
+  });
+  await page.goto('/register?ref=PRE-FILLED');
+  await expect(page.getByLabel('邀请码（可选）')).toHaveValue('PRE-FILLED');
+  await page.getByLabel('邀请码（可选）').fill('  MANUAL-CODE  ');
+  await page.getByLabel('邮箱').fill('referred@example.test');
+  await page.getByLabel('密码（至少 12 位）').fill('test-password-123');
+  await page.getByRole('button', { name: '创建账号' }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  expect(registrations).toEqual([{ email: 'referred@example.test', password: 'test-password-123', referralCode: 'MANUAL-CODE' }]);
+});
+
+test('test QR is informational and does not create or pay an order', async ({ page }) => {
+  const apiRequests: string[] = [];
+  const plans = [{ id: 'test-plan', code: 'TEST', name: '测试套餐', description: '仅供测试', monthlyPrice: '10',
+    maxDevices: 1, monthlyPoints: 100, monthlyTokenLimit: 99999, monthlyUsageCreditLimit: '999',
+    maxConcurrentRequests: 1, requestsPerMinute: 5 }];
+  await page.route('**/api/v1/**', route => {
+    const path = new URL(route.request().url()).pathname;
+    apiRequests.push(`${route.request().method()} ${path}`);
+    return route.fulfill({ contentType: 'application/json', body: JSON.stringify(path === '/api/v1/plans' ? { data: plans } : {}) });
+  });
+  await page.goto('/pricing');
+  await expect(page.getByRole('heading', { name: '测试占位二维码 · 非支付二维码' })).toBeVisible();
+  await expect(page.getByRole('img', { name: '测试占位二维码，扫码仅打开人工开通说明页' }).locator('svg')).toBeVisible();
+  await expect(page.getByText(/不产生真实收款、订单或自动开通/)).toBeVisible();
+  await expect(page.getByText(/管理员开通后的套餐 AI 点数：100/)).toBeVisible();
+  await expect(page.getByText('Tokens')).toHaveCount(0);
+  expect(apiRequests.length).toBeGreaterThan(0);
+  expect(apiRequests.every(request => request === 'GET /api/v1/plans')).toBe(true);
+});
+
+test('admin sees server effective models and refreshed plan ACL and user overrides', async ({ page }) => {
+  const plan = '11111111-1111-4111-8111-111111111111';
+  const model = '22222222-2222-4222-8222-222222222222';
+  const user = '33333333-3333-4333-8333-333333333333';
+  const provider = '44444444-4444-4444-8444-444444444444';
+  let planAllowed = false;
+  let override = 'DEFAULT';
+  const writes: string[] = [];
+  await page.route('**/api/v1/**', route => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (request.method() === 'PUT') {
+      writes.push(path);
+      const payload = request.postDataJSON() as { allowed?: boolean; access?: string };
+      if (path === `/api/v1/admin/models/${model}/plans/${plan}`) planAllowed = payload.allowed ?? false;
+      else if (path === `/api/v1/admin/users/${user}/models/${model}`) override = payload.access ?? 'DEFAULT';
+      else return route.fulfill({ status: 500, body: 'Unexpected write' });
+      return route.fulfill({ contentType: 'application/json', body: '{}' });
+    }
+    const bodies: Record<string, unknown> = {
+      '/api/v1/auth/me': { user: { email: 'admin@example.test', role: 'ADMIN' } },
+      '/api/v1/admin/dashboard': {},
+      '/api/v1/admin/models': { data: [{ id: model, publicId: 'mock-model', displayName: 'Mock Model', providerId: provider, enabled: true, usageWeight: 1 }] },
+      '/api/v1/admin/providers': { data: [{ id: provider, code: 'MOCK', name: 'Mock Provider', enabled: true }] },
+      '/api/v1/admin/plans': { data: [{ id: plan, code: 'TEST', name: 'Test Plan', enabled: true }] },
+      '/api/v1/admin/users': { data: [{ id: user, email: 'user@example.test', role: 'USER', status: 'ACTIVE' }] },
+      '/api/v1/admin/model-access': {
+        planAccess: planAllowed ? [{ planId: plan, modelId: model }] : [],
+        overrides: new URL(request.url()).searchParams.has('userId') && override !== 'DEFAULT' ? [{ modelId: model, access: override }] : [],
+        subscription: new URL(request.url()).searchParams.has('userId') ? { planId: plan, planCode: 'TEST', status: 'ACTIVE' } : null,
+        effectiveModelIds: new URL(request.url()).searchParams.has('userId') && (override === 'ALLOW' || (planAllowed && override !== 'DENY')) ? [model] : [],
+      },
+    };
+    if (!(path in bodies)) return route.fulfill({ status: 500, body: `Unexpected API: ${path}` });
+    return route.fulfill({ contentType: 'application/json', body: JSON.stringify(bodies[path]) });
+  });
+
+  await page.goto('/admin');
+  await page.getByRole('button', { name: 'Models' }).click();
+  await page.getByRole('button', { name: '管理' }).click();
+  await expect(page.getByText('Test Plan（启用）：未开放')).toBeVisible();
+  await page.getByRole('button', { name: '开放', exact: true }).click();
+  await expect(page.getByText('Test Plan（启用）：已开放')).toBeVisible();
+  await page.getByRole('button', { name: 'Users' }).click();
+  await page.getByRole('button', { name: '管理' }).click();
+  await expect(page.getByText('当前账号可用')).toBeVisible();
+  const overrideSelect = page.getByRole('combobox', { name: 'mock-model 用户覆盖' });
+  await overrideSelect.selectOption('DENY');
+  await expect(page.getByText('用户特例拒绝')).toBeVisible();
+  await expect(overrideSelect).toHaveValue('DENY');
+  await overrideSelect.selectOption('DEFAULT');
+  await expect(page.getByText('当前账号可用')).toBeVisible();
+  expect(writes).toEqual([`/api/v1/admin/models/${model}/plans/${plan}`, `/api/v1/admin/users/${user}/models/${model}`, `/api/v1/admin/users/${user}/models/${model}`]);
+});

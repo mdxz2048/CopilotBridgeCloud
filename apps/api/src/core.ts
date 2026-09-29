@@ -1,5 +1,5 @@
-import { db, auditLogs, devices, models, planModelAccess, plans, providers, subscriptions, usageRecords, userModelAccess, users, webSessions } from '@bridge/db';
-import { and, desc, eq, gte, inArray, lt, sql, sum } from 'drizzle-orm';
+import { db, auditLogs, devices, models, planModelAccess, plans, providers, refreshTokens, subscriptions, usageRecords, userModelAccess, users, webSessions } from '@bridge/db';
+import { and, desc, eq, gte, inArray, isNull, lt, sql, sum } from 'drizzle-orm';
 import type { FastifyRequest } from 'fastify';
 import { config } from './config.js';
 import { integrationMockAllowed, modelAllowed, subscriptionActive, usageState } from './logic.js';
@@ -14,8 +14,9 @@ export async function actor(req: FastifyRequest, desktop = false): Promise<Actor
   const bearer = req.headers.authorization?.match(/^Bearer (.+)$/i)?.[1];
   let userId: string;
   let jwtDevice: string | undefined;
+  let jwtDeviceVersion: number | undefined;
   if (bearer) {
-    try { const token = await readAccess(bearer); userId = token.userId; jwtDevice = token.deviceId; }
+    try { const token = await readAccess(bearer); userId = token.userId; jwtDevice = token.deviceId; jwtDeviceVersion = token.deviceVersion; }
     catch { throw new ApiError(401, 'TOKEN_EXPIRED'); }
   } else {
     if (desktop) throw new ApiError(401, 'UNAUTHORIZED');
@@ -32,7 +33,7 @@ export async function actor(req: FastifyRequest, desktop = false): Promise<Actor
   if (jwtDevice) {
     const [found] = await db.select().from(devices).where(and(eq(devices.id, jwtDevice), eq(devices.userId, userId))).limit(1);
     if (!found) throw new ApiError(403, 'DEVICE_NOT_REGISTERED');
-    if (found.status !== 'ACTIVE') throw new ApiError(403, 'DEVICE_REVOKED');
+    if (found.status !== 'ACTIVE' || (jwtDeviceVersion ?? 0) !== found.authVersion) throw new ApiError(403, 'DEVICE_REVOKED');
     device = found;
   }
   if (desktop) {
@@ -45,6 +46,19 @@ export async function admin(req: FastifyRequest) {
   const a = await actor(req);
   if (a.user.role !== 'ADMIN') throw new ApiError(403, 'FORBIDDEN');
   return a;
+}
+export async function changeDeviceStatus(id: string, status: 'ACTIVE' | 'REVOKED' | 'BLOCKED', userId?: string) {
+  return db.transaction(async tx => {
+    const [current] = await tx.select({ status: devices.status }).from(devices)
+      .where(userId ? and(eq(devices.id, id), eq(devices.userId, userId)) : eq(devices.id, id)).for('update').limit(1);
+    if (!current) throw new ApiError(404, 'NOT_FOUND');
+    const changed = current.status !== status;
+    const [device] = await tx.update(devices).set({ status, updatedAt: new Date(),
+      authVersion: changed ? sql`${devices.authVersion} + 1` : undefined }).where(eq(devices.id, id)).returning();
+    if (changed || status !== 'ACTIVE') await tx.update(refreshTokens).set({ revokedAt: new Date() })
+      .where(and(eq(refreshTokens.deviceId, id), isNull(refreshTokens.revokedAt)));
+    return device;
+  });
 }
 export async function audit(actorId: string | null, action: string, targetType: string, targetId: string, metadata: Record<string, unknown> = {}) {
   await db.insert(auditLogs).values({ actorId, action, targetType, targetId, metadata });

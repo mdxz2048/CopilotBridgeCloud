@@ -3,7 +3,7 @@ import { db, auditLogs, billingOrders, devices, models, planModelAccess, plans, 
 import { and, desc, eq, ilike, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { admin, ApiError, audit } from './core.js';
+import { admin, allowedModels, ApiError, audit, changeDeviceStatus, currentSubscription } from './core.js';
 import { nextPeriod } from './logic.js';
 import { providerFor } from './provider.js';
 import { encryptSecret, hashPassword } from './security.js';
@@ -13,6 +13,12 @@ import { qualifyReferralFromPaidOrder } from './referral.js';
 const planData = z.object({ name: z.string().min(1), description: z.string(), monthlyPrice: z.number().nonnegative(), currency: z.string().length(3), maxDevices: z.number().int().positive(), monthlyTokenLimit: z.number().int().positive(), monthlyUsageCreditLimit: z.number().positive(), maxConcurrentRequests: z.number().int().positive(), requestsPerMinute: z.number().int().positive(), enabled: z.boolean(), monthlyPoints: z.number().int().min(0).optional(), rolloverPolicy: z.enum(['NONE', 'UNLIMITED']).optional() });
 const modelData = z.object({ providerId: z.uuid(), providerModelId: z.string().min(1), publicId: z.string().min(1), displayName: z.string().min(1), enabled: z.boolean(), supportsTools: z.boolean(), supportsVision: z.boolean(), supportsReasoning: z.boolean(), supportsStreaming: z.boolean(), contextWindow: z.number().int().positive().nullable(), maxOutputTokens: z.number().int().positive().nullable(), usageWeight: z.number().positive(), sortOrder: z.number().int() });
 const idParam = (params: unknown) => z.uuid().parse((params as { id: string }).id);
+
+export function assertProviderPatchAllowed(code: string, patch: { enabled?: boolean; apiKey?: string }) {
+  if (code !== 'COPILOT') return;
+  if (patch.enabled) throw new ApiError(503, 'PROVIDER_UNAVAILABLE', 'Copilot adapter requires a reviewed GitHub integration');
+  if (patch.apiKey !== undefined) throw new ApiError(409, 'PROVIDER_CONNECTION_UNAVAILABLE', 'Copilot credentials require reviewed authentication');
+}
 
 async function grant(userId: string, planId: string, days?: number) {
   const now = new Date();
@@ -79,8 +85,7 @@ export async function registerAdmin(app: FastifyInstance) {
   app.patch('/api/v1/admin/devices/:id', async req => {
     const a = await admin(req); const id = idParam(req.params);
     const data = z.object({ status: z.enum(['ACTIVE', 'REVOKED', 'BLOCKED']) }).parse(req.body);
-    const [device] = await db.update(devices).set({ ...data, updatedAt: new Date() }).where(eq(devices.id, id)).returning();
-    if (!device) throw new ApiError(404, 'NOT_FOUND');
+    const device = await changeDeviceStatus(id, data.status);
     await audit(a.user.id, 'DEVICE_STATUS_CHANGED', 'DEVICE', id, data);
     return device;
   });
@@ -149,13 +154,19 @@ export async function registerAdmin(app: FastifyInstance) {
     const data = z.object({ enabled: z.boolean().optional(), baseUrl: z.url().optional(), timeoutMs: z.number().int().min(1000).max(120000).optional(), apiKey: z.string().min(1).optional() }).parse(req.body);
     const [provider] = await db.select().from(providers).where(eq(providers.id, id)).limit(1);
     if (!provider) throw new ApiError(404, 'NOT_FOUND');
-    if (provider.code === 'COPILOT' && data.enabled) throw new ApiError(503, 'PROVIDER_UNAVAILABLE', 'Copilot adapter requires a reviewed GitHub integration');
-    if (data.apiKey) {
-      const secret = encryptSecret(data.apiKey);
-      await db.insert(providerCredentials).values({ providerId: id, ...secret }).onConflictDoUpdate({ target: providerCredentials.providerId, set: { ...secret, updatedAt: new Date() } });
-    }
-    const [updated] = await db.update(providers).set({ enabled: data.enabled, baseUrl: data.baseUrl, timeoutMs: data.timeoutMs }).where(eq(providers.id, id)).returning();
-    await audit(a.user.id, 'PROVIDER_UPDATED', 'PROVIDER', id, { enabled: data.enabled, credentialChanged: Boolean(data.apiKey) });
+    assertProviderPatchAllowed(provider.code, data);
+    const updated = await db.transaction(async tx => {
+      if (data.apiKey) {
+        const secret = encryptSecret(data.apiKey);
+        await tx.insert(providerCredentials).values({ providerId: id, ...secret }).onConflictDoUpdate({ target: providerCredentials.providerId, set: { ...secret, updatedAt: new Date() } });
+      }
+      const [row] = data.enabled === undefined && data.baseUrl === undefined && data.timeoutMs === undefined
+        ? [provider]
+        : await tx.update(providers).set({ enabled: data.enabled, baseUrl: data.baseUrl, timeoutMs: data.timeoutMs }).where(eq(providers.id, id)).returning();
+      await tx.insert(auditLogs).values({ actorId: a.user.id, action: 'PROVIDER_UPDATED', targetType: 'PROVIDER', targetId: id,
+        metadata: { enabled: data.enabled, credentialChanged: Boolean(data.apiKey) } });
+      return row;
+    });
     return { ...updated, credential: 'MASKED' };
   });
   app.get('/api/v1/admin/providers/:id/health', async req => {
@@ -166,6 +177,22 @@ export async function registerAdmin(app: FastifyInstance) {
     try { return await (await providerFor(p.id, p.code)).health(); } catch { return { ready: false, reason: 'NOT_CONFIGURED' }; }
   });
   app.get('/api/v1/admin/models', async req => { await admin(req); return { data: await db.select().from(models).orderBy(models.sortOrder) }; });
+  app.get('/api/v1/admin/model-access', async req => {
+    await admin(req);
+    const { userId } = z.object({ userId: z.uuid().optional() }).parse(req.query);
+    const planAccess = await db.select({ planId: planModelAccess.planId, modelId: planModelAccess.modelId }).from(planModelAccess);
+    if (!userId) return { planAccess, overrides: [], subscription: null, effectiveModelIds: [] };
+    const [user] = await db.select({ id: users.id }).from(users).where(eq(users.id, userId)).limit(1);
+    if (!user) throw new ApiError(404, 'NOT_FOUND');
+    const subscription = await currentSubscription(userId);
+    const [overrides, effective] = await Promise.all([
+      db.select({ modelId: userModelAccess.modelId, access: userModelAccess.access }).from(userModelAccess).where(eq(userModelAccess.userId, userId)),
+      subscription ? allowedModels(userId, subscription.plan.id) : Promise.resolve([]),
+    ]);
+    return { planAccess, overrides, subscription: subscription
+      ? { planId: subscription.plan.id, planCode: subscription.plan.code, status: subscription.subscription.status } : null,
+      effectiveModelIds: effective.map(({ model }) => model.id) };
+  });
   app.post('/api/v1/admin/models', async (req, reply) => {
     const a = await admin(req); const data = modelData.parse(req.body);
     const [model] = await db.insert(models).values({ ...data, usageWeight: String(data.usageWeight) }).returning();
