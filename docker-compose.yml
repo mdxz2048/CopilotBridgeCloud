@@ -21,6 +21,8 @@ services:
     environment:
       DATABASE_URL: postgres://bridge:${POSTGRES_PASSWORD}@postgres:5432/bridge
       API_PORT: 3001
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
+      TRUSTED_PROXY_CIDRS: ${TRUSTED_PROXY_CIDRS:-172.16.0.0/12,10.0.0.0/8,192.168.0.0/16}
     depends_on:
       postgres: { condition: service_healthy }
     logging: { driver: json-file, options: { max-size: "10m", max-file: "3" } }

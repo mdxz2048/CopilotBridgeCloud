@@ -1,6 +1,6 @@
 # Copilot Bridge Server V2 — deployment status and runbook
 
-Current contract version `2.2.0`; live Desktop handoff: [PRODUCTION_INTEGRATION_MANIFEST.md](protocol/PRODUCTION_INTEGRATION_MANIFEST.md). The host is `linuxuser@66.245.221.236`, public base `https://ai.mddxz.top`. Existing host Nginx owns 80/443 and forwards this site to loopback Caddy; dedicated Docker Compose API, Web, Caddy and PostgreSQL 17 containers are persistent. Other host services must remain untouched.
+Current internal-test contract version `2.3.0`; live Desktop handoff: [PRODUCTION_INTEGRATION_MANIFEST.md](protocol/PRODUCTION_INTEGRATION_MANIFEST.md). The host is `linuxuser@66.245.221.236`, public base `https://ai.mddxz.top`. Existing host Nginx owns 80/443 and forwards this site to loopback Caddy; dedicated Docker Compose API, Web, Caddy and PostgreSQL 17 containers are persistent. Other host services must remain untouched.
 
 ## Actual status, 2026-09-24
 
@@ -27,6 +27,14 @@ The user explicitly waived a **new DB backup for this rollout**; none was taken 
 
 Copilot GitHub OAuth reports `NOT_AUTHENTICATED` in production; Copilot Provider/real-provider E2E remain blocked. `ENFORCED` remains disabled (`V2_BILLING_MODE=SHADOW`, `V2_BILLING_ENABLED=false`). The new website QR opens a test activation information page: it is **not a payment QR** and creates no real payment, order or automatic subscription. Real payment is unconnected. `/api/v1/releases/latest` returns `{ "release": null }`; no Desktop release is published.
 
+## 2026-09-30 internal-test V2.3 DPoP and rate-policy cutover
+
+**DEPLOYED for internal testing, not commercial acceptance.** Source archive SHA-256 `54a6887e5580df45d9cdf792b6cbd37375f65a328f8d30096596b95286c644d5` was built from uncommitted source. API image SHA-256 is `937ee4e64f2f2663defbc0e9a0bd3a3aef173da92ff6f48afb88d9bebefb9ff2` and Web image SHA-256 is `8c707dce9b96522387d0814513378a152e13179b9d6eb9df2287d2db1d93772b`. Frozen Gateway V1 artifacts were not rewritten, but the old unsigned Desktop wire is no longer accepted on current API paths.
+
+Incremental migrations `0005`–`0007` were first verified in an isolated database (17/17 tests), then applied to production before switching API/Web/Caddy. Signed production test-device login/refresh, account and wallet reads, JSON Mock response, same-thread tool continuation under one new turn/minute/device, rejection of another new turn and zero SHADOW wallet debit passed. Admin rate-policy reads show defaults of account 2/min, device 1/min, public IP 60/min and auth IP 10/min. Local signed JSON/SSE and Desktop Remote Bridge low-cap E2E passed. The internal NSIS 0.2.0 installer was built with SHA-256 `f470859995fda95f45dd2a43dab66110ab5f79c76cc08c0e8fe04e39c3cf04e0` but is **unsigned, not installed and not published**. An installation key does not attest the official binary.
+
+The user accepted this breaking internal-test cutover and deletion of prior rollback images to free space. No new database backup was taken; additive migrations remain after image changes, and a quick previous-image rollback is no longer available. Free disk was approximately **2.28 GB** after removing old image aliases; capacity must be rechecked before further builds or hosting installer binaries. Real provider authentication, paid checkout and ENFORCED charging remain blocked.
+
 ## Controlled forward rollout
 
 1. Keep `V2_BILLING_MODE=SHADOW` and `V2_BILLING_ENABLED=false`. Confirm the pinned contract hashes, public health and all four Compose services. Disk was about 1.58 GB after this rollout: clean up and require at least 3 GB free before building; confirm shared-host bindings.
@@ -38,7 +46,7 @@ Copilot GitHub OAuth reports `NOT_AUTHENTICATED` in production; Copilot Provider
 
 ## Commercial cutover gate
 
-Enable `ENFORCED` only after a cohort-scoped gate exists, a real provider key and valid usage/cost are tested end to end, a funded non-test wallet and rate version are reconciled, disconnect/error settlement is verified, off-host backup is tested, and App contract version `2.2.0` is accepted. The current mode is global, so it remains `SHADOW` on public production. DeepSeek needs a server credential supplied outside the repository; Copilot requires user authorization; payment methods need merchant data. Never put secrets in the manifest or repo.
+Enable `ENFORCED` only after a cohort-scoped gate exists, a real provider key and valid usage/cost are tested end to end, a funded non-test wallet and rate version are reconciled, disconnect/error settlement is verified, off-host backup is tested, and App contract version `2.3.0` is accepted. The current mode is global, so it remains `SHADOW` on public production. DeepSeek needs a server credential supplied outside the repository; Copilot requires user authorization; payment methods need merchant data. Never put secrets in the manifest or repo.
 
 ## Rollback
 

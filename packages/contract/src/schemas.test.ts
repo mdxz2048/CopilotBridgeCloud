@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { DeviceInfoSchema, LatestReleaseResponseSchema, ResponseRequestSchema } from './schemas.js';
+import { DeviceInfoSchema, DeviceInfoV23Schema, LatestReleaseResponseSchema, ResponseRequestSchema } from './schemas.js';
 
 describe('Desktop V1 contract', () => {
   it('requires an explicit version update for OpenAPI wire changes', () => {
@@ -12,6 +12,14 @@ describe('Desktop V1 contract', () => {
   });
   it('rejects hardware fingerprints and malformed device IDs', () => {
     expect(DeviceInfoSchema.safeParse({ deviceId: 'MAC:00:11', deviceName: 'PC', platform: 'windows' }).success).toBe(false);
+  });
+  it('requires a per-installation P-256 public key without hardware identifiers or embedded secrets', () => {
+    const device = { deviceId: '44444444-4444-4444-8444-444444444444', deviceName: 'PC', platform: 'windows',
+      publicKeyJwk: { kty: 'EC', crv: 'P-256', x: 'A'.repeat(43), y: 'B'.repeat(43) } };
+    expect(DeviceInfoSchema.parse(device)).not.toHaveProperty('publicKeyJwk');
+    expect(DeviceInfoV23Schema.safeParse(device).success).toBe(true);
+    expect(DeviceInfoV23Schema.safeParse({ ...device, publicKeyJwk: { ...device.publicKeyJwk, d: 'private-key' } }).success).toBe(false);
+    expect(DeviceInfoV23Schema.safeParse({ ...device, publicKeyJwk: { ...device.publicKeyJwk, crv: 'P-384' } }).success).toBe(false);
   });
   it('accepts tool continuation', () => {
     expect(ResponseRequestSchema.safeParse({ model: 'mock/mock-chat', input: [{ type: 'function_call_output', call_id: 'call_1', output: 'done' }] }).success).toBe(true);

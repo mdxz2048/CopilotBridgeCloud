@@ -190,14 +190,14 @@ GET /api/v1/releases/latest
 
 ## 8. Immediate Desktop integration recipe
 
-1. Generate a stable UUID on first launch and persist it as the Cloud device ID. Use a new `X-Client-Thread-ID` for each conversation, then reuse it for all turns and tool continuations in that conversation.
-2. Start the local server with `pnpm dev:mock` from this project. Base URL: `http://127.0.0.1:3001`. Test account: `desktop@example.test` / `MockDesktop123!`.
-3. Login with the device object. Keep the access token in memory and store the refresh token in Windows Credential Manager. Send the bearer token and device ID on all Gateway requests.
+1. Generate a stable UUID and a per-installation P-256 ECDSA key on first launch; persist the UUID as the Cloud device ID and keep the private key in the OS-protected credential vault (export once for vault persistence if needed, never to plaintext files or logs). Login's `device.publicKeyJwk` contains only `{kty:"EC",crv:"P-256",x,y}`. A revoked device or lost key needs a new device ID; existing device keys cannot be silently replaced. Use a new `X-Client-Thread-ID` for each conversation and reuse it for tool continuations.
+2. Start the local server with `pnpm dev:mock` from this project. Base URL: `http://127.0.0.1:3001`. Test account: `desktop@example.test` / `MockDesktop123!`. The Mock enforces production-default AI limits (2/account/minute and 1/device/minute); for rapid local-only JSON/SSE/tool-continuation acceptance tests, set `MOCK_AI_ACCOUNT_RPM=100` and `MOCK_AI_DEVICE_RPM=100` in that Mock process only.
+3. Login with the device object and public JWK; the initial login does not require a device signature. Keep the access token in memory and store the refresh token in Windows Credential Manager. Send a compact signed ES256 `DPoP` JWT on **each bearer and refresh request**; send the bearer token and device ID on Gateway requests. See the pending V2.3 proof specification `GATEWAY_DEVICE_PROOF_V2_3.md`: `ath` binds the credential, `bth` hashes the exact raw body bytes, and the unique `jti` prevents replay. The key proves possession, **not** that a client is an official executable; there is no TPM requirement or shared embedded secret.
 4. Call `/api/v1/account` and `/v1/models`. Request `mock/mock-chat` through `/v1/responses` first with `stream: false`, then with `stream: true`.
 5. For tools, send `tools` definitions. On a `function_call` output, run only the named local tool after validating its arguments. Send a `function_call_output` with the same `call_id` and thread ID. The mock supports two sequential calls to check continuation logic.
-6. Test refresh token rotation and device revocation. Map `error.code` to the Cloud states listed above. Use `docs/protocol/openapi.v1.json` for generated endpoint details and `packages/contract/src/schemas.ts` for runtime Zod validation.
+6. Test refresh token rotation and device revocation. Map `error.code` to the Cloud states listed above. Use pending `docs/protocol/openapi.v2.json` for new desktop endpoint details and `packages/contract/src/v2-schemas.ts` for the installation-key schema; frozen V1 artifacts remain the old production contract.
 
-The local mock is explicitly a contract and control-flow test. Its tokens and subscription are ephemeral. Production base URL remains `https://ai.mddxz.top`; switch only the base URL in Desktop configuration when a production deployment passes the release gate.
+The local mock is explicitly a contract and control-flow test. Its tokens and subscription are ephemeral. Production base URL remains `https://ai.mddxz.top`; **do not deploy the breaking server changes until the paired new Desktop package passes login, DPoP replay, refresh, SSE, and tool-continuation loopback validation.** Switch the Desktop base URL only when this gate passes.
 
 ### Loopback acceptance controls
 

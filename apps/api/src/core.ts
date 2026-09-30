@@ -4,10 +4,10 @@ import type { FastifyRequest } from 'fastify';
 import { config } from './config.js';
 import { integrationMockAllowed, modelAllowed, subscriptionActive, usageState } from './logic.js';
 import { hashRefresh, readAccess } from './security.js';
+import { claimDeviceProof, verifyDeviceProof } from './device-proof.js';
+import { ApiError } from './errors.js';
 
-export class ApiError extends Error {
-  constructor(public status: number, public code: string, message = code) { super(message); }
-}
+export { ApiError };
 export type Actor = { user: typeof users.$inferSelect; device?: typeof devices.$inferSelect; web: boolean };
 
 export async function actor(req: FastifyRequest, desktop = false): Promise<Actor> {
@@ -35,6 +35,10 @@ export async function actor(req: FastifyRequest, desktop = false): Promise<Actor
     if (!found) throw new ApiError(403, 'DEVICE_NOT_REGISTERED');
     if (found.status !== 'ACTIVE' || (jwtDeviceVersion ?? 0) !== found.authVersion) throw new ApiError(403, 'DEVICE_REVOKED');
     device = found;
+  }
+  if (bearer) {
+    if (!device) throw new ApiError(401, 'DEVICE_PROOF_INVALID');
+    await claimDeviceProof(device.id, await verifyDeviceProof(req, device.publicKeyJwk, bearer));
   }
   if (desktop) {
     const deviceUuid = req.headers['x-device-id'];

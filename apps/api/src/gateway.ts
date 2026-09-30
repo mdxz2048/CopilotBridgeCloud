@@ -14,6 +14,8 @@ import type { BillingPolicy } from './rating.js';
 import { currentBillingMode, type BillingMode } from './billing-mode.js';
 import { integrationMockAllowed } from './logic.js';
 import { CopilotFailure } from './copilot-provider.js';
+import { currentRatePolicy } from './rate-policy.js';
+import { nextContinuationState, pendingContinuation } from './tool-continuation.js';
 
 function responseBody(id: string, model: string, result: CanonicalResult, billing?: { points: number; points_rated: number; points_charged: number; remaining_points: number; request_id: string; billing_mode: Exclude<BillingMode, 'OFF'> }) {
   return { id, object: 'response', status: 'completed', model, output: result.output,
@@ -36,6 +38,7 @@ export async function registerGateway(app: FastifyInstance) {
     if (typeof threadId !== 'string' || !threadId.trim() || threadId.length > 200) throw new ApiError(400, 'CLIENT_THREAD_ID_REQUIRED');
     const body = ResponseRequestSchema.parse(req.body) as CanonicalRequest;
     const ent = await requireEntitlement(a.user.id, a.device!.id, body.model);
+    const ratePolicy = await currentRatePolicy();
     const mode = currentBillingMode();
     const connectionHeader = req.headers['x-provider-connection-id'];
     if (connectionHeader !== undefined && typeof connectionHeader !== 'string') throw new ApiError(400, 'INVALID_PROVIDER_CONNECTION');
@@ -55,20 +58,34 @@ export async function registerGateway(app: FastifyInstance) {
     const reserveTokens = Math.min(1024, Math.max(1, ent.plan.monthlyTokenLimit));
     const reserveCredit = usageCredit(reserveTokens, weight);
     const responseId = `resp_${randomUUID().replaceAll('-', '')}`;
-    const { record, v2RequestId } = await db.transaction(async tx => {
+    const { record, v2RequestId, continuation } = await db.transaction(async tx => {
       await tx.execute(sql`select id from users where id = ${a.user.id} for update`);
+      const [session] = await tx.select().from(modelSessions).where(and(eq(modelSessions.userId, a.user.id),
+        eq(modelSessions.deviceId, a.device!.id), eq(modelSessions.clientThreadId, threadId),
+        gte(modelSessions.expiresAt, new Date()))).for('update').limit(1);
+      const continuation = session?.modelId === ent.model.id && session.providerId === ent.provider.id
+        ? pendingContinuation(session.state, body, Date.now()) : null;
       const [totals] = await tx.select({ tokens: sum(usageRecords.totalTokens), credit: sum(usageRecords.usageCredit), running: sql<number>`count(*) filter (where ${usageRecords.status} = 'RUNNING')`, rpm: sql<number>`count(*) filter (where ${usageRecords.createdAt} >= now() - interval '1 minute')` }).from(usageRecords)
         .where(and(eq(usageRecords.userId, a.user.id), gte(usageRecords.createdAt, ent.subscription.currentPeriodStart), lt(usageRecords.createdAt, ent.subscription.currentPeriodEnd)));
+      const [recent] = await tx.select({
+        account: sql<number>`count(*)`,
+        device: sql<number>`count(*) filter (where ${usageRecords.deviceId} = ${a.device!.id})`,
+      }).from(usageRecords).where(and(eq(usageRecords.userId, a.user.id), eq(usageRecords.rateCounted, true),
+        sql`${usageRecords.createdAt} >= now() - interval '1 minute'`));
       if (Number(totals.tokens ?? 0) + reserveTokens > ent.plan.monthlyTokenLimit || Number(totals.credit ?? 0) + reserveCredit > Number(ent.plan.monthlyUsageCreditLimit)) throw new ApiError(429, 'MONTHLY_QUOTA_EXCEEDED');
-      if (Number(totals.running) >= ent.plan.maxConcurrentRequests || Number(totals.rpm) >= ent.plan.requestsPerMinute) throw new ApiError(429, 'RATE_LIMITED');
-      const [newRecord] = await tx.insert(usageRecords).values({ userId: a.user.id, deviceId: a.device!.id, planId: ent.plan.id, providerId: ent.provider.id, modelId: ent.model.id, status: 'RUNNING', totalTokens: reserveTokens, usageCredit: String(reserveCredit) }).returning();
+      if (Number(totals.running) >= ent.plan.maxConcurrentRequests || Number(totals.rpm) >= ent.plan.requestsPerMinute
+        || (!continuation && (Number(recent.account) >= ratePolicy.accountRpm || Number(recent.device) >= ratePolicy.deviceRpm))) throw new ApiError(429, 'RATE_LIMITED');
+      if (session) await tx.update(modelSessions).set({ state: {} }).where(eq(modelSessions.id, session.id));
+      const [newRecord] = await tx.insert(usageRecords).values({ userId: a.user.id, deviceId: a.device!.id, planId: ent.plan.id,
+        providerId: ent.provider.id, modelId: ent.model.id, status: 'RUNNING', rateCounted: !continuation,
+        totalTokens: reserveTokens, usageCredit: String(reserveCredit) }).returning();
       const [request] = settlementMode ? await tx.insert(aiRequests).values({ responseId, userId: a.user.id, deviceId: a.device!.id,
         providerId: ent.provider.id, modelId: ent.model.id, providerAccountId: connection?.id ?? null, billingPolicy, rateCardVersionId: v2Rate?.id ?? null,
         legacyUsageRecordId: newRecord.id, status: 'STARTED', startedAt: new Date() }).returning() : [];
       await tx.insert(deviceSessions).values({ userId: a.user.id, deviceId: a.device!.id, lastSeenAt: new Date(), lastIpHash: hashRiskSignal(req.ip), requestCount: 1 })
         .onConflictDoUpdate({ target: deviceSessions.deviceId, set: { lastSeenAt: new Date(), lastIpHash: hashRiskSignal(req.ip), requestCount: sql`${deviceSessions.requestCount} + 1` } });
       await tx.update(devices).set({ lastSeenAt: new Date(), updatedAt: new Date() }).where(eq(devices.id, a.device!.id));
-      return { record: newRecord, v2RequestId: request?.id };
+      return { record: newRecord, v2RequestId: request?.id, continuation };
     });
     const started = Date.now();
     if (v2RequestId) reply.header('X-Bridge-AI-Request-Id', v2RequestId);
@@ -119,8 +136,9 @@ export async function registerGateway(app: FastifyInstance) {
       }, settlementMode) : null;
       await db.transaction(async tx => {
         await tx.update(usageRecords).set({ status: 'COMPLETED', inputTokens: result.inputTokens, outputTokens: result.outputTokens, totalTokens: total, usageCredit: String(credit), providerCost: result.providerCost === undefined ? null : String(result.providerCost), costKind: result.costKind, durationMs: Date.now() - started, completedAt: new Date() }).where(eq(usageRecords.id, record.id));
-        await tx.insert(modelSessions).values({ userId: a.user.id, deviceId: a.device!.id, clientThreadId: threadId, providerId: ent.provider.id, modelId: ent.model.id, providerSessionId: result.providerSessionId ?? responseId, expiresAt: new Date(Date.now() + 3600000) })
-          .onConflictDoUpdate({ target: [modelSessions.userId, modelSessions.deviceId, modelSessions.clientThreadId], set: { providerId: ent.provider.id, modelId: ent.model.id, providerSessionId: result.providerSessionId ?? responseId, lastActiveAt: new Date(), expiresAt: new Date(Date.now() + 3600000), state: {} } });
+        const state = nextContinuationState(body, result, continuation, Date.now());
+        await tx.insert(modelSessions).values({ userId: a.user.id, deviceId: a.device!.id, clientThreadId: threadId, providerId: ent.provider.id, modelId: ent.model.id, providerSessionId: result.providerSessionId ?? responseId, expiresAt: new Date(Date.now() + 3600000), state })
+          .onConflictDoUpdate({ target: [modelSessions.userId, modelSessions.deviceId, modelSessions.clientThreadId], set: { providerId: ent.provider.id, modelId: ent.model.id, providerSessionId: result.providerSessionId ?? responseId, lastActiveAt: new Date(), expiresAt: new Date(Date.now() + 3600000), state } });
       });
       const balance = event ? (await walletSummary(a.user.id)).balance : 0;
       const response = responseBody(responseId, body.model, result, event && v2RequestId

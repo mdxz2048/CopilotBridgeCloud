@@ -1,0 +1,1 @@
+ALTER TABLE "usage_records" ADD COLUMN "rate_counted" boolean DEFAULT true NOT NULL;

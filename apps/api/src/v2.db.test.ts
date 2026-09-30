@@ -1,5 +1,24 @@
 import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest';
-import { randomUUID } from 'node:crypto';
+import { createHash, createPublicKey, generateKeyPairSync, randomUUID, type KeyObject } from 'node:crypto';
+import { SignJWT } from 'jose';
+
+const proofKey = () => generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+const hashProof = (value: string) => createHash('sha256').update(value).digest('base64url');
+async function signedHeaders(key: KeyObject, method: string, path: string, payload: unknown, token = '') {
+  const url = new URL(path, 'http://localhost:3001');
+  const proof = { htm: method, htu: url.origin + url.pathname,
+    iat: Math.floor(Date.now() / 1000), jti: randomUUID(), ath: hashProof(token),
+    bth: hashProof(payload === undefined ? '' : JSON.stringify(payload)) };
+  const jwk = createPublicKey(key).export({ format: 'jwk' });
+  return { host: 'localhost:3001', dpop: await new SignJWT(proof).setProtectedHeader({ typ: 'dpop+jwt', alg: 'ES256', jwk }).sign(key) };
+}
+async function testCookieHeaders(dbModule: typeof import('@bridge/db'), userId: string) {
+  const { newRefresh, hashRefresh } = await import('./security.js');
+  const token = newRefresh();
+  await dbModule.db.insert(dbModule.webSessions).values({ userId, tokenHash: hashRefresh(token),
+    expiresAt: new Date(Date.now() + 300000) });
+  return { cookie: `bridge_session=${token}`, origin: process.env.PUBLIC_BASE_URL! };
+}
 
 const enabled = Boolean(process.env.V2_TEST_DATABASE_URL);
 describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
@@ -21,10 +40,12 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
     meterModule = await import('./metering.js');
     referralModule = await import('./referral.js');
     sql = (await import('drizzle-orm')).sql;
-    const { db, users, devices, providers, models, plans, rateCards, rateCardVersions } = dbModule;
+    const { db, users, devices, providers, models, plans, rateCards, rateCardVersions, systemSettings } = dbModule;
     // This test is permitted only against a dedicated disposable database.
     if (!new URL(process.env.DATABASE_URL!).pathname.startsWith('/bridge_v2_test_')) throw new Error('REFUSE_NON_TEST_DATABASE');
     await db.execute(sql`truncate table users, plans, providers, system_settings restart identity cascade`);
+    await db.insert(systemSettings).values({ key: 'rate_policy',
+      value: { accountRpm: 120, deviceRpm: 60, publicIpRpm: 120, authIpRpm: 120 } });
     const [user] = await db.insert(users).values({ email: `v2-${randomUUID()}@example.test`, passwordHash: 'test' }).returning();
     const [secondUser] = await db.insert(users).values({ email: `v2-${randomUUID()}@example.test`, passwordHash: await (await import('./security.js')).hashPassword('testpassword123') }).returning();
     const [admin] = await db.insert(users).values({ email: `v2-admin-${randomUUID()}@example.test`, passwordHash: 'test', role: 'ADMIN' }).returning();
@@ -95,9 +116,17 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
     const [user] = await db.select().from(users).where((await import('drizzle-orm')).eq(users.id, ids.secondUser));
     const app = await (await import('./server.js')).createServer();
     try {
-      const deviceInfo = () => ({ deviceId: randomUUID(), deviceName: 'test desktop', platform: 'Windows', osVersion: '11', appVersion: '2.0' });
-      const login = async (device: ReturnType<typeof deviceInfo>) => app.inject({ method: 'POST', url: '/api/v1/auth/login', payload: { email: user.email, password: 'testpassword123', device } });
-      const first = await login(deviceInfo());
+      const deviceInfo = () => {
+        const { privateKey, publicKey } = proofKey();
+        return { privateKey, device: { deviceId: randomUUID(), deviceName: 'test desktop', platform: 'Windows',
+          osVersion: '11', appVersion: '2.0', publicKeyJwk: publicKey.export({ format: 'jwk' }) } };
+      };
+      const login = async ({ device, privateKey }: ReturnType<typeof deviceInfo>) => {
+        const payload = { email: user.email, password: 'testpassword123', device };
+        return app.inject({ method: 'POST', url: '/api/v1/auth/login', payload });
+      };
+      const firstKey = deviceInfo();
+      const first = await login(firstKey);
       const second = await login(deviceInfo());
       expect(first.statusCode).toBe(200);
       expect(second.statusCode).toBe(200);
@@ -105,14 +134,60 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
       expect(limited.statusCode).toBe(409);
       expect(limited.json().error.code).toBe('DEVICE_LIMIT_REACHED');
       const revokedId = first.json().device.id as string;
-      const revoke = await app.inject({ method: 'POST', url: `/api/v1/devices/${revokedId}/revoke`, headers: { authorization: `Bearer ${second.json().accessToken}` } });
+      const revokePath = `/api/v1/devices/${revokedId}/revoke`;
+      const firstToken = first.json().accessToken as string;
+      const revoke = await app.inject({ method: 'POST', url: revokePath,
+        headers: { authorization: `Bearer ${firstToken}`, ...(await signedHeaders(firstKey.privateKey, 'POST', revokePath, undefined, firstToken)) } });
       expect(revoke.statusCode).toBe(200);
       expect((await login(deviceInfo())).statusCode).toBe(200);
+    } finally { await app.close(); }
+  }, 15_000);
+
+  it('enrolls a legacy device key once at password login and invalidates its old tokens', async () => {
+    const { db, devices, refreshTokens, subscriptions, users } = dbModule;
+    const { eq } = await import('drizzle-orm');
+    const security = await import('./security.js');
+    const [user] = await db.insert(users).values({ email: `v2-upgrade-${randomUUID()}@example.test`,
+      passwordHash: await security.hashPassword('testpassword123') }).returning();
+    const [legacy] = await db.insert(devices).values({ userId: user.id, deviceId: randomUUID(),
+      deviceName: 'Legacy Desktop', platform: 'Windows' }).returning();
+    const startedAt = new Date();
+    await db.insert(subscriptions).values({ userId: user.id, planId: ids.plan, status: 'ACTIVE',
+      startedAt, currentPeriodStart: startedAt, currentPeriodEnd: new Date(startedAt.getTime() + 86400000) });
+    const oldAccess = await security.issueAccess(user.id, legacy.id);
+    const oldRefresh = security.newRefresh();
+    await db.insert(refreshTokens).values({ userId: user.id, deviceId: legacy.id,
+      tokenHash: security.hashRefresh(oldRefresh), expiresAt: new Date(Date.now() + 86400000) });
+    const { publicKey } = proofKey();
+    const jwk = publicKey.export({ format: 'jwk' });
+    const payload = { email: user.email, password: 'testpassword123', device: { deviceId: legacy.deviceId,
+      deviceName: 'Upgraded Desktop', platform: 'Windows',
+      publicKeyJwk: { kty: 'EC', crv: 'P-256', x: jwk.x, y: jwk.y } } };
+    const app = await (await import('./server.js')).createServer();
+    try {
+      const first = await app.inject({ method: 'POST', url: '/api/v1/auth/login', payload });
+      expect(first.statusCode).toBe(200);
+      const [enrolled] = await db.select().from(devices).where(eq(devices.id, legacy.id));
+      expect(enrolled.publicKeyJwk).toMatchObject(payload.device.publicKeyJwk);
+      expect(enrolled.authVersion).toBe(1);
+      const [revoked] = await db.select().from(refreshTokens).where(eq(refreshTokens.tokenHash, security.hashRefresh(oldRefresh)));
+      expect(revoked.revokedAt).not.toBeNull();
+      expect((await app.inject({ method: 'GET', url: '/api/v1/auth/me',
+        headers: { authorization: `Bearer ${oldAccess}` } })).statusCode).toBe(403);
+      expect((await app.inject({ method: 'POST', url: '/api/v1/auth/refresh',
+        payload: { refreshToken: oldRefresh } })).statusCode).toBe(401);
+      expect((await app.inject({ method: 'POST', url: '/api/v1/auth/login', payload })).statusCode).toBe(200);
+      const replacement = proofKey().publicKey.export({ format: 'jwk' });
+      const changed = await app.inject({ method: 'POST', url: '/api/v1/auth/login',
+        payload: { ...payload, device: { ...payload.device,
+          publicKeyJwk: { kty: 'EC', crv: 'P-256', x: replacement.x, y: replacement.y } } } });
+      expect(changed.statusCode).toBe(403);
+      expect(changed.json().error.code).toBe('DEVICE_PROOF_INVALID');
     } finally { await app.close(); }
   });
 
   it('keeps old access and refresh tokens revoked after Admin and user device restoration', async () => {
-    const { db, plans, subscriptions, users } = dbModule;
+    const { db, plans, subscriptions, users, webSessions } = dbModule;
     const [user] = await db.insert(users).values({ email: `v2-device-auth-${randomUUID()}@example.test`,
       passwordHash: await (await import('./security.js')).hashPassword('testpassword123') }).returning();
     const [plan] = await db.insert(plans).values({ code: `DEVICE_${randomUUID().slice(0, 8)}`, name: 'Device Test', monthlyPrice: '1',
@@ -122,11 +197,16 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
       currentPeriodStart: now, currentPeriodEnd: new Date(now.getTime() + 86400000) });
     const app = await (await import('./server.js')).createServer();
     try {
-      const adminToken = await (await import('./security.js')).issueAccess(ids.admin, undefined, 'ADMIN');
-      const device = { deviceId: randomUUID(), deviceName: 'Restored Desktop', platform: 'Windows', osVersion: '11', appVersion: '2.0' };
+      const { newRefresh, hashRefresh } = await import('./security.js');
+      const adminSession = newRefresh();
+      await db.insert(webSessions).values({ userId: ids.admin, tokenHash: hashRefresh(adminSession),
+        expiresAt: new Date(Date.now() + 86400000) });
+      const { privateKey, publicKey } = proofKey();
+      const device = { deviceId: randomUUID(), deviceName: 'Restored Desktop', platform: 'Windows',
+        osVersion: '11', appVersion: '2.0', publicKeyJwk: publicKey.export({ format: 'jwk' }) };
       const login = async () => {
-        const response = await app.inject({ method: 'POST', url: '/api/v1/auth/login',
-          payload: { email: user.email, password: 'testpassword123', device } });
+        const payload = { email: user.email, password: 'testpassword123', device };
+        const response = await app.inject({ method: 'POST', url: '/api/v1/auth/login', payload });
         expect(response.statusCode).toBe(200);
         return response.json() as { accessToken: string; refreshToken: string; device: { id: string } };
       };
@@ -134,7 +214,7 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
       const deviceId = first.device.id;
       const adminStatus = async (status: 'ACTIVE' | 'REVOKED' | 'BLOCKED') => {
         const response = await app.inject({ method: 'PATCH', url: `/api/v1/admin/devices/${deviceId}`,
-          headers: { authorization: `Bearer ${adminToken}` }, payload: { status } });
+          headers: { cookie: `bridge_session=${adminSession}`, origin: process.env.PUBLIC_BASE_URL! }, payload: { status } });
         expect(response.statusCode).toBe(200);
       };
       const assertStale = async (credentials: { accessToken: string; refreshToken: string }) => {
@@ -157,12 +237,36 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
       const third = await login();
       for (const [method, path] of [['DELETE', `/api/v1/devices/${deviceId}`], ['POST', `/api/v1/devices/${deviceId}/revoke`]] as const) {
         const current = method === 'DELETE' ? third : await login();
-        const revoke = await app.inject({ method, url: path, headers: { authorization: `Bearer ${current.accessToken}` } });
+        const token = current.accessToken;
+        const revoke = await app.inject({ method, url: path,
+          headers: { authorization: `Bearer ${token}`, ...(await signedHeaders(privateKey, method, path, undefined, token)) } });
         expect(revoke.statusCode).toBe(200);
         await adminStatus('ACTIVE');
         await assertStale(current);
       }
       expect((await login()).device.id).toBe(deviceId);
+    } finally { await app.close(); }
+  }, 15_000);
+
+  it('persists audited rate-policy changes and rejects non-admin and cross-origin updates', async () => {
+    const { db, auditLogs } = dbModule;
+    const app = await (await import('./server.js')).createServer();
+    try {
+      const adminHeaders = await testCookieHeaders(dbModule, ids.admin);
+      const userHeaders = await testCookieHeaders(dbModule, ids.secondUser);
+      const path = '/api/v1/admin/rate-policy';
+      const policy = { accountRpm: 4, deviceRpm: 2, publicIpRpm: 80, authIpRpm: 12 };
+      expect((await app.inject({ method: 'GET', url: path, headers: userHeaders })).statusCode).toBe(403);
+      expect((await app.inject({ method: 'PUT', url: path, headers: userHeaders, payload: policy })).statusCode).toBe(403);
+      expect((await app.inject({ method: 'PUT', url: path,
+        headers: { ...adminHeaders, origin: 'https://forged.example' }, payload: policy })).statusCode).toBe(403);
+      expect((await app.inject({ method: 'PUT', url: path,
+        headers: adminHeaders, payload: { ...policy, accountRpm: 999 } })).statusCode).toBe(400);
+      expect((await app.inject({ method: 'PUT', url: path, headers: adminHeaders, payload: policy })).statusCode).toBe(200);
+      expect((await app.inject({ method: 'GET', url: path, headers: adminHeaders })).json().policy).toEqual(policy);
+      expect((await db.select().from(auditLogs)).some(log => log.action === 'RATE_POLICY_UPDATED' && log.actorId === ids.admin)).toBe(true);
+      expect((await app.inject({ method: 'PUT', url: path, headers: adminHeaders,
+        payload: { accountRpm: 120, deviceRpm: 60, publicIpRpm: 120, authIpRpm: 120 } })).statusCode).toBe(200);
     } finally { await app.close(); }
   });
 
@@ -255,17 +359,17 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
     expect(await restored.status()).toEqual({ status: 'AUTHENTICATED', login: 'test-copilot-user' });
     const app = await (await import('./server.js')).createServer();
     try {
-      const { decryptSecret, hashRefresh, issueAccess, newRefresh } = await import('./security.js');
-      const nonAdminToken = await issueAccess(ids.secondUser, undefined, 'USER');
+      const { decryptSecret, hashRefresh, newRefresh } = await import('./security.js');
+      const nonAdminHeaders = await testCookieHeaders(dbModule, ids.secondUser);
       for (const method of ['GET', 'POST'] as const) {
         const denied = await app.inject({ method, url: '/api/v1/admin/copilot/auth',
-          headers: { authorization: `Bearer ${nonAdminToken}` } });
+          headers: nonAdminHeaders });
         expect(denied.statusCode).toBe(403);
         expect(denied.json().error.code).toBe('FORBIDDEN');
       }
       const patchUrl = `/api/v1/admin/providers/${provider.id}`;
       const forbidden = await app.inject({ method: 'PATCH', url: patchUrl,
-        headers: { authorization: `Bearer ${nonAdminToken}` }, payload: { apiKey: 'replacement-key' } });
+        headers: nonAdminHeaders, payload: { apiKey: 'replacement-key' } });
       expect(forbidden.statusCode).toBe(403);
       expect(forbidden.json().error.code).toBe('FORBIDDEN');
       const session = newRefresh();
@@ -276,8 +380,8 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
         payload: { apiKey: 'replacement-key' } });
       expect(csrf.statusCode).toBe(403);
       expect(csrf.json().error.code).toBe('CSRF_REJECTED');
-      const adminToken = await issueAccess(ids.admin, undefined, 'ADMIN');
-      const headers = { authorization: `Bearer ${adminToken}` };
+      const adminHeaders = await testCookieHeaders(dbModule, ids.admin);
+      const headers = adminHeaders;
       for (const payload of [{ apiKey: 'replacement-key' }, { apiKey: 'replacement-key', enabled: false }]) {
         const rejected = await app.inject({ method: 'PATCH', url: patchUrl, headers, payload });
         expect(rejected.statusCode).toBe(409);
@@ -306,12 +410,10 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
       currentPeriodStart: now, currentPeriodEnd: new Date(now.getTime() + 86400000) });
     const app = await (await import('./server.js')).createServer();
     try {
-      const issueAccess = (await import('./security.js')).issueAccess;
-      const adminToken = await issueAccess(ids.admin, undefined, 'ADMIN');
-      const userToken = await issueAccess(user.id, undefined, 'USER');
+      const headers = await testCookieHeaders(dbModule, ids.admin);
+      const userHeaders = await testCookieHeaders(dbModule, user.id);
       const endpoint = `/api/v1/admin/model-access?userId=${user.id}`;
-      const headers = { authorization: `Bearer ${adminToken}` };
-      expect((await app.inject({ method: 'GET', url: endpoint, headers: { authorization: `Bearer ${userToken}` } })).statusCode).toBe(403);
+      expect((await app.inject({ method: 'GET', url: endpoint, headers: userHeaders })).statusCode).toBe(403);
       const read = async () => {
         const response = await app.inject({ method: 'GET', url: endpoint, headers });
         expect(response.statusCode).toBe(200);
@@ -360,8 +462,8 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
     await db.insert(billingOrders).values({ orderNo: randomUUID(), userId: referred.id, planId: ids.plan, amount: '5', currency: 'CNY', provider: 'MANUAL', status: 'PAID', paidAt: new Date() });
     const app = await (await import('./server.js')).createServer();
     try {
-      const token = await (await import('./security.js')).issueAccess(ids.admin, undefined, 'ADMIN');
-      const review = await app.inject({ method: 'POST', url: `/api/v1/admin/referrals/${flagged.id}/review`, headers: { authorization: `Bearer ${token}` },
+      const headers = await testCookieHeaders(dbModule, ids.admin);
+      const review = await app.inject({ method: 'POST', url: `/api/v1/admin/referrals/${flagged.id}/review`, headers,
         payload: { decision: 'APPROVE', reason: 'Verified paid user and device ownership' } });
       expect(review.statusCode).toBe(200);
       const [updated] = await db.select().from(referrals).where((await import('drizzle-orm')).eq(referrals.id, flagged.id));
@@ -374,8 +476,8 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
     const { db, auditLogs, rateCardVersions, usageEvents } = dbModule;
     const app = await (await import('./server.js')).createServer();
     try {
-      const token = await (await import('./security.js')).issueAccess(ids.admin, undefined, 'ADMIN');
-      const headers = { authorization: `Bearer ${token}` };
+      const headers = await testCookieHeaders(dbModule, ids.admin);
+
       const idempotencyKey = randomUUID();
       const payload = { points: 5, reason: 'Correct verified billing dispute', idempotencyKey };
       const first = await app.inject({ method: 'POST', url: `/api/v1/admin/users/${ids.user}/wallet/adjust`, headers, payload });
@@ -453,5 +555,71 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
     expect((await walletModule.walletSummary(ids.secondUser)).balance).toBe(before.balance);
     expect(await db.select().from(walletTransactions).where(eq(walletTransactions.referenceId, request.id))).toHaveLength(0);
     expect((await meterModule.settleAiRequest(request.id, 'COMPLETED', {}, 'SHADOW')).id).toBe(event.id);
+  });
+
+  it('admits bounded tool continuations without allowing another user turn at one device request per minute', async () => {
+    const { db, devices, models, planModelAccess, plans, providers, subscriptions, systemSettings, usageRecords, users } = dbModule;
+    const { eq } = await import('drizzle-orm');
+    const [user] = await db.insert(users).values({ email: `v2-tool-${randomUUID()}@example.test`, passwordHash: 'test' }).returning();
+    const { privateKey, publicKey } = proofKey();
+    const jwk = publicKey.export({ format: 'jwk' });
+    const [device] = await db.insert(devices).values({ userId: user.id, deviceId: randomUUID(), deviceName: 'Tool PC',
+      platform: 'Windows', publicKeyJwk: { kty: 'EC', crv: 'P-256', x: jwk.x!, y: jwk.y! } }).returning();
+    const [provider] = await db.insert(providers).values({ code: 'MOCK', name: 'Tool Mock', enabled: true }).returning();
+    const [model] = await db.insert(models).values({ providerId: provider.id, providerModelId: 'mock-chat',
+      publicId: 'mock/tool', displayName: 'Tool Mock', enabled: true, supportsTools: true }).returning();
+    const [plan] = await db.insert(plans).values({ code: `TOOL_${randomUUID().slice(0, 8)}`, name: 'Tool Test',
+      monthlyPrice: '0', maxDevices: 1, monthlyTokenLimit: 100000, monthlyUsageCreditLimit: '100000',
+      maxConcurrentRequests: 4, requestsPerMinute: 60, enabled: true }).returning();
+    const now = new Date();
+    await db.insert(subscriptions).values({ userId: user.id, planId: plan.id, status: 'ACTIVE',
+      startedAt: now, currentPeriodStart: now, currentPeriodEnd: new Date(now.getTime() + 86400000) });
+    await db.insert(planModelAccess).values({ modelId: model.id, planId: plan.id });
+    await db.insert(systemSettings).values({ key: 'rate_policy', value: { accountRpm: 2, deviceRpm: 1, publicIpRpm: 120, authIpRpm: 120 } })
+      .onConflictDoUpdate({ target: systemSettings.key, set: { value: { accountRpm: 2, deviceRpm: 1, publicIpRpm: 120, authIpRpm: 120 } } });
+    const previousMockEnabled = process.env.INTEGRATION_MOCK_ENABLED;
+    const previousMockEmail = process.env.INTEGRATION_MOCK_TEST_EMAIL;
+    const previousBillingMode = process.env.V2_BILLING_MODE;
+    process.env.INTEGRATION_MOCK_ENABLED = 'true';
+    process.env.INTEGRATION_MOCK_TEST_EMAIL = user.email;
+    process.env.V2_BILLING_MODE = 'OFF';
+    const app = await (await import('./server.js')).createServer();
+    try {
+      const token = await (await import('./security.js')).issueAccess(user.id, device.id);
+      const thread = randomUUID();
+      const tools = [{ name: 'read', parameters: {} }, { name: 'write', parameters: {} }];
+      const send = async (input: unknown, threadId = thread) => {
+        const payload = { model: model.publicId, input, tools };
+        const headers = await signedHeaders(privateKey, 'POST', '/v1/responses', payload, token);
+        return app.inject({ method: 'POST', url: '/v1/responses',
+          headers: { ...headers, authorization: `Bearer ${token}`, 'x-device-id': device.deviceId, 'x-client-thread-id': threadId },
+          payload });
+      };
+      const prompt = { role: 'user', content: 'Use two local tools' };
+      const first = await send([prompt]);
+      expect(first.statusCode).toBe(200);
+      const firstCall = first.json().output[0];
+      const firstOutput = { type: 'function_call_output', call_id: firstCall.call_id, output: 'read result' };
+      expect((await send([prompt, firstCall, { role: 'user', content: 'unrelated question' }, firstOutput])).statusCode).toBe(429);
+      const second = await send([prompt, firstCall, firstOutput]);
+      expect(second.statusCode).toBe(200);
+      const secondCall = second.json().output[0];
+      const third = await send([prompt, firstCall, firstOutput, secondCall,
+        { type: 'function_call_output', call_id: secondCall.call_id, output: 'write result' }]);
+      expect(third.statusCode).toBe(200);
+      expect(third.json().output[0].type).toBe('message');
+      expect((await send('new turn')).statusCode).toBe(429);
+      expect((await send([firstOutput], randomUUID())).statusCode).toBe(429);
+      const records = await db.select({ counted: usageRecords.rateCounted }).from(usageRecords).where(eq(usageRecords.userId, user.id));
+      expect(records.map(row => row.counted)).toEqual([true, false, false]);
+    } finally {
+      await app.close();
+      if (previousMockEnabled === undefined) delete process.env.INTEGRATION_MOCK_ENABLED;
+      else process.env.INTEGRATION_MOCK_ENABLED = previousMockEnabled;
+      if (previousMockEmail === undefined) delete process.env.INTEGRATION_MOCK_TEST_EMAIL;
+      else process.env.INTEGRATION_MOCK_TEST_EMAIL = previousMockEmail;
+      if (previousBillingMode === undefined) delete process.env.V2_BILLING_MODE;
+      else process.env.V2_BILLING_MODE = previousBillingMode;
+    }
   });
 });

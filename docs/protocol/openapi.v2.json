@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Copilot Bridge Cloud App and Gateway API",
-    "version": "2.2.0"
+    "version": "2.3.0"
   },
   "servers": [
     {
@@ -14,7 +14,8 @@
       "DesktopBearer": {
         "type": "http",
         "scheme": "bearer",
-        "bearerFormat": "JWT"
+        "bearerFormat": "JWT",
+        "description": "Desktop bearer requests also require a DPoP compact ES256 JWT bound to the installation public P-256 JWK. Browser cookies remain exempt."
       }
     },
     "schemas": {
@@ -345,6 +346,8 @@
                   "CSRF_REJECTED",
                   "DEVICE_LIMIT_REACHED",
                   "DEVICE_NOT_REGISTERED",
+                  "DEVICE_PROOF_INVALID",
+                  "DEVICE_PROOF_REPLAYED",
                   "DEVICE_REVOKED",
                   "EMAIL_IN_USE",
                   "FORBIDDEN",
@@ -1913,12 +1916,49 @@
                         "type": "string",
                         "maxLength": 120,
                         "default": ""
+                      },
+                      "publicKeyJwk": {
+                        "type": "object",
+                        "properties": {
+                          "kty": {
+                            "type": "string",
+                            "enum": [
+                              "EC"
+                            ]
+                          },
+                          "crv": {
+                            "type": "string",
+                            "enum": [
+                              "P-256"
+                            ]
+                          },
+                          "x": {
+                            "type": "string",
+                            "minLength": 43,
+                            "maxLength": 43,
+                            "format": "base64url"
+                          },
+                          "y": {
+                            "type": "string",
+                            "minLength": 43,
+                            "maxLength": 43,
+                            "format": "base64url"
+                          }
+                        },
+                        "required": [
+                          "kty",
+                          "crv",
+                          "x",
+                          "y"
+                        ],
+                        "additionalProperties": false
                       }
                     },
                     "required": [
                       "deviceId",
                       "deviceName",
-                      "platform"
+                      "platform",
+                      "publicKeyJwk"
                     ]
                   }
                 },
@@ -2133,6 +2173,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -2226,6 +2268,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -2319,6 +2363,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -2412,6 +2458,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -2505,6 +2553,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -2579,7 +2629,17 @@
     },
     "/api/v1/auth/refresh": {
       "post": {
-        "summary": "Rotate device refresh token",
+        "summary": "Rotate a DPoP-bound desktop refresh token",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "DPoP",
+            "in": "header"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2641,26 +2701,67 @@
                         "code": {
                           "type": "string",
                           "enum": [
-                            "UNAUTHORIZED",
-                            "TOKEN_EXPIRED",
-                            "DEVICE_NOT_REGISTERED",
-                            "DEVICE_REVOKED",
-                            "DEVICE_LIMIT_REACHED",
                             "ACCOUNT_DISABLED",
-                            "SUBSCRIPTION_REQUIRED",
-                            "SUBSCRIPTION_EXPIRED",
-                            "MODEL_NOT_ALLOWED",
-                            "MONTHLY_QUOTA_EXCEEDED",
-                            "RATE_LIMITED",
-                            "PROVIDER_UNAVAILABLE",
-                            "MODEL_UNAVAILABLE",
-                            "GATEWAY_TIMEOUT",
+                            "AUTH_REQUIRED",
+                            "BILLING_REVIEW_REQUIRED",
+                            "CANNOT_DISABLE_SELF",
                             "CLIENT_THREAD_ID_REQUIRED",
+                            "COPILOT_AUTH_EXPIRED",
+                            "COPILOT_NOT_ENTITLED",
+                            "COPILOT_USAGE_UNAVAILABLE",
+                            "CSRF_REJECTED",
+                            "DEVICE_LIMIT_REACHED",
+                            "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
+                            "DEVICE_REVOKED",
+                            "EMAIL_IN_USE",
+                            "FORBIDDEN",
+                            "GATEWAY_TIMEOUT",
+                            "IDEMPOTENCY_CONFLICT",
+                            "INSUFFICIENT_POINTS",
+                            "INTERNAL_ERROR",
+                            "INVALID_CREDENTIALS",
+                            "INVALID_POINTS",
+                            "INVALID_PROVIDER_CONNECTION",
+                            "INVALID_REFERRAL_CODE",
+                            "MODEL_NOT_ALLOWED",
+                            "MODEL_NOT_AVAILABLE",
+                            "MODEL_PROVIDER_MISMATCH",
+                            "MODEL_UNAVAILABLE",
+                            "MONTHLY_QUOTA_EXCEEDED",
+                            "NOT_FOUND",
+                            "ORDER_NOT_PAYABLE",
+                            "PAYMENT_PROVIDER_NOT_CONNECTED",
+                            "PLAN_NOT_FOUND",
+                            "PLAN_REQUIRED",
+                            "PROVIDER_AUTH_REQUIRED",
+                            "PROVIDER_CONNECTION_UNAVAILABLE",
+                            "PROVIDER_UNAVAILABLE",
+                            "RATE_CARD_EXISTS",
+                            "RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED",
+                            "RATE_CARD_NOT_DRAFT",
+                            "RATE_CARD_UNAVAILABLE",
+                            "RATE_LIMITED",
+                            "REFERRAL_CODE_UNAVAILABLE",
+                            "REFERRAL_NOT_ELIGIBLE",
+                            "REFERRAL_NOT_REVIEWABLE",
+                            "REQUEST_NOT_FOUND",
+                            "ROLLOVER_POLICY_INVALID",
+                            "SUBSCRIPTION_EXPIRED",
+                            "SUBSCRIPTION_NOT_FOUND",
+                            "SUBSCRIPTION_REQUIRED",
+                            "TOKEN_EXPIRED",
+                            "UNAUTHORIZED",
                             "VALIDATION_ERROR",
-                            "INTERNAL_ERROR"
+                            "WALLET_LEDGER_MISMATCH",
+                            "WALLET_LIMIT_REACHED"
                           ]
                         },
                         "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
                           "type": "string"
                         },
                         "requestId": {
@@ -2670,6 +2771,7 @@
                       "required": [
                         "code",
                         "message",
+                        "request_id",
                         "requestId"
                       ]
                     }
@@ -2682,7 +2784,7 @@
             }
           },
           "401": {
-            "description": "Authentication failed",
+            "description": "Authentication required",
             "content": {
               "application/json": {
                 "schema": {
@@ -2694,26 +2796,67 @@
                         "code": {
                           "type": "string",
                           "enum": [
-                            "UNAUTHORIZED",
-                            "TOKEN_EXPIRED",
-                            "DEVICE_NOT_REGISTERED",
-                            "DEVICE_REVOKED",
-                            "DEVICE_LIMIT_REACHED",
                             "ACCOUNT_DISABLED",
-                            "SUBSCRIPTION_REQUIRED",
-                            "SUBSCRIPTION_EXPIRED",
-                            "MODEL_NOT_ALLOWED",
-                            "MONTHLY_QUOTA_EXCEEDED",
-                            "RATE_LIMITED",
-                            "PROVIDER_UNAVAILABLE",
-                            "MODEL_UNAVAILABLE",
-                            "GATEWAY_TIMEOUT",
+                            "AUTH_REQUIRED",
+                            "BILLING_REVIEW_REQUIRED",
+                            "CANNOT_DISABLE_SELF",
                             "CLIENT_THREAD_ID_REQUIRED",
+                            "COPILOT_AUTH_EXPIRED",
+                            "COPILOT_NOT_ENTITLED",
+                            "COPILOT_USAGE_UNAVAILABLE",
+                            "CSRF_REJECTED",
+                            "DEVICE_LIMIT_REACHED",
+                            "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
+                            "DEVICE_REVOKED",
+                            "EMAIL_IN_USE",
+                            "FORBIDDEN",
+                            "GATEWAY_TIMEOUT",
+                            "IDEMPOTENCY_CONFLICT",
+                            "INSUFFICIENT_POINTS",
+                            "INTERNAL_ERROR",
+                            "INVALID_CREDENTIALS",
+                            "INVALID_POINTS",
+                            "INVALID_PROVIDER_CONNECTION",
+                            "INVALID_REFERRAL_CODE",
+                            "MODEL_NOT_ALLOWED",
+                            "MODEL_NOT_AVAILABLE",
+                            "MODEL_PROVIDER_MISMATCH",
+                            "MODEL_UNAVAILABLE",
+                            "MONTHLY_QUOTA_EXCEEDED",
+                            "NOT_FOUND",
+                            "ORDER_NOT_PAYABLE",
+                            "PAYMENT_PROVIDER_NOT_CONNECTED",
+                            "PLAN_NOT_FOUND",
+                            "PLAN_REQUIRED",
+                            "PROVIDER_AUTH_REQUIRED",
+                            "PROVIDER_CONNECTION_UNAVAILABLE",
+                            "PROVIDER_UNAVAILABLE",
+                            "RATE_CARD_EXISTS",
+                            "RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED",
+                            "RATE_CARD_NOT_DRAFT",
+                            "RATE_CARD_UNAVAILABLE",
+                            "RATE_LIMITED",
+                            "REFERRAL_CODE_UNAVAILABLE",
+                            "REFERRAL_NOT_ELIGIBLE",
+                            "REFERRAL_NOT_REVIEWABLE",
+                            "REQUEST_NOT_FOUND",
+                            "ROLLOVER_POLICY_INVALID",
+                            "SUBSCRIPTION_EXPIRED",
+                            "SUBSCRIPTION_NOT_FOUND",
+                            "SUBSCRIPTION_REQUIRED",
+                            "TOKEN_EXPIRED",
+                            "UNAUTHORIZED",
                             "VALIDATION_ERROR",
-                            "INTERNAL_ERROR"
+                            "WALLET_LEDGER_MISMATCH",
+                            "WALLET_LIMIT_REACHED"
                           ]
                         },
                         "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
                           "type": "string"
                         },
                         "requestId": {
@@ -2723,6 +2866,7 @@
                       "required": [
                         "code",
                         "message",
+                        "request_id",
                         "requestId"
                       ]
                     }
@@ -2747,26 +2891,67 @@
                         "code": {
                           "type": "string",
                           "enum": [
-                            "UNAUTHORIZED",
-                            "TOKEN_EXPIRED",
-                            "DEVICE_NOT_REGISTERED",
-                            "DEVICE_REVOKED",
-                            "DEVICE_LIMIT_REACHED",
                             "ACCOUNT_DISABLED",
-                            "SUBSCRIPTION_REQUIRED",
-                            "SUBSCRIPTION_EXPIRED",
-                            "MODEL_NOT_ALLOWED",
-                            "MONTHLY_QUOTA_EXCEEDED",
-                            "RATE_LIMITED",
-                            "PROVIDER_UNAVAILABLE",
-                            "MODEL_UNAVAILABLE",
-                            "GATEWAY_TIMEOUT",
+                            "AUTH_REQUIRED",
+                            "BILLING_REVIEW_REQUIRED",
+                            "CANNOT_DISABLE_SELF",
                             "CLIENT_THREAD_ID_REQUIRED",
+                            "COPILOT_AUTH_EXPIRED",
+                            "COPILOT_NOT_ENTITLED",
+                            "COPILOT_USAGE_UNAVAILABLE",
+                            "CSRF_REJECTED",
+                            "DEVICE_LIMIT_REACHED",
+                            "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
+                            "DEVICE_REVOKED",
+                            "EMAIL_IN_USE",
+                            "FORBIDDEN",
+                            "GATEWAY_TIMEOUT",
+                            "IDEMPOTENCY_CONFLICT",
+                            "INSUFFICIENT_POINTS",
+                            "INTERNAL_ERROR",
+                            "INVALID_CREDENTIALS",
+                            "INVALID_POINTS",
+                            "INVALID_PROVIDER_CONNECTION",
+                            "INVALID_REFERRAL_CODE",
+                            "MODEL_NOT_ALLOWED",
+                            "MODEL_NOT_AVAILABLE",
+                            "MODEL_PROVIDER_MISMATCH",
+                            "MODEL_UNAVAILABLE",
+                            "MONTHLY_QUOTA_EXCEEDED",
+                            "NOT_FOUND",
+                            "ORDER_NOT_PAYABLE",
+                            "PAYMENT_PROVIDER_NOT_CONNECTED",
+                            "PLAN_NOT_FOUND",
+                            "PLAN_REQUIRED",
+                            "PROVIDER_AUTH_REQUIRED",
+                            "PROVIDER_CONNECTION_UNAVAILABLE",
+                            "PROVIDER_UNAVAILABLE",
+                            "RATE_CARD_EXISTS",
+                            "RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED",
+                            "RATE_CARD_NOT_DRAFT",
+                            "RATE_CARD_UNAVAILABLE",
+                            "RATE_LIMITED",
+                            "REFERRAL_CODE_UNAVAILABLE",
+                            "REFERRAL_NOT_ELIGIBLE",
+                            "REFERRAL_NOT_REVIEWABLE",
+                            "REQUEST_NOT_FOUND",
+                            "ROLLOVER_POLICY_INVALID",
+                            "SUBSCRIPTION_EXPIRED",
+                            "SUBSCRIPTION_NOT_FOUND",
+                            "SUBSCRIPTION_REQUIRED",
+                            "TOKEN_EXPIRED",
+                            "UNAUTHORIZED",
                             "VALIDATION_ERROR",
-                            "INTERNAL_ERROR"
+                            "WALLET_LEDGER_MISMATCH",
+                            "WALLET_LIMIT_REACHED"
                           ]
                         },
                         "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
                           "type": "string"
                         },
                         "requestId": {
@@ -2776,6 +2961,102 @@
                       "required": [
                         "code",
                         "message",
+                        "request_id",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "ACCOUNT_DISABLED",
+                            "AUTH_REQUIRED",
+                            "BILLING_REVIEW_REQUIRED",
+                            "CANNOT_DISABLE_SELF",
+                            "CLIENT_THREAD_ID_REQUIRED",
+                            "COPILOT_AUTH_EXPIRED",
+                            "COPILOT_NOT_ENTITLED",
+                            "COPILOT_USAGE_UNAVAILABLE",
+                            "CSRF_REJECTED",
+                            "DEVICE_LIMIT_REACHED",
+                            "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
+                            "DEVICE_REVOKED",
+                            "EMAIL_IN_USE",
+                            "FORBIDDEN",
+                            "GATEWAY_TIMEOUT",
+                            "IDEMPOTENCY_CONFLICT",
+                            "INSUFFICIENT_POINTS",
+                            "INTERNAL_ERROR",
+                            "INVALID_CREDENTIALS",
+                            "INVALID_POINTS",
+                            "INVALID_PROVIDER_CONNECTION",
+                            "INVALID_REFERRAL_CODE",
+                            "MODEL_NOT_ALLOWED",
+                            "MODEL_NOT_AVAILABLE",
+                            "MODEL_PROVIDER_MISMATCH",
+                            "MODEL_UNAVAILABLE",
+                            "MONTHLY_QUOTA_EXCEEDED",
+                            "NOT_FOUND",
+                            "ORDER_NOT_PAYABLE",
+                            "PAYMENT_PROVIDER_NOT_CONNECTED",
+                            "PLAN_NOT_FOUND",
+                            "PLAN_REQUIRED",
+                            "PROVIDER_AUTH_REQUIRED",
+                            "PROVIDER_CONNECTION_UNAVAILABLE",
+                            "PROVIDER_UNAVAILABLE",
+                            "RATE_CARD_EXISTS",
+                            "RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED",
+                            "RATE_CARD_NOT_DRAFT",
+                            "RATE_CARD_UNAVAILABLE",
+                            "RATE_LIMITED",
+                            "REFERRAL_CODE_UNAVAILABLE",
+                            "REFERRAL_NOT_ELIGIBLE",
+                            "REFERRAL_NOT_REVIEWABLE",
+                            "REQUEST_NOT_FOUND",
+                            "ROLLOVER_POLICY_INVALID",
+                            "SUBSCRIPTION_EXPIRED",
+                            "SUBSCRIPTION_NOT_FOUND",
+                            "SUBSCRIPTION_REQUIRED",
+                            "TOKEN_EXPIRED",
+                            "UNAUTHORIZED",
+                            "VALIDATION_ERROR",
+                            "WALLET_LEDGER_MISMATCH",
+                            "WALLET_LIMIT_REACHED"
+                          ]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id",
                         "requestId"
                       ]
                     }
@@ -2788,7 +3069,7 @@
             }
           },
           "429": {
-            "description": "Quota or rate limit",
+            "description": "Rate limited",
             "content": {
               "application/json": {
                 "schema": {
@@ -2800,26 +3081,67 @@
                         "code": {
                           "type": "string",
                           "enum": [
-                            "UNAUTHORIZED",
-                            "TOKEN_EXPIRED",
-                            "DEVICE_NOT_REGISTERED",
-                            "DEVICE_REVOKED",
-                            "DEVICE_LIMIT_REACHED",
                             "ACCOUNT_DISABLED",
-                            "SUBSCRIPTION_REQUIRED",
-                            "SUBSCRIPTION_EXPIRED",
-                            "MODEL_NOT_ALLOWED",
-                            "MONTHLY_QUOTA_EXCEEDED",
-                            "RATE_LIMITED",
-                            "PROVIDER_UNAVAILABLE",
-                            "MODEL_UNAVAILABLE",
-                            "GATEWAY_TIMEOUT",
+                            "AUTH_REQUIRED",
+                            "BILLING_REVIEW_REQUIRED",
+                            "CANNOT_DISABLE_SELF",
                             "CLIENT_THREAD_ID_REQUIRED",
+                            "COPILOT_AUTH_EXPIRED",
+                            "COPILOT_NOT_ENTITLED",
+                            "COPILOT_USAGE_UNAVAILABLE",
+                            "CSRF_REJECTED",
+                            "DEVICE_LIMIT_REACHED",
+                            "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
+                            "DEVICE_REVOKED",
+                            "EMAIL_IN_USE",
+                            "FORBIDDEN",
+                            "GATEWAY_TIMEOUT",
+                            "IDEMPOTENCY_CONFLICT",
+                            "INSUFFICIENT_POINTS",
+                            "INTERNAL_ERROR",
+                            "INVALID_CREDENTIALS",
+                            "INVALID_POINTS",
+                            "INVALID_PROVIDER_CONNECTION",
+                            "INVALID_REFERRAL_CODE",
+                            "MODEL_NOT_ALLOWED",
+                            "MODEL_NOT_AVAILABLE",
+                            "MODEL_PROVIDER_MISMATCH",
+                            "MODEL_UNAVAILABLE",
+                            "MONTHLY_QUOTA_EXCEEDED",
+                            "NOT_FOUND",
+                            "ORDER_NOT_PAYABLE",
+                            "PAYMENT_PROVIDER_NOT_CONNECTED",
+                            "PLAN_NOT_FOUND",
+                            "PLAN_REQUIRED",
+                            "PROVIDER_AUTH_REQUIRED",
+                            "PROVIDER_CONNECTION_UNAVAILABLE",
+                            "PROVIDER_UNAVAILABLE",
+                            "RATE_CARD_EXISTS",
+                            "RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED",
+                            "RATE_CARD_NOT_DRAFT",
+                            "RATE_CARD_UNAVAILABLE",
+                            "RATE_LIMITED",
+                            "REFERRAL_CODE_UNAVAILABLE",
+                            "REFERRAL_NOT_ELIGIBLE",
+                            "REFERRAL_NOT_REVIEWABLE",
+                            "REQUEST_NOT_FOUND",
+                            "ROLLOVER_POLICY_INVALID",
+                            "SUBSCRIPTION_EXPIRED",
+                            "SUBSCRIPTION_NOT_FOUND",
+                            "SUBSCRIPTION_REQUIRED",
+                            "TOKEN_EXPIRED",
+                            "UNAUTHORIZED",
                             "VALIDATION_ERROR",
-                            "INTERNAL_ERROR"
+                            "WALLET_LEDGER_MISMATCH",
+                            "WALLET_LIMIT_REACHED"
                           ]
                         },
                         "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
                           "type": "string"
                         },
                         "requestId": {
@@ -2829,6 +3151,7 @@
                       "required": [
                         "code",
                         "message",
+                        "request_id",
                         "requestId"
                       ]
                     }
@@ -4170,6 +4493,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -4263,6 +4588,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -4356,6 +4683,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -4449,6 +4778,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -4542,6 +4873,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -7299,6 +7632,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -7392,6 +7727,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -7485,6 +7822,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -7578,6 +7917,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -7671,6 +8012,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -7849,6 +8192,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -7942,6 +8287,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -8035,6 +8382,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -8128,6 +8477,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -8221,6 +8572,1109 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
+                            "DEVICE_REVOKED",
+                            "EMAIL_IN_USE",
+                            "FORBIDDEN",
+                            "GATEWAY_TIMEOUT",
+                            "IDEMPOTENCY_CONFLICT",
+                            "INSUFFICIENT_POINTS",
+                            "INTERNAL_ERROR",
+                            "INVALID_CREDENTIALS",
+                            "INVALID_POINTS",
+                            "INVALID_PROVIDER_CONNECTION",
+                            "INVALID_REFERRAL_CODE",
+                            "MODEL_NOT_ALLOWED",
+                            "MODEL_NOT_AVAILABLE",
+                            "MODEL_PROVIDER_MISMATCH",
+                            "MODEL_UNAVAILABLE",
+                            "MONTHLY_QUOTA_EXCEEDED",
+                            "NOT_FOUND",
+                            "ORDER_NOT_PAYABLE",
+                            "PAYMENT_PROVIDER_NOT_CONNECTED",
+                            "PLAN_NOT_FOUND",
+                            "PLAN_REQUIRED",
+                            "PROVIDER_AUTH_REQUIRED",
+                            "PROVIDER_CONNECTION_UNAVAILABLE",
+                            "PROVIDER_UNAVAILABLE",
+                            "RATE_CARD_EXISTS",
+                            "RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED",
+                            "RATE_CARD_NOT_DRAFT",
+                            "RATE_CARD_UNAVAILABLE",
+                            "RATE_LIMITED",
+                            "REFERRAL_CODE_UNAVAILABLE",
+                            "REFERRAL_NOT_ELIGIBLE",
+                            "REFERRAL_NOT_REVIEWABLE",
+                            "REQUEST_NOT_FOUND",
+                            "ROLLOVER_POLICY_INVALID",
+                            "SUBSCRIPTION_EXPIRED",
+                            "SUBSCRIPTION_NOT_FOUND",
+                            "SUBSCRIPTION_REQUIRED",
+                            "TOKEN_EXPIRED",
+                            "UNAUTHORIZED",
+                            "VALIDATION_ERROR",
+                            "WALLET_LEDGER_MISMATCH",
+                            "WALLET_LIMIT_REACHED"
+                          ]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/rate-policy": {
+      "get": {
+        "summary": "GET /api/v1/admin/rate-policy",
+        "security": [
+          {
+            "DesktopBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "policy": {
+                      "type": "object",
+                      "properties": {
+                        "accountRpm": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 120
+                        },
+                        "deviceRpm": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 60
+                        },
+                        "publicIpRpm": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 10000
+                        },
+                        "authIpRpm": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 1000
+                        }
+                      },
+                      "required": [
+                        "accountRpm",
+                        "deviceRpm",
+                        "publicIpRpm",
+                        "authIpRpm"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "policy"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "ACCOUNT_DISABLED",
+                            "AUTH_REQUIRED",
+                            "BILLING_REVIEW_REQUIRED",
+                            "CANNOT_DISABLE_SELF",
+                            "CLIENT_THREAD_ID_REQUIRED",
+                            "COPILOT_AUTH_EXPIRED",
+                            "COPILOT_NOT_ENTITLED",
+                            "COPILOT_USAGE_UNAVAILABLE",
+                            "CSRF_REJECTED",
+                            "DEVICE_LIMIT_REACHED",
+                            "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
+                            "DEVICE_REVOKED",
+                            "EMAIL_IN_USE",
+                            "FORBIDDEN",
+                            "GATEWAY_TIMEOUT",
+                            "IDEMPOTENCY_CONFLICT",
+                            "INSUFFICIENT_POINTS",
+                            "INTERNAL_ERROR",
+                            "INVALID_CREDENTIALS",
+                            "INVALID_POINTS",
+                            "INVALID_PROVIDER_CONNECTION",
+                            "INVALID_REFERRAL_CODE",
+                            "MODEL_NOT_ALLOWED",
+                            "MODEL_NOT_AVAILABLE",
+                            "MODEL_PROVIDER_MISMATCH",
+                            "MODEL_UNAVAILABLE",
+                            "MONTHLY_QUOTA_EXCEEDED",
+                            "NOT_FOUND",
+                            "ORDER_NOT_PAYABLE",
+                            "PAYMENT_PROVIDER_NOT_CONNECTED",
+                            "PLAN_NOT_FOUND",
+                            "PLAN_REQUIRED",
+                            "PROVIDER_AUTH_REQUIRED",
+                            "PROVIDER_CONNECTION_UNAVAILABLE",
+                            "PROVIDER_UNAVAILABLE",
+                            "RATE_CARD_EXISTS",
+                            "RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED",
+                            "RATE_CARD_NOT_DRAFT",
+                            "RATE_CARD_UNAVAILABLE",
+                            "RATE_LIMITED",
+                            "REFERRAL_CODE_UNAVAILABLE",
+                            "REFERRAL_NOT_ELIGIBLE",
+                            "REFERRAL_NOT_REVIEWABLE",
+                            "REQUEST_NOT_FOUND",
+                            "ROLLOVER_POLICY_INVALID",
+                            "SUBSCRIPTION_EXPIRED",
+                            "SUBSCRIPTION_NOT_FOUND",
+                            "SUBSCRIPTION_REQUIRED",
+                            "TOKEN_EXPIRED",
+                            "UNAUTHORIZED",
+                            "VALIDATION_ERROR",
+                            "WALLET_LEDGER_MISMATCH",
+                            "WALLET_LIMIT_REACHED"
+                          ]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "ACCOUNT_DISABLED",
+                            "AUTH_REQUIRED",
+                            "BILLING_REVIEW_REQUIRED",
+                            "CANNOT_DISABLE_SELF",
+                            "CLIENT_THREAD_ID_REQUIRED",
+                            "COPILOT_AUTH_EXPIRED",
+                            "COPILOT_NOT_ENTITLED",
+                            "COPILOT_USAGE_UNAVAILABLE",
+                            "CSRF_REJECTED",
+                            "DEVICE_LIMIT_REACHED",
+                            "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
+                            "DEVICE_REVOKED",
+                            "EMAIL_IN_USE",
+                            "FORBIDDEN",
+                            "GATEWAY_TIMEOUT",
+                            "IDEMPOTENCY_CONFLICT",
+                            "INSUFFICIENT_POINTS",
+                            "INTERNAL_ERROR",
+                            "INVALID_CREDENTIALS",
+                            "INVALID_POINTS",
+                            "INVALID_PROVIDER_CONNECTION",
+                            "INVALID_REFERRAL_CODE",
+                            "MODEL_NOT_ALLOWED",
+                            "MODEL_NOT_AVAILABLE",
+                            "MODEL_PROVIDER_MISMATCH",
+                            "MODEL_UNAVAILABLE",
+                            "MONTHLY_QUOTA_EXCEEDED",
+                            "NOT_FOUND",
+                            "ORDER_NOT_PAYABLE",
+                            "PAYMENT_PROVIDER_NOT_CONNECTED",
+                            "PLAN_NOT_FOUND",
+                            "PLAN_REQUIRED",
+                            "PROVIDER_AUTH_REQUIRED",
+                            "PROVIDER_CONNECTION_UNAVAILABLE",
+                            "PROVIDER_UNAVAILABLE",
+                            "RATE_CARD_EXISTS",
+                            "RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED",
+                            "RATE_CARD_NOT_DRAFT",
+                            "RATE_CARD_UNAVAILABLE",
+                            "RATE_LIMITED",
+                            "REFERRAL_CODE_UNAVAILABLE",
+                            "REFERRAL_NOT_ELIGIBLE",
+                            "REFERRAL_NOT_REVIEWABLE",
+                            "REQUEST_NOT_FOUND",
+                            "ROLLOVER_POLICY_INVALID",
+                            "SUBSCRIPTION_EXPIRED",
+                            "SUBSCRIPTION_NOT_FOUND",
+                            "SUBSCRIPTION_REQUIRED",
+                            "TOKEN_EXPIRED",
+                            "UNAUTHORIZED",
+                            "VALIDATION_ERROR",
+                            "WALLET_LEDGER_MISMATCH",
+                            "WALLET_LIMIT_REACHED"
+                          ]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "ACCOUNT_DISABLED",
+                            "AUTH_REQUIRED",
+                            "BILLING_REVIEW_REQUIRED",
+                            "CANNOT_DISABLE_SELF",
+                            "CLIENT_THREAD_ID_REQUIRED",
+                            "COPILOT_AUTH_EXPIRED",
+                            "COPILOT_NOT_ENTITLED",
+                            "COPILOT_USAGE_UNAVAILABLE",
+                            "CSRF_REJECTED",
+                            "DEVICE_LIMIT_REACHED",
+                            "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
+                            "DEVICE_REVOKED",
+                            "EMAIL_IN_USE",
+                            "FORBIDDEN",
+                            "GATEWAY_TIMEOUT",
+                            "IDEMPOTENCY_CONFLICT",
+                            "INSUFFICIENT_POINTS",
+                            "INTERNAL_ERROR",
+                            "INVALID_CREDENTIALS",
+                            "INVALID_POINTS",
+                            "INVALID_PROVIDER_CONNECTION",
+                            "INVALID_REFERRAL_CODE",
+                            "MODEL_NOT_ALLOWED",
+                            "MODEL_NOT_AVAILABLE",
+                            "MODEL_PROVIDER_MISMATCH",
+                            "MODEL_UNAVAILABLE",
+                            "MONTHLY_QUOTA_EXCEEDED",
+                            "NOT_FOUND",
+                            "ORDER_NOT_PAYABLE",
+                            "PAYMENT_PROVIDER_NOT_CONNECTED",
+                            "PLAN_NOT_FOUND",
+                            "PLAN_REQUIRED",
+                            "PROVIDER_AUTH_REQUIRED",
+                            "PROVIDER_CONNECTION_UNAVAILABLE",
+                            "PROVIDER_UNAVAILABLE",
+                            "RATE_CARD_EXISTS",
+                            "RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED",
+                            "RATE_CARD_NOT_DRAFT",
+                            "RATE_CARD_UNAVAILABLE",
+                            "RATE_LIMITED",
+                            "REFERRAL_CODE_UNAVAILABLE",
+                            "REFERRAL_NOT_ELIGIBLE",
+                            "REFERRAL_NOT_REVIEWABLE",
+                            "REQUEST_NOT_FOUND",
+                            "ROLLOVER_POLICY_INVALID",
+                            "SUBSCRIPTION_EXPIRED",
+                            "SUBSCRIPTION_NOT_FOUND",
+                            "SUBSCRIPTION_REQUIRED",
+                            "TOKEN_EXPIRED",
+                            "UNAUTHORIZED",
+                            "VALIDATION_ERROR",
+                            "WALLET_LEDGER_MISMATCH",
+                            "WALLET_LIMIT_REACHED"
+                          ]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "ACCOUNT_DISABLED",
+                            "AUTH_REQUIRED",
+                            "BILLING_REVIEW_REQUIRED",
+                            "CANNOT_DISABLE_SELF",
+                            "CLIENT_THREAD_ID_REQUIRED",
+                            "COPILOT_AUTH_EXPIRED",
+                            "COPILOT_NOT_ENTITLED",
+                            "COPILOT_USAGE_UNAVAILABLE",
+                            "CSRF_REJECTED",
+                            "DEVICE_LIMIT_REACHED",
+                            "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
+                            "DEVICE_REVOKED",
+                            "EMAIL_IN_USE",
+                            "FORBIDDEN",
+                            "GATEWAY_TIMEOUT",
+                            "IDEMPOTENCY_CONFLICT",
+                            "INSUFFICIENT_POINTS",
+                            "INTERNAL_ERROR",
+                            "INVALID_CREDENTIALS",
+                            "INVALID_POINTS",
+                            "INVALID_PROVIDER_CONNECTION",
+                            "INVALID_REFERRAL_CODE",
+                            "MODEL_NOT_ALLOWED",
+                            "MODEL_NOT_AVAILABLE",
+                            "MODEL_PROVIDER_MISMATCH",
+                            "MODEL_UNAVAILABLE",
+                            "MONTHLY_QUOTA_EXCEEDED",
+                            "NOT_FOUND",
+                            "ORDER_NOT_PAYABLE",
+                            "PAYMENT_PROVIDER_NOT_CONNECTED",
+                            "PLAN_NOT_FOUND",
+                            "PLAN_REQUIRED",
+                            "PROVIDER_AUTH_REQUIRED",
+                            "PROVIDER_CONNECTION_UNAVAILABLE",
+                            "PROVIDER_UNAVAILABLE",
+                            "RATE_CARD_EXISTS",
+                            "RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED",
+                            "RATE_CARD_NOT_DRAFT",
+                            "RATE_CARD_UNAVAILABLE",
+                            "RATE_LIMITED",
+                            "REFERRAL_CODE_UNAVAILABLE",
+                            "REFERRAL_NOT_ELIGIBLE",
+                            "REFERRAL_NOT_REVIEWABLE",
+                            "REQUEST_NOT_FOUND",
+                            "ROLLOVER_POLICY_INVALID",
+                            "SUBSCRIPTION_EXPIRED",
+                            "SUBSCRIPTION_NOT_FOUND",
+                            "SUBSCRIPTION_REQUIRED",
+                            "TOKEN_EXPIRED",
+                            "UNAUTHORIZED",
+                            "VALIDATION_ERROR",
+                            "WALLET_LEDGER_MISMATCH",
+                            "WALLET_LIMIT_REACHED"
+                          ]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "ACCOUNT_DISABLED",
+                            "AUTH_REQUIRED",
+                            "BILLING_REVIEW_REQUIRED",
+                            "CANNOT_DISABLE_SELF",
+                            "CLIENT_THREAD_ID_REQUIRED",
+                            "COPILOT_AUTH_EXPIRED",
+                            "COPILOT_NOT_ENTITLED",
+                            "COPILOT_USAGE_UNAVAILABLE",
+                            "CSRF_REJECTED",
+                            "DEVICE_LIMIT_REACHED",
+                            "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
+                            "DEVICE_REVOKED",
+                            "EMAIL_IN_USE",
+                            "FORBIDDEN",
+                            "GATEWAY_TIMEOUT",
+                            "IDEMPOTENCY_CONFLICT",
+                            "INSUFFICIENT_POINTS",
+                            "INTERNAL_ERROR",
+                            "INVALID_CREDENTIALS",
+                            "INVALID_POINTS",
+                            "INVALID_PROVIDER_CONNECTION",
+                            "INVALID_REFERRAL_CODE",
+                            "MODEL_NOT_ALLOWED",
+                            "MODEL_NOT_AVAILABLE",
+                            "MODEL_PROVIDER_MISMATCH",
+                            "MODEL_UNAVAILABLE",
+                            "MONTHLY_QUOTA_EXCEEDED",
+                            "NOT_FOUND",
+                            "ORDER_NOT_PAYABLE",
+                            "PAYMENT_PROVIDER_NOT_CONNECTED",
+                            "PLAN_NOT_FOUND",
+                            "PLAN_REQUIRED",
+                            "PROVIDER_AUTH_REQUIRED",
+                            "PROVIDER_CONNECTION_UNAVAILABLE",
+                            "PROVIDER_UNAVAILABLE",
+                            "RATE_CARD_EXISTS",
+                            "RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED",
+                            "RATE_CARD_NOT_DRAFT",
+                            "RATE_CARD_UNAVAILABLE",
+                            "RATE_LIMITED",
+                            "REFERRAL_CODE_UNAVAILABLE",
+                            "REFERRAL_NOT_ELIGIBLE",
+                            "REFERRAL_NOT_REVIEWABLE",
+                            "REQUEST_NOT_FOUND",
+                            "ROLLOVER_POLICY_INVALID",
+                            "SUBSCRIPTION_EXPIRED",
+                            "SUBSCRIPTION_NOT_FOUND",
+                            "SUBSCRIPTION_REQUIRED",
+                            "TOKEN_EXPIRED",
+                            "UNAUTHORIZED",
+                            "VALIDATION_ERROR",
+                            "WALLET_LEDGER_MISMATCH",
+                            "WALLET_LIMIT_REACHED"
+                          ]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "PUT /api/v1/admin/rate-policy",
+        "security": [
+          {
+            "DesktopBearer": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "accountRpm": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 120
+                  },
+                  "deviceRpm": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 60
+                  },
+                  "publicIpRpm": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10000
+                  },
+                  "authIpRpm": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 1000
+                  }
+                },
+                "required": [
+                  "accountRpm",
+                  "deviceRpm",
+                  "publicIpRpm",
+                  "authIpRpm"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "policy": {
+                      "type": "object",
+                      "properties": {
+                        "accountRpm": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 120
+                        },
+                        "deviceRpm": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 60
+                        },
+                        "publicIpRpm": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 10000
+                        },
+                        "authIpRpm": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 1000
+                        }
+                      },
+                      "required": [
+                        "accountRpm",
+                        "deviceRpm",
+                        "publicIpRpm",
+                        "authIpRpm"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "policy"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "ACCOUNT_DISABLED",
+                            "AUTH_REQUIRED",
+                            "BILLING_REVIEW_REQUIRED",
+                            "CANNOT_DISABLE_SELF",
+                            "CLIENT_THREAD_ID_REQUIRED",
+                            "COPILOT_AUTH_EXPIRED",
+                            "COPILOT_NOT_ENTITLED",
+                            "COPILOT_USAGE_UNAVAILABLE",
+                            "CSRF_REJECTED",
+                            "DEVICE_LIMIT_REACHED",
+                            "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
+                            "DEVICE_REVOKED",
+                            "EMAIL_IN_USE",
+                            "FORBIDDEN",
+                            "GATEWAY_TIMEOUT",
+                            "IDEMPOTENCY_CONFLICT",
+                            "INSUFFICIENT_POINTS",
+                            "INTERNAL_ERROR",
+                            "INVALID_CREDENTIALS",
+                            "INVALID_POINTS",
+                            "INVALID_PROVIDER_CONNECTION",
+                            "INVALID_REFERRAL_CODE",
+                            "MODEL_NOT_ALLOWED",
+                            "MODEL_NOT_AVAILABLE",
+                            "MODEL_PROVIDER_MISMATCH",
+                            "MODEL_UNAVAILABLE",
+                            "MONTHLY_QUOTA_EXCEEDED",
+                            "NOT_FOUND",
+                            "ORDER_NOT_PAYABLE",
+                            "PAYMENT_PROVIDER_NOT_CONNECTED",
+                            "PLAN_NOT_FOUND",
+                            "PLAN_REQUIRED",
+                            "PROVIDER_AUTH_REQUIRED",
+                            "PROVIDER_CONNECTION_UNAVAILABLE",
+                            "PROVIDER_UNAVAILABLE",
+                            "RATE_CARD_EXISTS",
+                            "RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED",
+                            "RATE_CARD_NOT_DRAFT",
+                            "RATE_CARD_UNAVAILABLE",
+                            "RATE_LIMITED",
+                            "REFERRAL_CODE_UNAVAILABLE",
+                            "REFERRAL_NOT_ELIGIBLE",
+                            "REFERRAL_NOT_REVIEWABLE",
+                            "REQUEST_NOT_FOUND",
+                            "ROLLOVER_POLICY_INVALID",
+                            "SUBSCRIPTION_EXPIRED",
+                            "SUBSCRIPTION_NOT_FOUND",
+                            "SUBSCRIPTION_REQUIRED",
+                            "TOKEN_EXPIRED",
+                            "UNAUTHORIZED",
+                            "VALIDATION_ERROR",
+                            "WALLET_LEDGER_MISMATCH",
+                            "WALLET_LIMIT_REACHED"
+                          ]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "ACCOUNT_DISABLED",
+                            "AUTH_REQUIRED",
+                            "BILLING_REVIEW_REQUIRED",
+                            "CANNOT_DISABLE_SELF",
+                            "CLIENT_THREAD_ID_REQUIRED",
+                            "COPILOT_AUTH_EXPIRED",
+                            "COPILOT_NOT_ENTITLED",
+                            "COPILOT_USAGE_UNAVAILABLE",
+                            "CSRF_REJECTED",
+                            "DEVICE_LIMIT_REACHED",
+                            "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
+                            "DEVICE_REVOKED",
+                            "EMAIL_IN_USE",
+                            "FORBIDDEN",
+                            "GATEWAY_TIMEOUT",
+                            "IDEMPOTENCY_CONFLICT",
+                            "INSUFFICIENT_POINTS",
+                            "INTERNAL_ERROR",
+                            "INVALID_CREDENTIALS",
+                            "INVALID_POINTS",
+                            "INVALID_PROVIDER_CONNECTION",
+                            "INVALID_REFERRAL_CODE",
+                            "MODEL_NOT_ALLOWED",
+                            "MODEL_NOT_AVAILABLE",
+                            "MODEL_PROVIDER_MISMATCH",
+                            "MODEL_UNAVAILABLE",
+                            "MONTHLY_QUOTA_EXCEEDED",
+                            "NOT_FOUND",
+                            "ORDER_NOT_PAYABLE",
+                            "PAYMENT_PROVIDER_NOT_CONNECTED",
+                            "PLAN_NOT_FOUND",
+                            "PLAN_REQUIRED",
+                            "PROVIDER_AUTH_REQUIRED",
+                            "PROVIDER_CONNECTION_UNAVAILABLE",
+                            "PROVIDER_UNAVAILABLE",
+                            "RATE_CARD_EXISTS",
+                            "RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED",
+                            "RATE_CARD_NOT_DRAFT",
+                            "RATE_CARD_UNAVAILABLE",
+                            "RATE_LIMITED",
+                            "REFERRAL_CODE_UNAVAILABLE",
+                            "REFERRAL_NOT_ELIGIBLE",
+                            "REFERRAL_NOT_REVIEWABLE",
+                            "REQUEST_NOT_FOUND",
+                            "ROLLOVER_POLICY_INVALID",
+                            "SUBSCRIPTION_EXPIRED",
+                            "SUBSCRIPTION_NOT_FOUND",
+                            "SUBSCRIPTION_REQUIRED",
+                            "TOKEN_EXPIRED",
+                            "UNAUTHORIZED",
+                            "VALIDATION_ERROR",
+                            "WALLET_LEDGER_MISMATCH",
+                            "WALLET_LIMIT_REACHED"
+                          ]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "ACCOUNT_DISABLED",
+                            "AUTH_REQUIRED",
+                            "BILLING_REVIEW_REQUIRED",
+                            "CANNOT_DISABLE_SELF",
+                            "CLIENT_THREAD_ID_REQUIRED",
+                            "COPILOT_AUTH_EXPIRED",
+                            "COPILOT_NOT_ENTITLED",
+                            "COPILOT_USAGE_UNAVAILABLE",
+                            "CSRF_REJECTED",
+                            "DEVICE_LIMIT_REACHED",
+                            "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
+                            "DEVICE_REVOKED",
+                            "EMAIL_IN_USE",
+                            "FORBIDDEN",
+                            "GATEWAY_TIMEOUT",
+                            "IDEMPOTENCY_CONFLICT",
+                            "INSUFFICIENT_POINTS",
+                            "INTERNAL_ERROR",
+                            "INVALID_CREDENTIALS",
+                            "INVALID_POINTS",
+                            "INVALID_PROVIDER_CONNECTION",
+                            "INVALID_REFERRAL_CODE",
+                            "MODEL_NOT_ALLOWED",
+                            "MODEL_NOT_AVAILABLE",
+                            "MODEL_PROVIDER_MISMATCH",
+                            "MODEL_UNAVAILABLE",
+                            "MONTHLY_QUOTA_EXCEEDED",
+                            "NOT_FOUND",
+                            "ORDER_NOT_PAYABLE",
+                            "PAYMENT_PROVIDER_NOT_CONNECTED",
+                            "PLAN_NOT_FOUND",
+                            "PLAN_REQUIRED",
+                            "PROVIDER_AUTH_REQUIRED",
+                            "PROVIDER_CONNECTION_UNAVAILABLE",
+                            "PROVIDER_UNAVAILABLE",
+                            "RATE_CARD_EXISTS",
+                            "RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED",
+                            "RATE_CARD_NOT_DRAFT",
+                            "RATE_CARD_UNAVAILABLE",
+                            "RATE_LIMITED",
+                            "REFERRAL_CODE_UNAVAILABLE",
+                            "REFERRAL_NOT_ELIGIBLE",
+                            "REFERRAL_NOT_REVIEWABLE",
+                            "REQUEST_NOT_FOUND",
+                            "ROLLOVER_POLICY_INVALID",
+                            "SUBSCRIPTION_EXPIRED",
+                            "SUBSCRIPTION_NOT_FOUND",
+                            "SUBSCRIPTION_REQUIRED",
+                            "TOKEN_EXPIRED",
+                            "UNAUTHORIZED",
+                            "VALIDATION_ERROR",
+                            "WALLET_LEDGER_MISMATCH",
+                            "WALLET_LIMIT_REACHED"
+                          ]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "ACCOUNT_DISABLED",
+                            "AUTH_REQUIRED",
+                            "BILLING_REVIEW_REQUIRED",
+                            "CANNOT_DISABLE_SELF",
+                            "CLIENT_THREAD_ID_REQUIRED",
+                            "COPILOT_AUTH_EXPIRED",
+                            "COPILOT_NOT_ENTITLED",
+                            "COPILOT_USAGE_UNAVAILABLE",
+                            "CSRF_REJECTED",
+                            "DEVICE_LIMIT_REACHED",
+                            "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
+                            "DEVICE_REVOKED",
+                            "EMAIL_IN_USE",
+                            "FORBIDDEN",
+                            "GATEWAY_TIMEOUT",
+                            "IDEMPOTENCY_CONFLICT",
+                            "INSUFFICIENT_POINTS",
+                            "INTERNAL_ERROR",
+                            "INVALID_CREDENTIALS",
+                            "INVALID_POINTS",
+                            "INVALID_PROVIDER_CONNECTION",
+                            "INVALID_REFERRAL_CODE",
+                            "MODEL_NOT_ALLOWED",
+                            "MODEL_NOT_AVAILABLE",
+                            "MODEL_PROVIDER_MISMATCH",
+                            "MODEL_UNAVAILABLE",
+                            "MONTHLY_QUOTA_EXCEEDED",
+                            "NOT_FOUND",
+                            "ORDER_NOT_PAYABLE",
+                            "PAYMENT_PROVIDER_NOT_CONNECTED",
+                            "PLAN_NOT_FOUND",
+                            "PLAN_REQUIRED",
+                            "PROVIDER_AUTH_REQUIRED",
+                            "PROVIDER_CONNECTION_UNAVAILABLE",
+                            "PROVIDER_UNAVAILABLE",
+                            "RATE_CARD_EXISTS",
+                            "RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED",
+                            "RATE_CARD_NOT_DRAFT",
+                            "RATE_CARD_UNAVAILABLE",
+                            "RATE_LIMITED",
+                            "REFERRAL_CODE_UNAVAILABLE",
+                            "REFERRAL_NOT_ELIGIBLE",
+                            "REFERRAL_NOT_REVIEWABLE",
+                            "REQUEST_NOT_FOUND",
+                            "ROLLOVER_POLICY_INVALID",
+                            "SUBSCRIPTION_EXPIRED",
+                            "SUBSCRIPTION_NOT_FOUND",
+                            "SUBSCRIPTION_REQUIRED",
+                            "TOKEN_EXPIRED",
+                            "UNAUTHORIZED",
+                            "VALIDATION_ERROR",
+                            "WALLET_LEDGER_MISMATCH",
+                            "WALLET_LIMIT_REACHED"
+                          ]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "ACCOUNT_DISABLED",
+                            "AUTH_REQUIRED",
+                            "BILLING_REVIEW_REQUIRED",
+                            "CANNOT_DISABLE_SELF",
+                            "CLIENT_THREAD_ID_REQUIRED",
+                            "COPILOT_AUTH_EXPIRED",
+                            "COPILOT_NOT_ENTITLED",
+                            "COPILOT_USAGE_UNAVAILABLE",
+                            "CSRF_REJECTED",
+                            "DEVICE_LIMIT_REACHED",
+                            "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -8452,6 +9906,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -8545,6 +10001,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -8638,6 +10096,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -8731,6 +10191,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -8824,6 +10286,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -9084,6 +10548,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -9177,6 +10643,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -9270,6 +10738,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -9363,6 +10833,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -9456,6 +10928,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -9587,6 +11061,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -9680,6 +11156,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -9773,6 +11251,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -9866,6 +11346,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -9959,6 +11441,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -10147,6 +11631,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -10240,6 +11726,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -10333,6 +11821,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -10426,6 +11916,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -10519,6 +12011,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -10679,6 +12173,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -10772,6 +12268,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -10865,6 +12363,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -10958,6 +12458,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -11051,6 +12553,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -11193,6 +12697,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -11286,6 +12792,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -11379,6 +12887,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -11472,6 +12982,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -11565,6 +13077,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -11707,6 +13221,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -11800,6 +13316,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -11893,6 +13411,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -11986,6 +13506,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -12079,6 +13601,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -12340,6 +13864,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -12433,6 +13959,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -12526,6 +14054,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -12619,6 +14149,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -12712,6 +14244,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -12973,6 +14507,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -13066,6 +14602,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -13159,6 +14697,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -13252,6 +14792,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -13345,6 +14887,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -13503,6 +15047,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -13596,6 +15142,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -13689,6 +15237,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -13782,6 +15332,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -13875,6 +15427,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -14033,6 +15587,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -14126,6 +15682,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -14219,6 +15777,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -14312,6 +15872,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -14405,6 +15967,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -14583,6 +16147,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -14676,6 +16242,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -14769,6 +16337,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -14862,6 +16432,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -14955,6 +16527,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -15122,6 +16696,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -15215,6 +16791,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -15308,6 +16886,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -15401,6 +16981,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -15494,6 +17076,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -15678,6 +17262,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -15771,6 +17357,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -15864,6 +17452,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -15957,6 +17547,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -16050,6 +17642,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -16192,6 +17786,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -16285,6 +17881,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -16378,6 +17976,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -16471,6 +18071,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -16564,6 +18166,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -16760,6 +18364,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -16853,6 +18459,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -16946,6 +18554,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -17039,6 +18649,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -17132,6 +18744,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -17259,6 +18873,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -17352,6 +18968,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -17445,6 +19063,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -17538,6 +19158,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -17631,6 +19253,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -17786,6 +19410,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -17879,6 +19505,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -17972,6 +19600,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -18065,6 +19695,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -18158,6 +19790,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -18296,6 +19930,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -18389,6 +20025,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -18482,6 +20120,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -18575,6 +20215,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -18668,6 +20310,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -18806,6 +20450,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -18899,6 +20545,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -18992,6 +20640,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -19085,6 +20735,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -19178,6 +20830,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -19337,6 +20991,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -19430,6 +21086,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -19523,6 +21181,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -19616,6 +21276,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -19709,6 +21371,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -19826,6 +21490,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -19919,6 +21585,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -20012,6 +21680,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -20105,6 +21775,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -20198,6 +21870,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -20326,6 +22000,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -20419,6 +22095,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -20512,6 +22190,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -20605,6 +22285,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -20698,6 +22380,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -20854,6 +22538,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -20947,6 +22633,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -21040,6 +22728,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -21133,6 +22823,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -21226,6 +22918,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -21343,6 +23037,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -21436,6 +23132,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -21529,6 +23227,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -21622,6 +23322,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -21715,6 +23417,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -21862,6 +23566,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -21955,6 +23661,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -22048,6 +23756,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -22141,6 +23851,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -22234,6 +23946,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -22373,6 +24087,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -22466,6 +24182,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -22559,6 +24277,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -22652,6 +24372,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -22745,6 +24467,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -22873,6 +24597,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -22966,6 +24692,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -23059,6 +24787,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -23152,6 +24882,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -23245,6 +24977,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -23362,6 +25096,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -23455,6 +25191,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -23548,6 +25286,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -23641,6 +25381,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -23734,6 +25476,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -23851,6 +25595,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -23944,6 +25690,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -24037,6 +25785,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -24130,6 +25880,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -24223,6 +25975,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -24349,6 +26103,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -24442,6 +26198,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -24535,6 +26293,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -24628,6 +26388,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -24721,6 +26483,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -24874,6 +26638,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -24967,6 +26733,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -25060,6 +26828,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -25153,6 +26923,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -25246,6 +27018,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -25363,6 +27137,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -25456,6 +27232,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -25549,6 +27327,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -25642,6 +27422,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",
@@ -25735,6 +27517,8 @@
                             "CSRF_REJECTED",
                             "DEVICE_LIMIT_REACHED",
                             "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
                             "DEVICE_REVOKED",
                             "EMAIL_IN_USE",
                             "FORBIDDEN",

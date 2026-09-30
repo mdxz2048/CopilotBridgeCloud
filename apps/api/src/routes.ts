@@ -1,16 +1,17 @@
 import type { FastifyInstance } from 'fastify';
 import { db, auditLogs, billingOrders, devices, models, plans, refreshTokens, releases, subscriptions, usageRecords, users, webSessions } from '@bridge/db';
-import { and, desc, eq, gte, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, isNull, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { DeviceInfoSchema, LoginRequestSchema, RefreshRequestSchema, RegisterRequestV2Schema } from '@bridge/contract';
+import { DeviceInfoV23Schema, LoginRequestSchema, RefreshRequestSchema, RegisterRequestV2Schema } from '@bridge/contract';
 import { actor, admin, ApiError, audit, changeDeviceStatus, currentSubscription, currentUsage, allowedModels, subscriptionError } from './core.js';
 import { config } from './config.js';
 import { hashPassword, hashRefresh, issueAccess, newRefresh, verifyPassword } from './security.js';
 import { registerReferralInTransaction, validateReferralCode } from './referral.js';
+import { claimDeviceProof, verifyDeviceProof } from './device-proof.js';
 
-const deviceSchema = DeviceInfoSchema;
-const loginSchema = LoginRequestSchema.extend({ device: DeviceInfoSchema.optional() });
+const deviceSchema = DeviceInfoV23Schema;
+const loginSchema = LoginRequestSchema.extend({ device: DeviceInfoV23Schema.optional() });
 const secure = config.PUBLIC_BASE_URL.startsWith('https:');
 const cookieOptions = { httpOnly: true, secure, sameSite: 'strict' as const, path: '/', maxAge: 60 * 60 * 24 * 7 };
 
@@ -20,7 +21,15 @@ async function registerDevice(userId: string, info: z.infer<typeof deviceSchema>
     const [existing] = await tx.select().from(devices).where(and(eq(devices.userId, userId), eq(devices.deviceId, info.deviceId))).limit(1);
     if (existing) {
       if (existing.status !== 'ACTIVE') throw new ApiError(403, 'DEVICE_REVOKED');
-      const [updated] = await tx.update(devices).set({ deviceName: info.deviceName, platform: info.platform, osVersion: info.osVersion, appVersion: info.appVersion, lastSeenAt: new Date(), updatedAt: new Date() }).where(eq(devices.id, existing.id)).returning();
+      if (existing.publicKeyJwk && (existing.publicKeyJwk.x !== info.publicKeyJwk.x || existing.publicKeyJwk.y !== info.publicKeyJwk.y))
+        throw new ApiError(403, 'DEVICE_PROOF_INVALID');
+      const firstEnrollment = !existing.publicKeyJwk;
+      const [updated] = await tx.update(devices).set({ deviceName: info.deviceName, platform: info.platform,
+        osVersion: info.osVersion, appVersion: info.appVersion, lastSeenAt: new Date(), updatedAt: new Date(),
+        publicKeyJwk: firstEnrollment ? info.publicKeyJwk : undefined,
+        authVersion: firstEnrollment ? sql`${devices.authVersion} + 1` : undefined }).where(eq(devices.id, existing.id)).returning();
+      if (firstEnrollment) await tx.update(refreshTokens).set({ revokedAt: new Date() })
+        .where(and(eq(refreshTokens.deviceId, existing.id), isNull(refreshTokens.revokedAt)));
       return updated;
     }
     const [sub] = await tx.select().from(subscriptions).where(eq(subscriptions.userId, userId)).orderBy(desc(subscriptions.createdAt)).limit(1);
@@ -80,6 +89,11 @@ export async function registerRoutes(app: FastifyInstance) {
   app.post('/api/v1/auth/refresh', { config: { rateLimit: { max: 30, timeWindow: '15 minutes' } } }, async req => {
     const { refreshToken } = RefreshRequestSchema.parse(req.body);
     const tokenHash = hashRefresh(refreshToken);
+    const [proofDevice] = await db.select({ id: devices.id, publicKeyJwk: devices.publicKeyJwk }).from(refreshTokens)
+      .innerJoin(devices, eq(refreshTokens.deviceId, devices.id))
+      .where(and(eq(refreshTokens.tokenHash, tokenHash), sql`${refreshTokens.revokedAt} is null`, gte(refreshTokens.expiresAt, new Date()))).limit(1);
+    if (!proofDevice) throw new ApiError(401, 'UNAUTHORIZED');
+    await claimDeviceProof(proofDevice.id, await verifyDeviceProof(req, proofDevice.publicKeyJwk, refreshToken));
     return db.transaction(async tx => {
       const [candidate] = await tx.select({ deviceId: refreshTokens.deviceId }).from(refreshTokens)
         .where(and(eq(refreshTokens.tokenHash, tokenHash), sql`${refreshTokens.revokedAt} is null`, gte(refreshTokens.expiresAt, new Date()))).limit(1);
@@ -111,6 +125,7 @@ export async function registerRoutes(app: FastifyInstance) {
   app.post('/api/v1/devices/register', async req => {
     const a = await actor(req);
     const info = deviceSchema.parse(req.body);
+    if (!a.device || a.device.deviceId !== info.deviceId) throw new ApiError(403, 'DEVICE_PROOF_INVALID');
     return { device: publicV1Device(await registerDevice(a.user.id, info)) };
   });
   app.get('/api/v1/devices', async req => ({ data: (await db.select().from(devices).where(eq(devices.userId, (await actor(req)).user.id)).orderBy(desc(devices.activatedAt))).map(publicV1Device) }));

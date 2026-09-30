@@ -11,15 +11,20 @@ import { registerV2Routes } from './v2-routes.js';
 import { registerV2Admin } from './v2-admin.js';
 import { registerCopilotAuthRoutes } from './copilot-auth.js';
 import { currentBillingMode } from './billing-mode.js';
+import { captureDeviceBody } from './device-proof.js';
+import { trustedProxy } from './trusted-proxy.js';
+import { registerRatePolicy } from './rate-policy.js';
 
 export async function createServer() {
   currentBillingMode();
   const app = Fastify({
-    trustProxy: true, bodyLimit: 1024 * 1024,
-    logger: { level: process.env.LOG_LEVEL ?? 'info', redact: { paths: ['req.headers.authorization', 'req.headers.cookie', 'req.body', 'res.body'], censor: '[REDACTED]' } },
+    trustProxy: trustedProxy(config.TRUSTED_PROXY_HOPS, config.TRUSTED_PROXY_CIDRS), bodyLimit: 1024 * 1024,
+    logger: { level: process.env.LOG_LEVEL ?? 'info', redact: { paths: ['req.headers.authorization', 'req.headers.cookie', 'req.headers.dpop', 'req.body', 'res.body'], censor: '[REDACTED]' } },
   });
+  captureDeviceBody(app);
   await app.register(cookie);
   await app.register(rateLimit, { max: 120, timeWindow: '1 minute' });
+  registerRatePolicy(app);
   app.setErrorHandler((error, req, reply) => {
     if (error instanceof ApiError) return reply.code(error.status).send({ error: { code: error.code, message: error.message, requestId: req.id, request_id: req.id } });
     if (error instanceof ZodError) return reply.code(400).send({ error: { code: 'VALIDATION_ERROR', message: 'Invalid request', requestId: req.id, request_id: req.id } });

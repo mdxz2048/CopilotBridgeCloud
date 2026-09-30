@@ -3,11 +3,11 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
-import { DeviceInfoSchema, PlanSchema, ResponseRequestSchema, ResponseSchema, SubscriptionSchema, UserSchema } from './schemas.js';
+import { PlanSchema, ResponseRequestSchema, ResponseSchema, SubscriptionSchema, UserSchema } from './schemas.js';
 import {
   AccountSummaryV2Schema, BillingModeV2Schema, DeviceCredentialV2Schema, DeviceV2Schema, ErrorResponseV2Schema,
   ModelV2Schema, ProviderConnectionV2Schema, ProviderV2Schema, ReferralRecordV2Schema, ReferralSummaryV2Schema,
-  RegisterRequestV2Schema, SubscriptionSummaryV2Schema, UsageRecordV2Schema, UsageSummaryV2Schema, WalletSummaryV2Schema,
+  DeviceInfoV23Schema, RegisterRequestV2Schema, SubscriptionSummaryV2Schema, UsageRecordV2Schema, UsageSummaryV2Schema, WalletSummaryV2Schema,
 } from './v2-schemas.js';
 
 extendZodWithOpenApi(z);
@@ -38,6 +38,8 @@ function route(method: Method, path: string, output: z.ZodType, body?: z.ZodType
 const account = z.object({ account: AccountSummaryV2Schema, subscription: SubscriptionSummaryV2Schema,
   wallet: WalletSummaryV2Schema, activeDevices: z.number().int().nonnegative() });
 const providerConnectionCreate = z.object({ providerId: z.uuid(), label: z.string().trim().min(1).max(120), apiKey: z.string().min(8).max(4096) });
+const ratePolicyV23 = z.object({ accountRpm: z.number().int().min(1).max(120), deviceRpm: z.number().int().min(1).max(60),
+  publicIpRpm: z.number().int().min(1).max(10000), authIpRpm: z.number().int().min(1).max(1000) });
 const requestLookup = z.object({
   request: z.object({ id: z.uuid(), responseId: z.string(), status: z.enum(['CREATED', 'STARTED', 'COMPLETED', 'CLIENT_DISCONNECTED', 'PROVIDER_ERROR']),
     billingPolicy: z.enum(['MANAGED_USAGE', 'BYOS_USAGE', 'LOCAL_USAGE']), createdAt: z.iso.datetime({ offset: true }),
@@ -61,11 +63,17 @@ for (const [name, schema] of Object.entries({ AccountSummary: AccountSummaryV2Sc
   RegisterRequest: RegisterRequestV2Schema, Response: responseV2 })) {
   registry.register(name, schema);
 }
-registry.registerComponent('securitySchemes', 'DesktopBearer', { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' });
+registry.registerComponent('securitySchemes', 'DesktopBearer', { type: 'http', scheme: 'bearer', bearerFormat: 'JWT', description: 'Desktop bearer requests also require a DPoP compact ES256 JWT bound to the installation public P-256 JWK. Browser cookies remain exempt.' });
 
 route('post', '/api/v1/auth/register', z.object({ user: UserSchema }), RegisterRequestV2Schema, 201, false);
 route('post', '/api/v1/auth/login', z.union([DeviceCredentialV2Schema, z.object({ user: UserSchema })]),
-  z.object({ email: z.email(), password: z.string(), device: DeviceInfoSchema.optional() }), 200, false);
+  z.object({ email: z.email(), password: z.string(), device: DeviceInfoV23Schema.optional() }), 200, false);
+route('get', '/api/v1/admin/rate-policy', z.object({ policy: ratePolicyV23 }));
+route('put', '/api/v1/admin/rate-policy', z.object({ policy: ratePolicyV23 }), ratePolicyV23);
+registry.registerPath({ method: 'post', path: '/api/v1/auth/refresh', summary: 'Rotate a DPoP-bound desktop refresh token',
+  request: { headers: z.object({ DPoP: z.string() }),
+    body: { content: json(z.object({ refreshToken: z.string().min(20) })) } },
+  responses: success(z.object({ accessToken: z.string(), refreshToken: z.string(), expiresIn: z.literal(1800) })) });
 route('get', '/api/v1/me', account);
 route('get', '/api/v1/me/subscription', z.object({ subscription: SubscriptionSchema.nullable(), plan: PlanSchema.extend({
   monthlyPoints: z.number().int(), rolloverPolicy: z.enum(['NONE', 'UNLIMITED']),
@@ -112,7 +120,7 @@ route('post', '/v1/responses', responseV2, ResponseRequestSchema);
 export function buildOpenApiV2(): Record<string, unknown> {
   const base = JSON.parse(readFileSync(new URL('../../../docs/protocol/openapi.v1.json', import.meta.url), 'utf8')) as Record<string, any>;
   const v2 = new OpenApiGeneratorV31(registry.definitions).generateDocument({ openapi: '3.1.0',
-    info: { title: 'Copilot Bridge Cloud App and Gateway API', version: '2.2.0' },
+    info: { title: 'Copilot Bridge Cloud App and Gateway API', version: '2.3.0' },
     servers: [{ url: 'https://ai.mddxz.top' }] });
   return { ...base, info: v2.info, servers: v2.servers,
     paths: { ...base.paths, ...v2.paths },

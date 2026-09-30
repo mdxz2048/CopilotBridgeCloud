@@ -6,6 +6,14 @@ extendZodWithOpenApi(z);
 const instant = z.iso.datetime({ offset: true });
 const id = z.uuid();
 export const BillingModeV2Schema = z.enum(['OFF', 'SHADOW', 'ENFORCED']);
+export const InstallationPublicJwkV23Schema = z.object({
+  kty: z.literal('EC'), crv: z.literal('P-256'), x: z.base64url().length(43), y: z.base64url().length(43),
+}).strict();
+export const DeviceInfoV23Schema = z.object({
+  deviceId: id, deviceName: z.string().min(1).max(120), platform: z.string().min(1).max(60),
+  osVersion: z.string().max(120).default(''), appVersion: z.string().max(120).default(''),
+  publicKeyJwk: InstallationPublicJwkV23Schema,
+});
 
 export const RegisterRequestV2Schema = z.object({
   email: z.email(), password: z.string().min(12).max(256), referralCode: z.string().trim().min(8).max(24).optional(),
@@ -57,7 +65,7 @@ export const ReferralRecordV2Schema = z.object({
 });
 export const ErrorCodeV2Schema = z.enum([
   'ACCOUNT_DISABLED', 'AUTH_REQUIRED', 'BILLING_REVIEW_REQUIRED', 'CANNOT_DISABLE_SELF', 'CLIENT_THREAD_ID_REQUIRED', 'COPILOT_AUTH_EXPIRED', 'COPILOT_NOT_ENTITLED', 'COPILOT_USAGE_UNAVAILABLE',
-  'CSRF_REJECTED', 'DEVICE_LIMIT_REACHED', 'DEVICE_NOT_REGISTERED', 'DEVICE_REVOKED', 'EMAIL_IN_USE', 'FORBIDDEN',
+  'CSRF_REJECTED', 'DEVICE_LIMIT_REACHED', 'DEVICE_NOT_REGISTERED', 'DEVICE_PROOF_INVALID', 'DEVICE_PROOF_REPLAYED', 'DEVICE_REVOKED', 'EMAIL_IN_USE', 'FORBIDDEN',
   'GATEWAY_TIMEOUT', 'IDEMPOTENCY_CONFLICT', 'INSUFFICIENT_POINTS', 'INTERNAL_ERROR', 'INVALID_CREDENTIALS', 'INVALID_POINTS',
   'INVALID_PROVIDER_CONNECTION', 'INVALID_REFERRAL_CODE', 'MODEL_NOT_ALLOWED', 'MODEL_NOT_AVAILABLE', 'MODEL_PROVIDER_MISMATCH',
   'MODEL_UNAVAILABLE', 'MONTHLY_QUOTA_EXCEEDED', 'NOT_FOUND', 'ORDER_NOT_PAYABLE', 'PAYMENT_PROVIDER_NOT_CONNECTED',

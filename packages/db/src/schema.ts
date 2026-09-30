@@ -24,8 +24,13 @@ export const devices = pgTable('devices', {
   id: id(), userId: uuid('user_id').notNull().references(() => users.id), deviceId: uuid('device_id').notNull(), deviceName: text('device_name').notNull(), platform: text('platform').notNull(),
   osVersion: text('os_version').notNull().default(''), appVersion: text('app_version').notNull().default(''), status: varchar('status', { length: 16 }).notNull().default('ACTIVE'),
   authVersion: integer('auth_version').notNull().default(0),
+  publicKeyJwk: jsonb('public_key_jwk').$type<{ kty: 'EC'; crv: 'P-256'; x: string; y: string }>(),
   activatedAt: created(), lastSeenAt: timestamp('last_seen_at', { withTimezone: true }), updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [uniqueIndex('devices_user_device_idx').on(t.userId, t.deviceId)]);
+export const deviceProofs = pgTable('device_proofs', {
+  id: id(), deviceId: uuid('device_id').notNull().references(() => devices.id), jti: uuid('jti').notNull().unique(),
+  createdAt: created(),
+}, t => [index('device_proofs_created_idx').on(t.createdAt)]);
 export const refreshTokens = pgTable('refresh_tokens', {
   id: id(), userId: uuid('user_id').notNull().references(() => users.id), deviceId: uuid('device_id').notNull().references(() => devices.id), tokenHash: text('token_hash').notNull().unique(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(), revokedAt: timestamp('revoked_at', { withTimezone: true }), createdAt: created(),
@@ -61,6 +66,7 @@ export const modelSessions = pgTable('model_sessions', {
 export const usageRecords = pgTable('usage_records', {
   id: id(), userId: uuid('user_id').notNull().references(() => users.id), deviceId: uuid('device_id').notNull().references(() => devices.id), planId: uuid('plan_id').notNull().references(() => plans.id),
   providerId: uuid('provider_id').notNull().references(() => providers.id), modelId: uuid('model_id').notNull().references(() => models.id), status: varchar('status', { length: 16 }).notNull().default('RUNNING'),
+  rateCounted: boolean('rate_counted').notNull().default(true),
   inputTokens: integer('input_tokens').notNull().default(0), outputTokens: integer('output_tokens').notNull().default(0), totalTokens: integer('total_tokens').notNull().default(0),
   usageCredit: numeric('usage_credit', { precision: 16, scale: 4 }).notNull().default('0'), providerCost: numeric('provider_cost', { precision: 16, scale: 6 }), costKind: varchar('cost_kind', { length: 16 }).notNull().default('UNKNOWN'),
   durationMs: integer('duration_ms'), errorCode: text('error_code'), createdAt: created(), completedAt: timestamp('completed_at', { withTimezone: true }),
@@ -76,6 +82,9 @@ export const releases = pgTable('releases', {
 });
 export const auditLogs = pgTable('audit_logs', { id: id(), actorId: uuid('actor_id').references(() => users.id), action: text('action').notNull(), targetType: text('target_type').notNull(), targetId: text('target_id').notNull(), metadata: jsonb('metadata').$type<Record<string, unknown>>().notNull().default({}), createdAt: created() });
 export const systemSettings = pgTable('system_settings', { key: text('key').primaryKey(), value: jsonb('value').$type<unknown>().notNull(), updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow() });
+export const publicRateHits = pgTable('public_rate_hits', {
+  id: id(), ipHash: text('ip_hash').notNull(), createdAt: created(),
+}, t => [index('public_rate_hits_ip_time_idx').on(t.ipHash, t.createdAt), index('public_rate_hits_created_idx').on(t.createdAt)]);
 
 // V2 is additive. usage_records remains the V1 quota/legacy history source.
 export const wallets = pgTable('wallets', {

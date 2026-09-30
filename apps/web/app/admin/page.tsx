@@ -15,6 +15,7 @@ const items: NavItem[] = [
   { id: 'v2-referrals', label: '邀请审核', icon: 'Users' }, { id: 'v2-costs', label: 'Provider 成本', icon: 'Activity' },
 ];
 type Row = Record<string, unknown> & { id?: string };
+type RatePolicy = { accountRpm: number; deviceRpm: number; publicIpRpm: number; authIpRpm: number };
 type ModelAccess = {
   planAccess: Array<{ planId: string; modelId: string }>;
   overrides: Array<{ modelId: string; access: string }>;
@@ -43,7 +44,7 @@ function modelAvailability(model: Row, provider: Row | undefined, access: ModelA
 }
 
 export default function AdminPage() {
-  const router = useRouter(); const [active, setActive] = useState('dashboard'); const [email, setEmail] = useState(''); const [rows, setRows] = useState<Row[]>([]); const [dashboard, setDashboard] = useState<Record<string, number>>({}); const [system, setSystem] = useState<Record<string, unknown>>({}); const [loading, setLoading] = useState(true); const [error, setError] = useState(''); const [message, setMessage] = useState(''); const [search, setSearch] = useState(''); const [selected, setSelected] = useState<Row | null>(null); const [form, setForm] = useState<Record<string, string>>({}); const [plans, setPlans] = useState<Plan[]>([]); const [providers, setProviders] = useState<Row[]>([]); const [models, setModels] = useState<Row[]>([]);
+  const router = useRouter(); const [active, setActive] = useState('dashboard'); const [email, setEmail] = useState(''); const [rows, setRows] = useState<Row[]>([]); const [dashboard, setDashboard] = useState<Record<string, number>>({}); const [system, setSystem] = useState<Record<string, unknown>>({}); const [rateDraft, setRateDraft] = useState<Record<keyof RatePolicy, string> | null>(null); const [loading, setLoading] = useState(true); const [error, setError] = useState(''); const [message, setMessage] = useState(''); const [search, setSearch] = useState(''); const [selected, setSelected] = useState<Row | null>(null); const [form, setForm] = useState<Record<string, string>>({}); const [plans, setPlans] = useState<Plan[]>([]); const [providers, setProviders] = useState<Row[]>([]); const [models, setModels] = useState<Row[]>([]);
   const [planAccess, setPlanAccess] = useState<ModelAccess | null>(null); const [userAccess, setUserAccess] = useState<ModelAccess | null>(null);
   const [accessError, setAccessError] = useState(''); const [accessLoading, setAccessLoading] = useState(false); const [accessRevision, setAccessRevision] = useState(0);
   const [running, setRunning] = useState(false);
@@ -56,7 +57,12 @@ export default function AdminPage() {
       setEmail(me.user.email);
       if (active.startsWith('v2-')) return true;
       if (active === 'dashboard') setDashboard(await api<Record<string, number>>('/api/v1/admin/dashboard'));
-      else if (active === 'system') setSystem(await api<Record<string, unknown>>('/api/v1/admin/system'));
+      else if (active === 'system') {
+        const [diagnostics, rates] = await Promise.all([api<Record<string, unknown>>('/api/v1/admin/system'),
+          api<{ policy: RatePolicy }>('/api/v1/admin/rate-policy')]);
+        setSystem(diagnostics);
+        setRateDraft(Object.fromEntries(Object.entries(rates.policy).map(([name, value]) => [name, String(value)])) as Record<keyof RatePolicy, string>);
+      }
       else { const result = await api<{ data: Row[] }>(`/api/v1/admin/${resourcePaths[active]}${active === 'users' && search ? `?search=${encodeURIComponent(search)}` : ''}`); setRows(result.data); }
       if (active === 'models') {
         const [p, m, access] = await Promise.all([api<{ data: Plan[] }>('/api/v1/admin/plans'), api<{ data: Row[] }>('/api/v1/admin/providers'),
@@ -105,7 +111,21 @@ export default function AdminPage() {
     {loading && <div className="loading-skeleton"/>}
     {!loading && active.startsWith('v2-') && <V2AdminPanel section={active as 'v2-wallets' | 'v2-rates' | 'v2-referrals' | 'v2-costs'}/>}
     {!loading && active === 'dashboard' && <div className="stat-grid">{Object.entries(dashboard).map(([key, value]) => <div className="stat" key={key}><span className="stat-label">{key.toUpperCase()}</span><strong>{value}</strong></div>)}</div>}
-    {!loading && active === 'system' && <section className="panel"><h2>系统诊断</h2><p>Database: {display(system.database)}</p><p>Gateway: {display(system.gateway)}</p><p>配置项：{Array.isArray(system.settings) ? system.settings.length : 0}</p></section>}
+    {!loading && active === 'system' && <>
+      <section className="panel"><h2>系统诊断</h2><p>Database: {display(system.database)}</p><p>Gateway: {display(system.gateway)}</p><p>配置项：{Array.isArray(system.settings) ? system.settings.length : 0}</p></section>
+      {rateDraft && <section className="panel"><h2>请求限额</h2><p>初始 AI 限额：每账号 2 次新提问/分钟、每设备 1 次新提问/分钟；同一轮中服务端待处理的工具续接最多 8 次、5 分钟内完成，仍计入套餐用量。JSON 与流式新提问均限流。公开接口按可信代理解析的 IP 限流；认证接口另有更严格的 IP 限额。</p>
+        <div className="form-grid">{([
+          ['accountRpm', '每账号 AI 新提问 / 分钟', 120], ['deviceRpm', '每设备 AI 新提问 / 分钟', 60],
+          ['publicIpRpm', '公开接口每 IP 请求 / 分钟', 120], ['authIpRpm', '认证接口每 IP 请求 / 分钟', 120],
+        ] as const).map(([key, label, max]) => <div className="field" key={key}><label htmlFor={key}>{label}</label>
+          <input id={key} type="number" min={1} max={max} step={1} value={rateDraft[key]}
+            onChange={event => setRateDraft(previous => previous ? { ...previous, [key]: event.target.value } : previous)}/></div>)}</div>
+        <button disabled={running} className="button button-small" onClick={() => run(() => put('/api/v1/admin/rate-policy', {
+          accountRpm: Number(rateDraft.accountRpm), deviceRpm: Number(rateDraft.deviceRpm),
+          publicIpRpm: Number(rateDraft.publicIpRpm), authIpRpm: Number(rateDraft.authIpRpm),
+        }), '请求限额已保存并审计')}>保存限额</button>
+      </section>}
+    </>}
     {!loading && active === 'providers' && rows.some(row => row.code === 'COPILOT') && <CopilotAuthCard/>}
     {!loading && resourcePaths[active] && <><div className="toolbar"><h2>{title} <span style={{fontSize:12,color:'#9aa69b'}}>({rows.length})</span></h2>{active === 'users' && <input className="search-input" value={search} onChange={e => setSearch(e.target.value)} placeholder="搜索邮箱" aria-label="搜索用户"/>}</div><section className="panel" style={{marginTop:0,padding:0}}>{rows.length ? <div className="table-wrap"><table className="data-table"><thead><tr>{columns[active]?.map(c => <th key={c}>{c}</th>)}<th>操作</th></tr></thead><tbody>{rows.map((row, idx) => <tr key={row.id ?? idx}>{columns[active]?.map(c => <td key={c}>{c === 'status' || c === 'enabled' || c === 'published' ? <span className={`badge ${row[c] === 'ACTIVE' || row[c] === true || row[c] === 'COMPLETED' ? '' : 'muted'}`}>{display(row[c])}</span> : display(row[c])}</td>)}<td><div className="inline-actions">
       {active === 'providers' && row.code === 'COPILOT' ? <span>见上方认证卡</span> : ['users','plans','providers','models','releases'].includes(active) && <button className="mini-button" onClick={() => {setSelected(row);setForm({});}}>管理</button>}

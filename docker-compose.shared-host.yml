@@ -1,4 +1,7 @@
 services:
+  api:
+    environment:
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-2}
   caddy:
     volumes:
       - ./docker/Caddyfile.shared-host:/etc/caddy/Caddyfile:ro
