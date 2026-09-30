@@ -52,9 +52,9 @@ test('public pages show the current account and only ADMIN sees the management l
   }
   role = 'ADMIN';
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-  await expect(page.locator('.site-header').getByRole('link', { name: '管理后台' })).toBeVisible();
+  await expect(page.locator('.site-header').getByRole('link', { name: '管理后台：user@example.test' })).toBeVisible();
   await page.setViewportSize({ width: 375, height: 812 });
-  await expect(page.locator('.site-header').getByRole('link', { name: '管理后台' })).toBeVisible();
+  await expect(page.locator('.site-header').getByRole('link', { name: '管理后台：user@example.test' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.evaluate(() => window.dispatchEvent(new Event('bridge:logout')));
   await expect(page.locator('.site-header').getByRole('link', { name: '开始使用' })).toBeVisible();

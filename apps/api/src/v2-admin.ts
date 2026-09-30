@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { aiRequests, auditLogs, billingOrders, db, devices, models, providers, rateCards, rateCardVersions, referralRewards, referrals, systemSettings, usageEvents, users, walletTransactions, wallets } from '@bridge/db';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { admin, ApiError } from './core.js';
 import { applyWalletChange } from './wallet.js';
@@ -13,6 +13,43 @@ const rates = z.object({ inputRate: decimal, outputRate: decimal, cachedInputRat
 const referralPolicy = z.object({ enabled: z.boolean(), minPaidAmount: z.number().nonnegative(), referrerPoints: z.number().int().min(0).max(1_000_000), referredPoints: z.number().int().min(0).max(1_000_000) });
 
 export async function registerV2Admin(app: FastifyInstance) {
+  app.get('/api/v1/admin/insights', async req => {
+    await admin(req);
+    const since = new Date(Date.now() - 30 * 86400000);
+    const [requests, modelUsage] = await Promise.all([
+      db.select({ status: aiRequests.status, count: sql<number>`count(*)` }).from(aiRequests)
+        .where(gte(aiRequests.createdAt, since)).groupBy(aiRequests.status),
+      db.select({
+        model: models.displayName, publicId: models.publicId,
+        requests: sql<number>`count(*)`,
+        inputTokens: sql<number>`coalesce(sum(${usageEvents.inputTokens}), 0)`,
+        outputTokens: sql<number>`coalesce(sum(${usageEvents.outputTokens}), 0)`,
+        pointsRated: sql<number>`coalesce(sum(${usageEvents.pointsRated}), 0)`,
+        pointsCharged: sql<number>`coalesce(sum(${usageEvents.pointsCharged}), 0)`,
+      }).from(usageEvents).innerJoin(models, eq(usageEvents.modelId, models.id))
+        .where(gte(usageEvents.createdAt, since)).groupBy(models.id, models.displayName, models.publicId)
+        .orderBy(desc(sql`count(*)`)).limit(30),
+    ]);
+    return { periodDays: 30, requests: requests.map(row => ({ status: row.status, count: Number(row.count) })),
+      models: modelUsage.map(row => ({ ...row, requests: Number(row.requests), inputTokens: Number(row.inputTokens),
+        outputTokens: Number(row.outputTokens), pointsRated: Number(row.pointsRated), pointsCharged: Number(row.pointsCharged) })) };
+  });
+  app.get('/api/v1/admin/users/:id/activity', async req => {
+    await admin(req);
+    const userId = uuidParam(req.params);
+    const [user] = await db.select({ id: users.id }).from(users).where(eq(users.id, userId)).limit(1);
+    if (!user) throw new ApiError(404, 'NOT_FOUND');
+    const [invited, referredBy, orders, [inviteTotal]] = await Promise.all([
+      db.select({ status: referrals.status, registeredAt: referrals.registeredAt, qualifiedAt: referrals.qualifiedAt })
+        .from(referrals).where(eq(referrals.referrerUserId, userId)).orderBy(desc(referrals.registeredAt)).limit(100),
+      db.select({ status: referrals.status, registeredAt: referrals.registeredAt })
+        .from(referrals).where(eq(referrals.referredUserId, userId)).limit(1),
+      db.select({ id: billingOrders.id, amount: billingOrders.amount, status: billingOrders.status, createdAt: billingOrders.createdAt })
+        .from(billingOrders).where(eq(billingOrders.userId, userId)).orderBy(desc(billingOrders.createdAt)).limit(100),
+      db.select({ count: sql<number>`count(*)` }).from(referrals).where(eq(referrals.referrerUserId, userId)),
+    ]);
+    return { invited, inviteCount: Number(inviteTotal.count), referredBy: referredBy[0] ?? null, orders };
+  });
   app.get('/api/v1/admin/wallets', async req => {
     await admin(req);
     return { data: await db.select({ userId: users.id, email: users.email, balance: wallets.balance, updatedAt: wallets.updatedAt })

@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '../lib/api';
+import { roleHome } from '../lib/role-home';
 
 export function useAuthRedirect() {
   const router = useRouter();
@@ -11,8 +12,8 @@ export function useAuthRedirect() {
     let active = true;
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 5000);
-    api<{ user: { id: string } }>('/api/v1/auth/me', { signal: controller.signal })
-      .then(() => { if (active) router.replace('/dashboard'); })
+    api<{ user: { role: string } }>('/api/v1/auth/me', { signal: controller.signal })
+      .then(({ user }) => { if (active) router.replace(roleHome(user.role)); })
       .catch(error => {
         if (!active) return;
         const authError = error as { code?: string; status?: number };

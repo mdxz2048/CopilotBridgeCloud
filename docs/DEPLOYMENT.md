@@ -1,5 +1,35 @@
 # Production deployment
 
+## Next console release preflight (not yet deployed)
+
+The new API/Web changes add migration `0009` (`site_page_views`) and a
+`bridge_releases` Docker volume mounted at `/var/lib/bridge/releases`. Back
+up the existing database and verify the migration on a separate database
+before an API restart; inspect free disk space for the full installer plus
+temporary upload. Do not remove the release volume during rollback: the
+database contains published URLs tied to its files. After rollback, previous
+images may not know about new upload URLs; keep both the images and volume
+until the new release passes validation.
+
+The administrator uploads an `.exe` through `/api/v1/admin/releases/upload`
+as a binary request with `X-Release-Version`, `X-Release-Channel` and
+`X-Release-Notes`. The API enforces a 512 MiB streamed size limit and
+calculates SHA-256; publication is a separate operation. On the shared-host
+Nginx reverse proxy, configure the dedicated upload location to permit up to
+512 MiB and stream request bodies (`client_max_body_size` and
+`proxy_request_buffering off`) while preserving the same upstream and
+forwarding headers as the existing `/api/v1` route. Keep other routes at
+their current limits. Validate Nginx configuration before reload. Do not
+upload to the source tree or a container-only ephemeral directory.
+
+Smoke checks after deployment: USER `/dashboard` and admin API 403;
+ADMIN `/admin` with a user detail and daily page-view summary; a test
+unpublished upload returns 404 from its download URL; after explicitly
+publishing that test release, download content hashes to the API's SHA-256.
+Check the newest published installer and restore the previous published
+release if the new one fails. This rollout must not change production
+`V2_BILLING_MODE=SHADOW` or silently enable paid registration.
+
 ## Current staged installation (2026-09-30)
 
 V2.4 API/Web and additive migration `0008` are deployed at `https://ai.mddxz.top` with `STAGED_EMAIL_REGISTRATION_ENABLED=false`. Resend SMTP is configured server-side with `SMTP_FROM=admin@ai.mddxz.top`; one non-code test send was accepted, but general-user delivery and a real registration-code flow are not verified. The live administrator 网站配置 area edits encrypted Turnstile/SMTP overrides and registration mail text; ordinary users receive HTTP 403. Real Turnstile token verification and enforced email-code signup remain closed. Exact archive/image fingerprints, isolated DB 6/6 result, and rollback limitations are in the [production manifest](protocol/PRODUCTION_INTEGRATION_MANIFEST.md). Disk had 1.5 GB free after unused Docker build-cache pruning; verify free space before subsequent builds. The 2026-09-29 section below is historical.

@@ -52,7 +52,7 @@ test('registration explains duplicate email and optional invalid referral withou
   expect(requests.map(request => request.referralCode)).toEqual([undefined, 'INVALIDCODE', undefined]);
 });
 
-test('test QR is informational and does not create or pay an order', async ({ page }) => {
+test('usage pricing does not present legacy monthly charges or test QR as a payment method', async ({ page }) => {
   const apiRequests: string[] = [];
   const plans = [{ id: 'test-plan', code: 'TEST', name: '测试套餐', description: '仅供测试', monthlyPrice: '10',
     maxDevices: 1, monthlyPoints: 100, monthlyTokenLimit: 99999, monthlyUsageCreditLimit: '999',
@@ -63,13 +63,13 @@ test('test QR is informational and does not create or pay an order', async ({ pa
     return route.fulfill({ contentType: 'application/json', body: JSON.stringify(path === '/api/v1/plans' ? { data: plans } : {}) });
   });
   await page.goto('/pricing');
-  await expect(page.getByRole('heading', { name: '测试占位二维码 · 非支付二维码' })).toBeVisible();
-  await expect(page.getByRole('img', { name: '测试占位二维码，扫码仅打开人工开通说明页' }).locator('svg')).toBeVisible();
-  await expect(page.getByText(/不产生真实收款、订单或自动开通/)).toBeVisible();
-  await expect(page.getByText(/管理员开通后的套餐 AI 点数：100/)).toBeVisible();
+  await expect(page.getByRole('heading', { name: '按实际使用量计费。' })).toBeVisible();
+  await expect(page.locator('.pricing-price')).toContainText('按量计费');
+  await expect(page.getByText('¥10')).toHaveCount(0);
+  await expect(page.getByRole('img', { name: /测试占位二维码/ })).toHaveCount(0);
   await expect(page.getByText('Tokens')).toHaveCount(0);
   expect(apiRequests.length).toBeGreaterThan(0);
-  expect(apiRequests.every(request => request === 'GET /api/v1/plans' || request === 'GET /api/v1/auth/me')).toBe(true);
+  expect(apiRequests.every(request => ['GET /api/v1/plans', 'GET /api/v1/auth/me', 'POST /api/v1/site/page-view'].includes(request))).toBe(true);
 });
 
 test('admin sees server effective models and refreshed plan ACL and user overrides', async ({ page }) => {
@@ -110,13 +110,13 @@ test('admin sees server effective models and refreshed plan ACL and user overrid
   });
 
   await page.goto('/admin');
-  await page.getByRole('button', { name: 'Models' }).click();
-  await page.getByRole('button', { name: '管理' }).click();
+  await page.getByRole('button', { name: '模型管理' }).click();
+  await page.getByRole('button', { name: '管理', exact: true }).click();
   await expect(page.getByText('Test Plan（启用）：未开放')).toBeVisible();
   await page.getByRole('button', { name: '开放', exact: true }).click();
   await expect(page.getByText('Test Plan（启用）：已开放')).toBeVisible();
-  await page.getByRole('button', { name: 'Users' }).click();
-  await page.getByRole('button', { name: '管理' }).click();
+  await page.getByRole('button', { name: '用户管理' }).click();
+  await page.getByRole('button', { name: '管理', exact: true }).click();
   await expect(page.getByText('当前账号可用')).toBeVisible();
   const overrideSelect = page.getByRole('combobox', { name: 'mock-model 用户覆盖' });
   await overrideSelect.selectOption('DENY');

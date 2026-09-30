@@ -54,7 +54,8 @@ test('admin edits website settings without retransmitting saved secrets and prev
     email: { smtpHost: 'smtp.resend.com', smtpPort: 465, smtpUser: 'resend', from: 'sender@example.test' },
     template: { subject: 'New subject', body: initial.template.body },
   }]);
-  expect(requests.every(path => ['/api/v1/auth/me', '/api/v1/admin/dashboard', '/api/v1/admin/website-settings'].includes(path))).toBe(true);
+  expect(requests.every(path => ['/api/v1/auth/me', '/api/v1/admin/dashboard', '/api/v1/admin/website-settings',
+    '/api/v1/admin/insights', '/api/v1/admin/system', '/api/v1/admin/site/page-views'].includes(path))).toBe(true);
   await page.getByLabel('Cloudflare Turnstile Secret Key').fill('replacement-secret');
   await page.getByLabel('SMTP Password').fill('replacement-password');
   await page.getByRole('button', { name: '保存网站配置' }).click();

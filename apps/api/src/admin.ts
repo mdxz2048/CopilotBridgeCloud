@@ -21,6 +21,14 @@ export function assertProviderPatchAllowed(code: string, patch: { enabled?: bool
   if (patch.apiKey !== undefined) throw new ApiError(409, 'PROVIDER_CONNECTION_UNAVAILABLE', 'Copilot credentials require reviewed authentication');
 }
 
+async function requireModelProviderReady(providerId: string) {
+  const [provider] = await db.select().from(providers).where(eq(providers.id, providerId)).limit(1);
+  if (!provider) throw new ApiError(404, 'PROVIDER_NOT_FOUND');
+  if (provider.code === 'COPILOT' || !provider.enabled) throw new ApiError(409, 'PROVIDER_NOT_READY');
+  const health = await (await providerFor(provider.id, provider.code)).health();
+  if (!health.ready) throw new ApiError(409, 'PROVIDER_NOT_READY');
+}
+
 async function grant(userId: string, planId: string, days?: number) {
   const now = new Date();
   const [latest] = await db.select().from(subscriptions).where(eq(subscriptions.userId, userId)).orderBy(desc(subscriptions.createdAt)).limit(1);
@@ -207,6 +215,7 @@ export async function registerAdmin(app: FastifyInstance) {
   });
   app.post('/api/v1/admin/models', async (req, reply) => {
     const a = await admin(req); const data = modelData.parse(req.body);
+    if (data.enabled) await requireModelProviderReady(data.providerId);
     const [model] = await db.insert(models).values({ ...data, usageWeight: String(data.usageWeight) }).returning();
     await audit(a.user.id, 'MODEL_CREATED', 'MODEL', model.id);
     return reply.code(201).send(model);
@@ -214,6 +223,11 @@ export async function registerAdmin(app: FastifyInstance) {
   app.patch('/api/v1/admin/models/:id', async req => {
     const a = await admin(req); const id = idParam(req.params);
     const data = modelData.partial().parse(req.body);
+    if (data.enabled === true || data.providerId !== undefined) {
+      const [previous] = await db.select({ providerId: models.providerId, enabled: models.enabled }).from(models).where(eq(models.id, id)).limit(1);
+      if (!previous) throw new ApiError(404, 'NOT_FOUND');
+      if (data.enabled ?? previous.enabled) await requireModelProviderReady(data.providerId ?? previous.providerId);
+    }
     const [model] = await db.update(models).set({ ...data, usageWeight: data.usageWeight === undefined ? undefined : String(data.usageWeight) }).where(eq(models.id, id)).returning();
     if (!model) throw new ApiError(404, 'NOT_FOUND');
     await audit(a.user.id, 'MODEL_UPDATED', 'MODEL', id);

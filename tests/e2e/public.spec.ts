@@ -18,7 +18,7 @@ test('public pages, navigation and responsive layout', async ({ page }) => {
     await page.screenshot({ path: `artifacts/screenshots/home-${width}.png`, fullPage: true });
   }
   await page.goto('/pricing');
-  await expect(page.getByRole('heading', { name: /选择适合/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /按实际使用量计费/ })).toBeVisible();
   await page.goto('/download');
   await expect(page.getByRole('heading', { name: /把 Agent/ })).toBeVisible();
   await page.goto('/login');

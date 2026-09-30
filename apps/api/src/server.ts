@@ -14,6 +14,8 @@ import { currentBillingMode } from './billing-mode.js';
 import { captureDeviceBody } from './device-proof.js';
 import { trustedProxy } from './trusted-proxy.js';
 import { registerRatePolicy } from './rate-policy.js';
+import { registerReleaseFiles } from './release-files.js';
+import { registerSiteVisits } from './site-visits.js';
 
 export async function createServer() {
   currentBillingMode();
@@ -34,6 +36,8 @@ export async function createServer() {
   });
   await registerRoutes(app);
   await registerAdmin(app);
+  registerReleaseFiles(app);
+  registerSiteVisits(app);
   await registerCopilotAuthRoutes(app);
   await registerGateway(app);
   await registerV2Routes(app);

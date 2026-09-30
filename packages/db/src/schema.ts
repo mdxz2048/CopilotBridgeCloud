@@ -95,6 +95,12 @@ export const systemSettings = pgTable('system_settings', { key: text('key').prim
 export const publicRateHits = pgTable('public_rate_hits', {
   id: id(), ipHash: text('ip_hash').notNull(), createdAt: created(),
 }, t => [index('public_rate_hits_ip_time_idx').on(t.ipHash, t.createdAt), index('public_rate_hits_created_idx').on(t.createdAt)]);
+export const sitePageViews = pgTable('site_page_views', {
+  id: id(),
+  day: varchar('day', { length: 10 }).notNull(),
+  page: varchar('page', { length: 16 }).notNull(),
+  views: integer('views').notNull().default(0),
+}, t => [uniqueIndex('site_page_views_day_page_idx').on(t.day, t.page)]);
 
 // V2 is additive. usage_records remains the V1 quota/legacy history source.
 export const wallets = pgTable('wallets', {

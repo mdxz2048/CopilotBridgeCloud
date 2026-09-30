@@ -7,6 +7,7 @@ import { Turnstile } from '../../components/turnstile';
 import { useRegistrationConfig } from '../../components/registration-config';
 import { useAuthRedirect } from '../../components/use-auth-redirect';
 import { post } from '../../lib/api';
+import { roleHome } from '../../lib/role-home';
 
 export default function Login() {
   const router = useRouter();
@@ -21,8 +22,8 @@ export default function Login() {
     if (capabilities?.verificationRequired && !token) { setError('请先完成人机验证后再登录。'); return; }
     setBusy(true); setError('');
     try {
-      await post('/api/v1/auth/login', { email, password, ...(capabilities?.verificationRequired ? { turnstileToken: token } : {}) });
-      router.push('/dashboard');
+      const { user } = await post<{ user: { role: string } }>('/api/v1/auth/login', { email, password, ...(capabilities?.verificationRequired ? { turnstileToken: token } : {}) });
+      router.replace(roleHome(user.role));
     }
     catch (e) {
       const code = (e as { code?: string }).code;
@@ -34,6 +35,6 @@ export default function Login() {
     finally { setBusy(false); }
   }
   if (checkingAuth) return <><SiteHeader/><main className="auth-wrap"><p role="status">正在检查登录状态…</p></main></>;
-  return <><SiteHeader/><main className="auth-wrap"><form className="auth-card" onSubmit={submit}><span className="eyebrow">WELCOME BACK</span><h1>登录你的账号</h1><p>查看订阅、设备和本月 AI 用量。</p>{identityError && <p className="auth-unavailable" role="alert">暂时无法确认登录状态；你仍可尝试登录，或稍后刷新重试。</p>}<div className="field"><label htmlFor="email">邮箱</label><input id="email" type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)}/></div><div className="field"><label htmlFor="password">密码</label><input id="password" type="password" autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)}/></div>{loading ? <p role="status">正在检查登录方式…</p> : unavailable ? <p className="auth-unavailable" role="alert">登录验证暂不可用：人机验证可能尚未完成配置，或服务暂时无法连接。请稍后重试或联系管理员。</p> : capabilities?.verificationRequired && <Turnstile key={widgetKey} siteKey={capabilities.turnstileSiteKey!} action="web_login" onToken={setToken} resetKey={widgetKey}/>}
+  return <><SiteHeader/><main className="auth-wrap"><form className="auth-card" onSubmit={submit}><span className="eyebrow">WELCOME BACK</span><h1>登录你的账号</h1><p>查看账号状态、邀请、AI 点数和设备。</p>{identityError && <p className="auth-unavailable" role="alert">暂时无法确认登录状态；你仍可尝试登录，或稍后刷新重试。</p>}<div className="field"><label htmlFor="email">邮箱</label><input id="email" type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)}/></div><div className="field"><label htmlFor="password">密码</label><input id="password" type="password" autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)}/></div>{loading ? <p role="status">正在检查登录方式…</p> : unavailable ? <p className="auth-unavailable" role="alert">登录验证暂不可用：人机验证可能尚未完成配置，或服务暂时无法连接。请稍后重试或联系管理员。</p> : capabilities?.verificationRequired && <Turnstile key={widgetKey} siteKey={capabilities.turnstileSiteKey!} action="web_login" onToken={setToken} resetKey={widgetKey}/>}
     {error && <div className="error-text" role="alert">{error}</div>}<button className="button" disabled={busy || loading || unavailable}>{busy ? '登录中…' : '登录'}</button><div className="auth-switch">还没有账号？ <Link href="/register">创建账号</Link></div></form></main></>;
 }

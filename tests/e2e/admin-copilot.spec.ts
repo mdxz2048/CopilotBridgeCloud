@@ -41,7 +41,7 @@ test('admin starts Copilot authorization from Providers without opening real ser
   });
 
   await page.goto('/admin');
-  await page.getByRole('button', { name: 'Providers' }).click();
+  await page.getByRole('button', { name: 'Provider 连接' }).click();
   await expect(page.locator('.copilot-auth')).toHaveCount(1);
   await expect(page.locator('.copilot-auth + .toolbar')).toHaveCount(1);
   await expect(page.getByRole('button', { name: '开始认证' })).toBeVisible();
@@ -63,7 +63,7 @@ test('admin starts Copilot authorization from Providers without opening real ser
   await expect(page.locator('.copilot-auth')).toHaveCount(1);
 
   providers = providers.filter(provider => provider.code !== 'COPILOT');
-  await page.getByRole('button', { name: 'Dashboard' }).click();
-  await page.getByRole('button', { name: 'Providers' }).click();
+  await page.getByRole('button', { name: '网站总览' }).click();
+  await page.getByRole('button', { name: 'Provider 连接' }).click();
   await expect(page.locator('.copilot-auth')).toHaveCount(0);
 });

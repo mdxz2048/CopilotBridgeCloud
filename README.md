@@ -1,5 +1,33 @@
 # Copilot Bridge Cloud
 
+Development handoff: [Console checkpoint (2026-09-30)](docs/CONSOLE_DEVELOPMENT_STATUS_2026-09-30.md).
+
+## Development state after V2.4 (not deployed)
+
+The next console iteration separates USER `/dashboard` from ADMIN `/admin`. The
+user landing page shows only the signed-in account status, referral count,
+wallet balance, active device count, and Desktop download. Admin can inspect
+per-user devices, referrals, payment/point history, provider onboarding,
+30-day model usage and aggregate public-page views. The browser submits
+anonymous page-view counts for five public pages; these are not unique
+visitors or raw access logs.
+
+Admin release upload streams a Windows `.exe` (512 MiB maximum) to
+`RELEASE_STORAGE_DIR` (default `~/.bridge-cloud/releases`, outside the source
+tree), computes SHA-256, and creates an **unpublished** release. A
+published file is served by its release ID; an unpublished file returns 404.
+Compose mounts the persistent `bridge_releases` volume. Check host disk space,
+reverse-proxy upload limits, migration `0009`, and download smoke tests before
+deploying. These changes are not evidence of a production release.
+
+The planned commercial product is usage-priced without monthly fees or
+periodic point grants. Legacy subscriptions, periodic grants and monthly
+quotas still gate the currently staged server; billing remains SHADOW in
+production and actual charging and online payments are not enabled. The
+public pricing page no longer presents legacy test prices as a purchasable
+monthly plan. Do not turn on commercial charging until the entitlement and
+payment migration is designed, tested and explicitly approved.
+
 Modular-monolith cloud service for Copilot Bridge Desktop. The server owns accounts, devices, subscriptions, model access, AI Gateway, usage, billing orders, releases, and administration. Desktop owns local files and tool execution.
 
 ## Start Desktop integration now

@@ -21,7 +21,7 @@ test('admin can review and change new-turn and public IP limits', async ({ page 
   });
 
   await page.goto('/admin');
-  await page.getByRole('button', { name: 'System' }).click();
+  await page.getByRole('button', { name: '系统状态' }).click();
   await expect(page.getByLabel('每设备 AI 新提问 / 分钟')).toHaveValue('1');
   await expect(page.getByText(/工具续接最多 8 次/)).toBeVisible();
   await page.getByLabel('每账号 AI 新提问 / 分钟').fill('4');

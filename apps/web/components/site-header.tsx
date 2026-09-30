@@ -1,12 +1,26 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { ArrowUpRight, Layers3 } from 'lucide-react';
 import { api, type ApiError } from '../lib/api';
+import { roleHome } from '../lib/role-home';
 
 export function SiteHeader() {
+  const pathname = usePathname();
+  const recordedPath = useRef<string | null>(null);
   const [identity, setIdentity] = useState<{ email: string; role: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    if (!['/', '/pricing', '/download', '/login', '/register'].includes(pathname)) return;
+    if (recordedPath.current === pathname) return;
+    recordedPath.current = pathname;
+    const controller = new AbortController();
+    void fetch('/api/v1/site/page-view', { method: 'POST', credentials: 'omit',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: pathname }), signal: controller.signal })
+      .then(response => { if (!response.ok && !controller.signal.aborted) console.warn('Page view recording failed', response.status); })
+      .catch(error => { if (!controller.signal.aborted) console.warn('Page view recording failed', error); });
+  }, [pathname]);
   useEffect(() => {
     let mounted = true;
     let request = 0;
@@ -43,8 +57,7 @@ export function SiteHeader() {
     <Link href="/" className="brand"><span className="brand-mark"><Layers3 size={19} strokeWidth={2.2} /></span><span>Copilot Bridge <span className="brand-light">Cloud</span></span></Link>
     <nav aria-label="主导航"><Link href="/#how-it-works">产品</Link><Link href="/pricing">套餐</Link><Link href="/download">下载</Link></nav>
     <div className="header-actions" aria-live="polite">{loading ? <span className="header-auth-loading" role="status">正在检查登录状态…</span> : identity ? <>
-      {identity.role === 'ADMIN' && <Link className="text-link header-admin" href="/admin">管理后台</Link>}
-      <Link className="header-account" href="/dashboard" aria-label={`账号中心：${identity.email}`}><span className="header-avatar" aria-hidden="true">{identity.email.charAt(0).toUpperCase()}</span><span className="header-email">{identity.email}</span></Link>
+      <Link className="header-account" href={roleHome(identity.role)} aria-label={`${identity.role === 'ADMIN' ? '管理后台' : '账号中心'}：${identity.email}`}><span className="header-avatar" aria-hidden="true">{identity.email.charAt(0).toUpperCase()}</span><span className="header-email">{identity.email}</span></Link>
     </> : <><Link className="text-link" href="/login">登录</Link><Link className="button button-small" href="/register">开始使用 <ArrowUpRight size={15}/></Link></>}</div>
   </div></header>;
 }
