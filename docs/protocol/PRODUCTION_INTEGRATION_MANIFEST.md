@@ -5,7 +5,7 @@ This is the **only App/Desktop production integration handoff**. Server/Contract
 ```text
 SERVER_BASE_URL: https://ai.mddxz.top
 CONTRACT_VERSION: 2.3.0
-SERVER_COMMIT: none (uncommitted internal-test snapshot; base HEAD 539974b)
+SERVER_COMMIT: c091b1ce04d60a9d13b235738c1addfc9d7b380d (recorded after build; exact build identified by archive/image digests)
 SOURCE_ARCHIVE_SHA256: 54a6887e5580df45d9cdf792b6cbd37375f65a328f8d30096596b95286c644d5
 DEPLOYMENT_VERSION: api-image-sha256:937ee4e64f2f2663defbc0e9a0bd3a3aef173da92ff6f48afb88d9bebefb9ff2
 WEB_DEPLOYMENT_VERSION: web-image-sha256:8c707dce9b96522387d0814513378a152e13179b9d6eb9df2287d2db1d93772b
@@ -27,6 +27,7 @@ PRODUCTION_STATUS: INTERNAL TEST — HTTPS, V2.3 DPoP, account 2/min and device 
 GATEWAY_V1_CONTRACT_VERSION: 1.0.0 (frozen documentation only, not currently accepted for Desktop auth)
 GATEWAY_V1_OPENAPI_HASH: sha256:4c72178606ecd71ec047c9618e89eff6581e489f53d80ff54f4035d7152a2d85
 DESKTOP_TEST_INSTALLER: 0.2.0 built locally, SHA256 f470859995fda95f45dd2a43dab66110ab5f79c76cc08c0e8fe04e39c3cf04e0, unsigned and not published
+DESKTOP_SOURCE_COMMIT: dc648d8c36449b71f5431b6741c3e48a371346ae
 ```
 
 The reviewed 2026-09-29 deployment remains identifiable by source archive SHA-256 `26047678958dc76f6280cf3e39d0aa08f75529f5d03f79254b7042a74f388c12`, API image `a27056c896899c7db1d4bb19c0ba25e43abbbc10d1842d38de5b7db7066123c7`, Web image `8cc16eb6c975afc0f34219bc76e29ccd3bfba392f8ec75ac44134f369f163a4a`, and later source commit `6cea3f8233ecb4aebe09bca6d910e9365ea9b576`. On 2026-09-30 the user approved deleting the old rollback image tags to free disk; no same-release database backup or quick image rollback is available.
