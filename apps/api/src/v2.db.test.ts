@@ -622,4 +622,72 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
       else process.env.V2_BILLING_MODE = previousBillingMode;
     }
   });
+
+  it('registers a new account, requires Admin activation, then admits a signed Cloud request', async () => {
+    const { db, models, planModelAccess, plans, providers } = dbModule;
+    const { publicKey, privateKey } = proofKey();
+    const exported = publicKey.export({ format: 'jwk' });
+    const device = { deviceId: randomUUID(), deviceName: 'New Desktop', platform: 'Windows',
+      publicKeyJwk: { kty: 'EC', crv: 'P-256', x: exported.x, y: exported.y } };
+    const email = `v2-new-${randomUUID()}@example.test`;
+    const password = 'new-user-test-password123';
+    const [plan] = await db.insert(plans).values({ code: 'STANDARD', name: 'New User Test', monthlyPrice: '1',
+      maxDevices: 2, monthlyTokenLimit: 100000, monthlyUsageCreditLimit: '100000',
+      maxConcurrentRequests: 2, requestsPerMinute: 30, monthlyPoints: 100, enabled: true }).returning();
+    const [provider] = await db.insert(providers).values({ code: 'MOCK', name: 'New User Mock', enabled: true })
+      .onConflictDoUpdate({ target: providers.code, set: { enabled: true } }).returning();
+    const [model] = await db.insert(models).values({ providerId: provider.id, providerModelId: 'mock-chat',
+      publicId: `mock/new-${randomUUID()}`, displayName: 'New User Mock', enabled: true }).returning();
+    await db.insert(planModelAccess).values({ planId: plan.id, modelId: model.id });
+    const previousMockEnabled = process.env.INTEGRATION_MOCK_ENABLED;
+    const previousMockEmail = process.env.INTEGRATION_MOCK_TEST_EMAIL;
+    const previousBillingMode = process.env.V2_BILLING_MODE;
+    process.env.INTEGRATION_MOCK_ENABLED = 'true';
+    process.env.INTEGRATION_MOCK_TEST_EMAIL = email;
+    process.env.V2_BILLING_MODE = 'OFF';
+    const app = await (await import('./server.js')).createServer();
+    try {
+      const created = await app.inject({ method: 'POST', url: '/api/v1/auth/register',
+        payload: { email, password } });
+      expect(created.statusCode).toBe(201);
+      const userId = created.json().user.id as string;
+      const webLogin = await app.inject({ method: 'POST', url: '/api/v1/auth/login',
+        headers: { origin: process.env.PUBLIC_BASE_URL! }, payload: { email, password } });
+      expect(webLogin.statusCode).toBe(200);
+      expect(webLogin.json().user.email).toBe(email);
+      const desktopLogin = () => app.inject({ method: 'POST', url: '/api/v1/auth/login',
+        payload: { email, password, device } });
+      const unentitled = await desktopLogin();
+      expect(unentitled.statusCode).toBe(403);
+      expect(unentitled.json().error.code).toBe('SUBSCRIPTION_REQUIRED');
+      const adminHeaders = await testCookieHeaders(dbModule, ids.admin);
+      const activation = await app.inject({ method: 'POST', url: '/api/v1/admin/subscriptions/grant',
+        headers: adminHeaders, payload: { userId, planCode: 'STANDARD', days: 30 } });
+      expect(activation.statusCode).toBe(200);
+      const login = await desktopLogin();
+      expect(login.statusCode).toBe(200);
+      const bearer = login.json().accessToken as string;
+      const registrationPayload = { ...device, osVersion: '', appVersion: '' };
+      const registered = await app.inject({ method: 'POST', url: '/api/v1/devices/register',
+        headers: { authorization: `Bearer ${bearer}`,
+          ...(await signedHeaders(privateKey, 'POST', '/api/v1/devices/register', registrationPayload, bearer)) },
+        payload: registrationPayload });
+      expect(registered.statusCode).toBe(200);
+      const prompt = { model: model.publicId, input: 'New account signed request' };
+      const response = await app.inject({ method: 'POST', url: '/v1/responses',
+        headers: { authorization: `Bearer ${bearer}`, 'x-device-id': device.deviceId,
+          'x-client-thread-id': randomUUID(), ...(await signedHeaders(privateKey, 'POST', '/v1/responses', prompt, bearer)) },
+        payload: prompt });
+      expect(response.statusCode).toBe(200);
+      expect(response.json().output[0].type).toBe('message');
+    } finally {
+      await app.close();
+      if (previousMockEnabled === undefined) delete process.env.INTEGRATION_MOCK_ENABLED;
+      else process.env.INTEGRATION_MOCK_ENABLED = previousMockEnabled;
+      if (previousMockEmail === undefined) delete process.env.INTEGRATION_MOCK_TEST_EMAIL;
+      else process.env.INTEGRATION_MOCK_TEST_EMAIL = previousMockEmail;
+      if (previousBillingMode === undefined) delete process.env.V2_BILLING_MODE;
+      else process.env.V2_BILLING_MODE = previousBillingMode;
+    }
+  }, 15_000);
 });

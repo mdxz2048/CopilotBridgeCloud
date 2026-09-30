@@ -24,7 +24,7 @@ export async function currentRatePolicy(): Promise<RatePolicy> {
 
 export function isPublicPath(req: Pick<FastifyRequest, 'url' | 'method'>) {
   const path = new URL(req.url, 'http://localhost').pathname;
-  return /^\/api\/v1\/auth\/(register|login|refresh)$/.test(path)
+  return /^\/api\/v1\/auth\/(register|login|refresh|email-code)$/.test(path)
     || (req.method === 'GET' && /^\/api\/v1\/(plans|client\/config|releases\/latest)$/.test(path));
 }
 

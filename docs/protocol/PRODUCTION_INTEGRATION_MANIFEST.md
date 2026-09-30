@@ -1,6 +1,26 @@
 # PRODUCTION_INTEGRATION_MANIFEST
 
-This is the **only App/Desktop production integration handoff**. Server/Contract ownership remains with the Server Agent. [api-v2.md](../api-v2.md), generated [openapi.v2.json](openapi.v2.json), shared Zod schemas and deployed routes use V2 `2.3.0`. The frozen Gateway V1 `1.0.0` artifacts remain unchanged as historical evidence, but its unsigned device requests no longer work on the V2.3 production API. This internal-test breaking cutover was explicitly accepted; do not claim that an installation key proves the official executable. No password or provider secret is stored in this repository.
+This is the **only App/Desktop production integration handoff**. Server/Contract ownership remains with the Server Agent. [api-v2.md](../api-v2.md), generated [openapi.v2.json](openapi.v2.json), and shared Zod schemas describe deployed V2 `2.4.0`, with staged registration explicitly disabled. The frozen Gateway V1 `1.0.0` artifacts remain unchanged as historical evidence, but its unsigned device requests no longer work on the V2.3+ production API. This internal-test breaking cutover was explicitly accepted; do not claim that an installation key proves the official executable. No password or provider secret is stored in this repository.
+
+## Staged V2.4 API/Web production release (2026-09-30)
+
+The V2.4 API/Web and additive migration `0008_dear_sebastian_shaw` are deployed; **`STAGED_EMAIL_REGISTRATION_ENABLED=false`**, so legacy unverified email/password signup and web login remain active. The administrator-only 网站配置 page is live: production ADMIN GET confirmed encrypted-key presence, a configured sender of `admin@ai.mddxz.top`, and no key disclosure; a normal USER received HTTP 403. Public home, registration, API and Admin read smoke passed. Resend SMTP accepted a non-code test message from that sender to the owner's email, **not** confirmed inbox receipt or arbitrary-recipient delivery; the Resend domain was reported partially verified. Only a fake Turnstile token was checked to validate the private key, not a real widget challenge. Do not enable verification before real user email and Turnstile tests. No new production database backup was taken under the user's pre-release no-backup direction; API/Web prior image tags and source were retained for code rollback, not database rollback. The build exhausted the 23 GB volume; unused Docker build cache was pruned to restore 1.5 GB free. Preflight disk before any further build.
+
+```text
+DEPLOYED_SERVER_CONTRACT: 2.4.0 (email/Turnstile paths gated OFF; Desktop V2.3 auth compatible)
+SOURCE_ARCHIVE_SHA256: 78d02a38b2cbb6ed7ffebb538eedea36ab39b83d1df7af0237924be8c4ec960e
+API_IMAGE_SHA256: 6ebcdc7487bd0476801a3f495e0ca82f23c8e643702621ac13ef1d4565ca2851
+WEB_IMAGE_SHA256: 33866c0fd67a3e38241607ec9a4dbd70a95cc8b944f389a987a45ee1a138ebf5
+DATABASE_MIGRATION: 0008 applied; dedicated PostgreSQL migration + registration/admin tests 6/6 PASS
+PREVIOUS_API_IMAGE_SHA256: 937ee4e64f2f2663defbc0e9a0bd3a3aef173da92ff6f48afb88d9bebefb9ff2
+PREVIOUS_WEB_IMAGE_SHA256: 8c707dce9b96522387d0814513378a152e13179b9d6eb9df2287d2db1d93772b
+OPENAPI_HASH: sha256:9b6ebcb1c30bdd854a10067b281e7ca5bf6259e19af0709d903cb0eb99417b6a
+RELEASE_STATUS: INTERNAL TEST; VERIFIED EMAIL/WEB CAPTCHA OFF; payments/real-provider gates remain closed
+```
+
+## Prior V2.3 production handoff (historical)
+
+Desktop 0.2 advertises V2.3 and retains its unchanged password/device login (no initial-login DPoP or Turnstile); its subsequent device/refresh requests remain DPoP-bound. Its unsigned installer remains local-only. The following block records the earlier V2.3 server release and is not the currently running API/Web image:
 
 ```text
 SERVER_BASE_URL: https://ai.mddxz.top
@@ -24,6 +44,10 @@ REAL_PROVIDER: BLOCKED (local SDK entitlement verified; production real-provider
 BILLING_MODE: SHADOW (V2_BILLING_ENABLED=false; ENFORCED disabled)
 TEST_WALLET: 10000 AI_POINT via idempotent TEST_GRANT ledger fixture
 PRODUCTION_STATUS: INTERNAL TEST — HTTPS, V2.3 DPoP, account 2/min and device 1/min new-turn policy, same-thread tool continuation, SHADOW settlement and Admin rate reads PASS; real-provider and commercial gates remain CLOSED
+PENDING_CONTRACT_VERSION: 2.4.0
+PENDING_OPENAPI_HASH: sha256:9b6ebcb1c30bdd854a10067b281e7ca5bf6259e19af0709d903cb0eb99417b6a
+PENDING_GATEWAY_V1_OPENAPI_HASH: sha256:4c72178606ecd71ec047c9618e89eff6581e489f53d80ff54f4035d7152a2d85
+PENDING_PRODUCTION_STATUS: PARTIAL (staged registration disabled; not deployed)
 GATEWAY_V1_CONTRACT_VERSION: 1.0.0 (frozen documentation only, not currently accepted for Desktop auth)
 GATEWAY_V1_OPENAPI_HASH: sha256:4c72178606ecd71ec047c9618e89eff6581e489f53d80ff54f4035d7152a2d85
 DESKTOP_TEST_INSTALLER: 0.2.0 built locally, SHA256 f470859995fda95f45dd2a43dab66110ab5f79c76cc08c0e8fe04e39c3cf04e0, unsigned and not published

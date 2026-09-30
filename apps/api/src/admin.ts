@@ -9,6 +9,7 @@ import { providerFor } from './provider.js';
 import { encryptSecret, hashPassword } from './security.js';
 import { grantSubscriptionPoints } from './wallet.js';
 import { qualifyReferralFromPaidOrder } from './referral.js';
+import { publicWebsiteSettings, saveWebsiteSettings, websiteSettingsInput } from './website-settings.js';
 
 const planData = z.object({ name: z.string().min(1), description: z.string(), monthlyPrice: z.number().nonnegative(), currency: z.string().length(3), maxDevices: z.number().int().positive(), monthlyTokenLimit: z.number().int().positive(), monthlyUsageCreditLimit: z.number().positive(), maxConcurrentRequests: z.number().int().positive(), requestsPerMinute: z.number().int().positive(), enabled: z.boolean(), monthlyPoints: z.number().int().min(0).optional(), rolloverPolicy: z.enum(['NONE', 'UNLIMITED']).optional() });
 const modelData = z.object({ providerId: z.uuid(), providerModelId: z.string().min(1), publicId: z.string().min(1), displayName: z.string().min(1), enabled: z.boolean(), supportsTools: z.boolean(), supportsVision: z.boolean(), supportsReasoning: z.boolean(), supportsStreaming: z.boolean(), contextWindow: z.number().int().positive().nullable(), maxOutputTokens: z.number().int().positive().nullable(), usageWeight: z.number().positive(), sortOrder: z.number().int() });
@@ -32,6 +33,17 @@ async function grant(userId: string, planId: string, days?: number) {
   });
 }
 export async function registerAdmin(app: FastifyInstance) {
+  app.get('/api/v1/admin/website-settings', async req => {
+    await admin(req);
+    return publicWebsiteSettings();
+  });
+  app.put('/api/v1/admin/website-settings', async req => {
+    const a = await admin(req);
+    const body = websiteSettingsInput.parse(req.body);
+    const result = await saveWebsiteSettings(body);
+    await audit(a.user.id, 'WEBSITE_SETTINGS_UPDATED', 'SYSTEM', 'website_verification');
+    return result;
+  });
   app.get('/api/v1/admin/dashboard', async req => {
     await admin(req);
     const [[userCount], [deviceCount], [orderCount], [usageCount]] = await Promise.all([
@@ -240,5 +252,5 @@ export async function registerAdmin(app: FastifyInstance) {
     return release;
   });
   app.get('/api/v1/admin/audit', async req => { await admin(req); return { data: await db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt)).limit(200) }; });
-  app.get('/api/v1/admin/system', async req => { await admin(req); await db.execute(sql`select 1`); return { database: 'ok', gateway: 'ok', settings: await db.select().from(systemSettings) }; });
+  app.get('/api/v1/admin/system', async req => { await admin(req); await db.execute(sql`select 1`); return { database: 'ok', gateway: 'ok', settings: await db.select({ key: systemSettings.key, updatedAt: systemSettings.updatedAt }).from(systemSettings) }; });
 }

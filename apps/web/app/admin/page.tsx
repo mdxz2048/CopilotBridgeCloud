@@ -5,12 +5,14 @@ import { AppShell, type NavItem } from '../../components/app-shell';
 import { api, patch, post, put, type Plan } from '../../lib/api';
 import { V2AdminPanel } from '../../components/v2-admin-panels';
 import { CopilotAuthCard } from '../../components/copilot-auth-card';
+import { WebsiteSettings } from '../../components/website-settings';
 
 const items: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: 'Gauge' }, { id: 'users', label: 'Users', icon: 'Users' }, { id: 'devices', label: 'Devices', icon: 'HardDrive' },
   { id: 'plans', label: 'Plans', icon: 'Package' }, { id: 'subscriptions', label: 'Subscriptions', icon: 'BadgeCheck' }, { id: 'usage', label: 'Usage', icon: 'Activity' },
   { id: 'orders', label: 'Orders', icon: 'ShoppingBag' }, { id: 'providers', label: 'Providers', icon: 'Server' }, { id: 'models', label: 'Models', icon: 'Boxes' },
   { id: 'releases', label: 'Releases', icon: 'Download' }, { id: 'audit', label: 'Audit', icon: 'ScrollText' }, { id: 'system', label: 'System', icon: 'Settings2' },
+  { id: 'website-settings', label: '网站配置', icon: 'Settings2' },
   { id: 'v2-wallets', label: 'AI 点数钱包', icon: 'CreditCard' }, { id: 'v2-rates', label: '费率卡', icon: 'Package' },
   { id: 'v2-referrals', label: '邀请审核', icon: 'Users' }, { id: 'v2-costs', label: 'Provider 成本', icon: 'Activity' },
 ];
@@ -55,7 +57,7 @@ export default function AdminPage() {
       const me = await api<{ user: { email: string; role: string } }>('/api/v1/auth/me');
       if (me.user.role !== 'ADMIN') { router.replace('/dashboard'); return false; }
       setEmail(me.user.email);
-      if (active.startsWith('v2-')) return true;
+      if (active.startsWith('v2-') || active === 'website-settings') return true;
       if (active === 'dashboard') setDashboard(await api<Record<string, number>>('/api/v1/admin/dashboard'));
       else if (active === 'system') {
         const [diagnostics, rates] = await Promise.all([api<Record<string, unknown>>('/api/v1/admin/system'),
@@ -106,9 +108,14 @@ export default function AdminPage() {
     finally { setRunning(false); }
   }
   const title = items.find(i => i.id === active)?.label ?? 'Admin';
+  if (!email) return <div className="auth-wrap"><div className="auth-card">
+    {error ? <><h1>暂时无法验证管理员身份</h1><p role="alert">{error}</p><button className="button" onClick={() => void load()}>重试</button></>
+      : <p role="status">正在验证管理员身份…</p>}
+  </div></div>;
   return <AppShell title={title} description="管理账号、权限、订阅与服务状态。" items={items} active={active} onChange={id => {setActive(id);setSelected(null);setForm({});setSearch('');setMessage('');}} email={email || 'Admin'} admin>
     {message && <div className="notice" role="status">{message}</div>}{error && <div className="error-text" role="alert">{error} <button className="mini-button" onClick={load}>重试</button></div>}
     {loading && <div className="loading-skeleton"/>}
+    {!loading && active === 'website-settings' && <WebsiteSettings/>}
     {!loading && active.startsWith('v2-') && <V2AdminPanel section={active as 'v2-wallets' | 'v2-rates' | 'v2-referrals' | 'v2-costs'}/>}
     {!loading && active === 'dashboard' && <div className="stat-grid">{Object.entries(dashboard).map(([key, value]) => <div className="stat" key={key}><span className="stat-label">{key.toUpperCase()}</span><strong>{value}</strong></div>)}</div>}
     {!loading && active === 'system' && <>

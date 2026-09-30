@@ -2,6 +2,11 @@ import { expect, test } from '@playwright/test';
 
 test('registration accepts a prefilled or manually entered referral without awarding at signup', async ({ page }) => {
   const registrations: Record<string, unknown>[] = [];
+  await page.route('**/api/v1/auth/me', route => route.fulfill({ status: 401,
+    json: { error: { code: 'UNAUTHORIZED' } } }));
+  await page.route('**/api/v1/auth/registration-config', route => route.fulfill({ json: {
+    verificationRequired: false, turnstileSiteKey: null, registrationAvailable: true, configurationStatus: 'MISSING_CONFIG',
+  } }));
   await page.route('**/api/v1/auth/register', route => {
     registrations.push(route.request().postDataJSON() as Record<string, unknown>);
     return route.fulfill({ status: 201, contentType: 'application/json', body: '{}' });
@@ -14,6 +19,37 @@ test('registration accepts a prefilled or manually entered referral without awar
   await page.getByRole('button', { name: '创建账号' }).click();
   await expect(page).toHaveURL(/\/login$/);
   expect(registrations).toEqual([{ email: 'referred@example.test', password: 'test-password-123', referralCode: 'MANUAL-CODE' }]);
+});
+
+test('registration explains duplicate email and optional invalid referral without blaming the password', async ({ page }) => {
+  let failure = 'EMAIL_IN_USE';
+  const requests: Record<string, unknown>[] = [];
+  await page.route('**/api/v1/auth/me', route => route.fulfill({ status: 401,
+    json: { error: { code: 'UNAUTHORIZED' } } }));
+  await page.route('**/api/v1/auth/registration-config', route => route.fulfill({ json: {
+    verificationRequired: false, turnstileSiteKey: null, registrationAvailable: true, configurationStatus: 'MISSING_CONFIG',
+  } }));
+  await page.route('**/api/v1/auth/register', route => {
+    requests.push(route.request().postDataJSON() as Record<string, unknown>);
+    return failure ? route.fulfill({ status: failure === 'EMAIL_IN_USE' ? 409 : 404,
+      contentType: 'application/json', body: JSON.stringify({ error: { code: failure, message: failure } }) })
+      : route.fulfill({ status: 201, contentType: 'application/json', body: '{"user":{}}' });
+  });
+  await page.goto('/register');
+  await page.getByLabel('邮箱').fill('already@example.test');
+  await page.getByLabel('密码（至少 12 位）').fill('test-password-123');
+  await page.getByRole('button', { name: '创建账号' }).click();
+  await expect(page.locator('.auth-card .error-text[role="alert"]')).toContainText('这个邮箱已经注册');
+  failure = 'INVALID_REFERRAL_CODE';
+  await page.getByLabel('邮箱').fill('new@example.test');
+  await page.getByLabel('邀请码（可选）').fill('INVALIDCODE');
+  await page.getByRole('button', { name: '创建账号' }).click();
+  await expect(page.locator('.auth-card .error-text[role="alert"]')).toContainText('没有邀请码也可以留空注册');
+  failure = '';
+  await page.getByLabel('邀请码（可选）').fill('');
+  await page.getByRole('button', { name: '创建账号' }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  expect(requests.map(request => request.referralCode)).toEqual([undefined, 'INVALIDCODE', undefined]);
 });
 
 test('test QR is informational and does not create or pay an order', async ({ page }) => {
@@ -33,7 +69,7 @@ test('test QR is informational and does not create or pay an order', async ({ pa
   await expect(page.getByText(/管理员开通后的套餐 AI 点数：100/)).toBeVisible();
   await expect(page.getByText('Tokens')).toHaveCount(0);
   expect(apiRequests.length).toBeGreaterThan(0);
-  expect(apiRequests.every(request => request === 'GET /api/v1/plans')).toBe(true);
+  expect(apiRequests.every(request => request === 'GET /api/v1/plans' || request === 'GET /api/v1/auth/me')).toBe(true);
 });
 
 test('admin sees server effective models and refreshed plan ACL and user overrides', async ({ page }) => {

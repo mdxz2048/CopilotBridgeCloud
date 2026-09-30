@@ -76,7 +76,7 @@ export default function Dashboard() {
   if (error || !account) return <div className="auth-wrap"><div className="auth-card"><h1>暂时无法加载</h1><p>{error || '请稍后重试。'}</p><button className="button" onClick={load}>重试</button></div></div>;
   const sub = account.subscription; const plan = account.plan;
   const title = items.find(i => i.id === active)?.label ?? '概览';
-  return <AppShell title={title} description={active === 'overview' ? '账号、订阅与使用状态，一目了然。' : '管理你的 Copilot Bridge Cloud 服务。'} items={items} active={active} onChange={setActive} email={account.user.email}>
+  return <AppShell title={title} description={active === 'overview' ? '账号、订阅与使用状态，一目了然。' : '管理你的 Copilot Bridge Cloud 服务。'} items={items} active={active} onChange={setActive} email={account.user.email} canAccessAdmin={account.user.role === 'ADMIN'}>
     {action && <div className="notice" role="status">{action}</div>}
     {(active === 'points' || active === 'referral' || active === 'connections') && <V2AccountPanel section={active} refreshKey={panelRevision}/>}
     {active === 'overview' && <>

@@ -1,8 +1,8 @@
-export type ApiError = { code: string; message: string; requestId?: string };
+export type ApiError = { code: string; message: string; requestId?: string; status?: number };
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, { credentials: 'include', cache: 'no-store', ...init, headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) } });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw (data.error ?? { code: 'NETWORK_ERROR', message: '暂时无法加载，请稍后重试。' }) as ApiError;
+  if (!response.ok) throw { ...(data.error ?? { code: 'NETWORK_ERROR', message: '暂时无法加载，请稍后重试。' }), status: response.status } as ApiError;
   return data as T;
 }
 export const post = <T>(path: string, body: unknown) => api<T>(path, { method: 'POST', body: JSON.stringify(body) });

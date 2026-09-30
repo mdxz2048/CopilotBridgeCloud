@@ -3,15 +3,16 @@ import { db, auditLogs, billingOrders, devices, models, plans, refreshTokens, re
 import { and, desc, eq, gte, isNull, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { DeviceInfoV23Schema, LoginRequestSchema, RefreshRequestSchema, RegisterRequestV2Schema } from '@bridge/contract';
+import { DeviceInfoV23Schema, LoginRequestSchema, RefreshRequestSchema, RegisterRequestV2Schema, RegisterRequestV24Schema, RequestEmailCodeV24Schema } from '@bridge/contract';
 import { actor, admin, ApiError, audit, changeDeviceStatus, currentSubscription, currentUsage, allowedModels, subscriptionError } from './core.js';
 import { config } from './config.js';
 import { hashPassword, hashRefresh, issueAccess, newRefresh, verifyPassword } from './security.js';
 import { registerReferralInTransaction, validateReferralCode } from './referral.js';
 import { claimDeviceProof, verifyDeviceProof } from './device-proof.js';
+import { consumeEmailCode, registrationConfig, requestEmailCode, verifyTurnstile } from './registration.js';
 
 const deviceSchema = DeviceInfoV23Schema;
-const loginSchema = LoginRequestSchema.extend({ device: DeviceInfoV23Schema.optional() });
+const loginSchema = LoginRequestSchema.extend({ device: DeviceInfoV23Schema.optional(), turnstileToken: z.string().min(1).max(4096).optional() });
 const secure = config.PUBLIC_BASE_URL.startsWith('https:');
 const cookieOptions = { httpOnly: true, secure, sameSite: 'strict' as const, path: '/', maxAge: 60 * 60 * 24 * 7 };
 
@@ -58,10 +59,22 @@ function publicV1Device(device: typeof devices.$inferSelect) { return { ...devic
 
 export async function registerRoutes(app: FastifyInstance) {
   app.get('/health', async () => ({ status: 'ok', version: '0.1.0' }));
+  app.get('/api/v1/auth/registration-config', async () => registrationConfig());
+  app.post('/api/v1/auth/email-code', { config: { rateLimit: { max: 8, timeWindow: '1 hour' } } }, async (req, reply) => {
+    if (config.STAGED_EMAIL_REGISTRATION_ENABLED !== 'true') throw new ApiError(404, 'FEATURE_DISABLED');
+    if (req.headers.origin !== config.PUBLIC_BASE_URL) throw new ApiError(403, 'CSRF_REJECTED');
+    const data = RequestEmailCodeV24Schema.parse(req.body);
+    await verifyTurnstile(data.turnstileToken, 'registration_email_code', req.ip);
+    await requestEmailCode(data.email, req.ip);
+    return reply.code(202).send({ accepted: true });
+  });
   app.post('/api/v1/auth/register', { config: { rateLimit: { max: 5, timeWindow: '1 hour' } } }, async (req, reply) => {
-    const data = RegisterRequestV2Schema.parse(req.body);
+    const staged = config.STAGED_EMAIL_REGISTRATION_ENABLED === 'true';
+    if (staged && req.headers.origin !== config.PUBLIC_BASE_URL) throw new ApiError(403, 'CSRF_REJECTED');
+    const data = (staged ? RegisterRequestV24Schema : RegisterRequestV2Schema).parse(req.body);
     const passwordHash = await hashPassword(data.password);
     const user = await db.transaction(async tx => {
+      if (staged && !(await consumeEmailCode(tx, data.email, (data as z.infer<typeof RegisterRequestV24Schema>).emailCode))) return null;
       if (data.referralCode) await validateReferralCode(tx, data.referralCode);
       const [created] = await tx.insert(users).values({ email: data.email.toLowerCase(), passwordHash }).onConflictDoNothing().returning();
       if (!created) throw new ApiError(409, 'EMAIL_IN_USE');
@@ -69,10 +82,18 @@ export async function registerRoutes(app: FastifyInstance) {
       await tx.insert(auditLogs).values({ actorId: created.id, action: 'USER_REGISTERED', targetType: 'USER', targetId: created.id });
       return created;
     });
+    if (!user) throw new ApiError(400, 'EMAIL_CODE_INVALID');
     return reply.code(201).send({ user: publicUser(user) });
   });
   app.post('/api/v1/auth/login', { config: { rateLimit: { max: 10, timeWindow: '15 minutes' } } }, async (req, reply) => {
+    if (req.headers.origin && req.headers.origin !== config.PUBLIC_BASE_URL) throw new ApiError(403, 'CSRF_REJECTED');
     const data = loginSchema.parse(req.body);
+    if (!data.device && req.headers.origin !== config.PUBLIC_BASE_URL) throw new ApiError(403, 'CSRF_REJECTED');
+    if (config.STAGED_EMAIL_REGISTRATION_ENABLED === 'true') {
+      if (data.device) {
+        if (req.headers.origin) throw new ApiError(403, 'CSRF_REJECTED');
+      } else await verifyTurnstile(data.turnstileToken, 'web_login', req.ip);
+    }
     const [user] = await db.select().from(users).where(eq(users.email, data.email.toLowerCase())).limit(1);
     if (!user || !(await verifyPassword(user.passwordHash, data.password))) throw new ApiError(401, 'INVALID_CREDENTIALS');
     if (user.status !== 'ACTIVE') throw new ApiError(403, 'ACCOUNT_DISABLED');

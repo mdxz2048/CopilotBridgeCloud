@@ -1,4 +1,8 @@
 # Status as of 2026-09-30
+V2.4 API/Web and migration `0008` were subsequently deployed as a **disabled verification candidate**. The administrator-only website settings page, configured Resend sender and encrypted-key indicators passed production checks; a normal user received HTTP 403. The isolated registration/admin database tests passed 6/6. The staged flag is still `false`, and actual mail delivery to an unrelated recipient plus real Turnstile browser tokens have not passed. See the current [manifest](../protocol/PRODUCTION_INTEGRATION_MANIFEST.md). This is not approval for verified signup or commercial launch.
+
+## Prior V2.3 gate snapshot
+
 Overall: **INTERNAL TEST ONLY — V2.3 DPoP and low-limit rollout, not commercial release.** Additive migrations `0005`–`0007` passed 17/17 isolated PostgreSQL tests and were applied before the API/Web/Caddy cutover. Production signed device login/refresh, account and wallet reads, gated Mock JSON and tool continuation at one new turn/minute/device, new-turn `RATE_LIMITED`, Admin policy read, and zero SHADOW wallet debit passed. Local signed SSE, transcript replay and Remote Bridge low-cap tests passed. The unsigned 0.2.0 installer exists only as a local test artifact; real installation, publisher signature, real-provider inference and paid checkout have **not** passed. Old V1 Desktop Cloud requests now fail until upgraded. The user accepted this breaking internal-test cutover and deletion of previous rollback images; no current database backup or quick prior-image rollback is available. See [production manifest](../protocol/PRODUCTION_INTEGRATION_MANIFEST.md) for exact digests.
 
 ## Historical status as of 2026-09-29

@@ -57,6 +57,13 @@
       "when": 1790730648847,
       "tag": "0007_cheerful_snowbird",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790751109492,
+      "tag": "0008_dear_sebastian_shaw",
+      "breakpoints": true
     }
   ]
 }

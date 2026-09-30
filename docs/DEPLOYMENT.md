@@ -1,5 +1,9 @@
 # Production deployment
 
+## Current staged installation (2026-09-30)
+
+V2.4 API/Web and additive migration `0008` are deployed at `https://ai.mddxz.top` with `STAGED_EMAIL_REGISTRATION_ENABLED=false`. Resend SMTP is configured server-side with `SMTP_FROM=admin@ai.mddxz.top`; one non-code test send was accepted, but general-user delivery and a real registration-code flow are not verified. The live administrator 网站配置 area edits encrypted Turnstile/SMTP overrides and registration mail text; ordinary users receive HTTP 403. Real Turnstile token verification and enforced email-code signup remain closed. Exact archive/image fingerprints, isolated DB 6/6 result, and rollback limitations are in the [production manifest](protocol/PRODUCTION_INTEGRATION_MANIFEST.md). Disk had 1.5 GB free after unused Docker build-cache pruning; verify free space before subsequent builds. The 2026-09-29 section below is historical.
+
 ## Current installation (updated 2026-09-29)
 
 On 2026-09-29, the incremental `0004` device migration and latest API/Web images were deployed after **14/14 isolated-DB tests**. Production health, Admin reads, gated Mock JSON/SSE/tool continuation, SHADOW settlement without wallet debit and API restart persistence passed. The exact build source was tar archive SHA-256 `26047678958dc76f6280cf3e39d0aa08f75529f5d03f79254b7042a74f388c12`; later commit `6cea3f8233ecb4aebe09bca6d910e9365ea9b576` records matching runtime code plus documentation and a browser test correction. See [deployment-v2.md](deployment-v2.md) and the [production manifest](protocol/PRODUCTION_INTEGRATION_MANIFEST.md) for migration and image evidence. The 2026-09-24 installation below remains historical and does not identify this newer release.

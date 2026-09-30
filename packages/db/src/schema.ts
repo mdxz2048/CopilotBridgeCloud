@@ -7,6 +7,16 @@ export const users = pgTable('users', {
   id: id(), email: varchar('email', { length: 320 }).notNull().unique(), passwordHash: text('password_hash').notNull(),
   role: varchar('role', { length: 16 }).notNull().default('USER'), status: varchar('status', { length: 16 }).notNull().default('ACTIVE'), createdAt: created(),
 });
+export const registrationChallenges = pgTable('registration_challenges', {
+  id: id(), emailHash: varchar('email_hash', { length: 64 }).notNull(),
+  ipHash: varchar('ip_hash', { length: 64 }).notNull(), codeHash: varchar('code_hash', { length: 64 }),
+  state: varchar('state', { length: 16 }).notNull().default('PENDING'),
+  attempts: integer('attempts').notNull().default(0),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdAt: created(), sentAt: timestamp('sent_at', { withTimezone: true }),
+}, t => [index('registration_challenges_email_idx').on(t.emailHash, t.createdAt),
+  index('registration_challenges_ip_idx').on(t.ipHash, t.createdAt),
+  index('registration_challenges_created_idx').on(t.createdAt)]);
 export const plans = pgTable('plans', {
   id: id(), code: varchar('code', { length: 32 }).notNull().unique(), name: text('name').notNull(), description: text('description').notNull().default(''),
   monthlyPrice: numeric('monthly_price', { precision: 12, scale: 2 }).notNull(), currency: varchar('currency', { length: 3 }).notNull().default('CNY'),
