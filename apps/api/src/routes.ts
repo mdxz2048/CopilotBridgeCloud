@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { latestWindowsRelease } from './latest-release.js';
 import { db, auditLogs, billingOrders, devices, models, plans, refreshTokens, releases, subscriptions, usageRecords, users, webSessions } from '@bridge/db';
 import { and, desc, eq, gte, isNull, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
@@ -187,11 +188,13 @@ export async function registerRoutes(app: FastifyInstance) {
     return active ? await currentUsage(a.user.id, active.subscription, active.plan) : { tokens: 0, credit: 0, requests: 0, tokenLimit: 0, creditLimit: 0, percent: 0, threshold: 0 };
   });
   app.get('/api/v1/usage/history', async req => ({ data: await db.select({ id: usageRecords.id, status: usageRecords.status, inputTokens: usageRecords.inputTokens, outputTokens: usageRecords.outputTokens, totalTokens: usageRecords.totalTokens, usageCredit: usageRecords.usageCredit, createdAt: usageRecords.createdAt }).from(usageRecords).where(eq(usageRecords.userId, (await actor(req)).user.id)).orderBy(desc(usageRecords.createdAt)).limit(100) }));
-  app.get('/api/v1/client/config', async () => ({ minimumVersion: '0.1.0', latestVersion: '0.1.0', maintenance: false, features: { cloudGateway: true } }));
+  async function latestRelease() {
+    return latestWindowsRelease(await db.select().from(releases).where(and(eq(releases.published, true), eq(releases.channel, 'stable'), eq(releases.platform, 'windows'), eq(releases.arch, 'x64'))));
+  }
+  app.get('/api/v1/client/config', async () => ({ minimumVersion: '0.1.0', latestVersion: (await latestRelease())?.version ?? '0.1.0', maintenance: false, features: { cloudGateway: true } }));
   app.get('/api/v1/releases', async () => ({ data: await db.select().from(releases).where(eq(releases.published, true)).orderBy(desc(releases.createdAt)) }));
   app.get('/api/v1/releases/latest', async () => {
-    const [release] = await db.select().from(releases).where(eq(releases.published, true)).orderBy(desc(releases.createdAt)).limit(1);
-    return { release: release ?? null };
+    return { release: await latestRelease() };
   });
   app.get('/api/v1/billing/orders/:id', async req => {
     const a = await actor(req);
