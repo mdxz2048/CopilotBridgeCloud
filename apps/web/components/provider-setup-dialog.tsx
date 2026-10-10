@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { api, patch } from '../lib/api';
+import { api, post } from '../lib/api';
 import { CopilotAuthCard } from './copilot-auth-card';
 
 type Provider = { id: string; code: string; name: string; enabled?: boolean };
@@ -46,12 +46,10 @@ export function ProviderSetupDialog({ provider, onClose, onReady }: {
     if (!key.trim()) { setMessage('请输入 API Key。'); return; }
     setBusy(true); setMessage(''); setReady(false);
     try {
-      await patch(`/api/v1/admin/providers/${provider.id}`, { apiKey: key.trim(), enabled: true });
+      const result = await post<{ ready: boolean; model: { displayName: string }; billingMode: string }>(`/api/v1/admin/providers/${provider.id}/connect-deepseek`, { apiKey: key.trim() });
       setKey('');
-      const health = await api<{ ready: boolean; reason?: string }>(`/api/v1/admin/providers/${provider.id}/health`);
-      if (!health.ready) { setMessage(`密钥已保存，但 Provider 检查未通过：${health.reason ?? '未知原因'}。模型不会开放。`); return; }
       setReady(true);
-      setMessage('Provider 已配置并通过健康检查。');
+      setMessage(`已连接并启用 ${result.model.displayName}。${result.billingMode === 'SHADOW' ? '当前为测试计量，不扣用户余额；上游 API 仍产生费用。' : '请检查该模型的费率配置。'}请在模型权限中授权用户，并确认用户已开通服务。`);
     } catch (error) { setMessage((error as { message?: string }).message ?? '绑定或验证失败，请重试。'); }
     finally { setBusy(false); }
   }
@@ -62,10 +60,10 @@ export function ProviderSetupDialog({ provider, onClose, onReady }: {
       {provider.code === 'COPILOT' ? <><CopilotAuthCard/><button type="button" className="button button-small" disabled={busy} onClick={() => void verifyCopilot()}>检查认证结果</button></>
         : provider.code === 'DEEPSEEK' ? <><p>输入管理员管理的 DeepSeek API Key；密钥在服务端加密保存，页面不会回显。</p>
           <div className="field"><label htmlFor="provider-api-key">DeepSeek API Key</label><input id="provider-api-key" type="password" autoComplete="new-password" value={key} onChange={event => setKey(event.target.value)}/></div>
-          <button type="button" className="button button-small" disabled={busy} onClick={() => void connectDeepSeek()}>{busy ? '正在检查…' : '绑定并检查连接'}</button></>
+          <button type="button" className="button button-small" disabled={busy} onClick={() => void connectDeepSeek()}>{busy ? '正在检查…' : '连接并同步可用模型'}</button></>
           : <p>此 Provider 暂无后台接入流程，请先在 Provider 管理中配置。</p>}
       {message && <p role="status" className={ready ? 'notice' : 'error-text'}>{message}</p>}
-      {ready && <button type="button" className="button button-small" onClick={() => { onReady(); onClose(); }}>继续添加模型草稿</button>}
+      {ready && <button type="button" className="button button-small" onClick={() => { onReady(); onClose(); }}>{provider.code === 'DEEPSEEK' ? '完成，刷新模型列表' : '继续添加模型草稿'}</button>}
     </div>
   </dialog>;
 }

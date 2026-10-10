@@ -4,9 +4,10 @@ import { and, desc, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { actor, allowedModels, ApiError, audit, changeDeviceStatus, currentSubscription, currentUsage } from './core.js';
 import { referralCodeFor, registerReferral } from './referral.js';
+import { currentRatePolicy } from './rate-policy.js';
 import { walletSummary } from './wallet.js';
 import { encryptSecret } from './security.js';
-import { DeepSeekProvider } from './provider.js';
+import { DeepSeekProvider, isDeepSeekProvider } from './provider.js';
 
 const uuidParam = (params: unknown) => z.uuid().parse((params as { id: string }).id);
 async function usageSummary(req: Parameters<typeof actor>[0]) {
@@ -26,9 +27,12 @@ export async function registerV2Routes(app: FastifyInstance) {
   app.get('/api/v1/me', async req => {
     const a = await actor(req);
     const active = await currentSubscription(a.user.id);
+    const usage = active ? await currentUsage(a.user.id,active.subscription,active.plan) : null;
+    const limits = await currentRatePolicy(a.user.id);
     const [deviceCount] = await db.select({ count: sql<number>`count(*)` }).from(devices).where(and(eq(devices.userId, a.user.id), eq(devices.status, 'ACTIVE')));
     return { account: { id: a.user.id, email: a.user.email, status: a.user.status },
       subscription: active ? { id: active.subscription.id, status: active.subscription.status, planCode: active.plan.code, periodStart: active.subscription.currentPeriodStart, periodEnd: active.subscription.currentPeriodEnd, monthlyPoints: active.plan.monthlyPoints, maxDevices: active.plan.maxDevices, rolloverPolicy: active.plan.rolloverPolicy } : null,
+      billing:usage?.moneyEnabled?{pointsPerRmb:10000,currency:"CNY",balanceRmb:usage.balanceRmb,usedRmb:usage.rmbUsed,limitRmb:usage.rmbLimit,remainingRmb:usage.remainingRmb,accountRpm:Math.min(limits.accountRpm,active!.plan.requestsPerMinute),deviceRpm:Math.min(limits.deviceRpm,active!.plan.requestsPerMinute),maxDevices:active!.plan.maxDevices}:null,
       wallet: await walletSummary(a.user.id), activeDevices: Number(deviceCount.count) };
   });
   app.get('/api/v1/me/subscription', async req => {
@@ -75,7 +79,7 @@ export async function registerV2Routes(app: FastifyInstance) {
     const a = await actor(req);
     const data = z.object({ providerId: z.uuid(), label: z.string().trim().min(1).max(120), apiKey: z.string().min(8).max(4096) }).parse(req.body);
     const [provider] = await db.select().from(providers).where(and(eq(providers.id, data.providerId), eq(providers.enabled, true))).limit(1);
-    if (!provider || provider.code !== 'DEEPSEEK') throw new ApiError(409, 'PROVIDER_CONNECTION_UNAVAILABLE');
+    if (!provider || !isDeepSeekProvider(provider.code)) throw new ApiError(409, 'PROVIDER_CONNECTION_UNAVAILABLE');
     const adapter = new DeepSeekProvider(provider.baseUrl ?? 'https://api.deepseek.com', data.apiKey, Math.min(provider.timeoutMs, 10000));
     const validation = await adapter.validateCredential();
     if (!validation.valid) throw new ApiError(403, 'PROVIDER_AUTH_REQUIRED');

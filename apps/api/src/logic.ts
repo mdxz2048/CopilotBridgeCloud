@@ -7,6 +7,9 @@ export function modelAllowed(enabled: boolean, planAccess: boolean, override?: s
 export function integrationMockAllowed(providerCode: string, userEmail: string, enabled: boolean, testEmail?: string) {
   return providerCode !== 'MOCK' || (enabled && Boolean(testEmail) && userEmail.toLowerCase() === testEmail!.toLowerCase());
 }
+export function internalTestAllowed(billingMode: string, userId: string, allowlist: unknown) {
+  return billingMode === 'SHADOW' && Array.isArray(allowlist) && allowlist.every(id => typeof id === 'string') && allowlist.includes(userId);
+}
 export function usageState(used: number, limit: number) {
   const percent = limit > 0 ? Math.round(100 * used / limit) : 100;
   return { percent, threshold: percent >= 100 ? 100 : percent >= 90 ? 90 : percent >= 70 ? 70 : 0 };

@@ -6,21 +6,18 @@ import { api, patch, post, put, type Plan } from '../../lib/api';
 import { V2AdminPanel } from '../../components/v2-admin-panels';
 import { CopilotAuthCard } from '../../components/copilot-auth-card';
 import { WebsiteSettings } from '../../components/website-settings';
-import { ProviderSetupDialog } from '../../components/provider-setup-dialog';
-import { AdminUserDetails } from '../../components/admin-user-details';
+import { DeepSeekConnectionCard } from '../../components/deepseek-connection-card';
+import { MoneyPlanManager } from '../../components/money-plan-manager';
+import { AdminUserDialog, CreateUserDialog } from '../../components/admin-user-dialog';
 import { ReleaseUpload } from '../../components/release-upload';
 import { AdminInsights } from '../../components/admin-insights';
 
 const items: NavItem[] = [
-  { id: 'dashboard', label: '网站总览', icon: 'Gauge' }, { id: 'users', label: '用户管理', icon: 'Users' },
-  { id: 'providers', label: 'Provider 连接', icon: 'Server' }, { id: 'models', label: '模型管理', icon: 'Boxes' },
-  { id: 'plans', label: '套餐管理', icon: 'Package' }, { id: 'v2-rates', label: '按量费率', icon: 'CreditCard' },
-  { id: 'releases', label: '客户端版本', icon: 'Download' }, { id: 'website-settings', label: '网站配置', icon: 'Settings2' },
-  { id: 'usage', label: '模型用量', icon: 'Activity' }, { id: 'v2-costs', label: 'Provider 成本', icon: 'Activity' },
-  { id: 'orders', label: '付款记录', icon: 'ShoppingBag' }, { id: 'subscriptions', label: '测试开通', icon: 'BadgeCheck' },
-  { id: 'devices', label: '设备总表', icon: 'HardDrive' }, { id: 'v2-wallets', label: '点数钱包', icon: 'CreditCard' },
-  { id: 'v2-referrals', label: '邀请审核', icon: 'Users' }, { id: 'system', label: '系统状态', icon: 'Settings2' },
-  { id: 'audit', label: '操作审计', icon: 'ScrollText' },
+  {id:'models',label:'模型与连接',icon:'Boxes'},
+  {id:'users',label:'用户与权限',icon:'Users'},
+  {id:'money-plans',label:'套餐与计费',icon:'Boxes'},
+
+  {id:'audit',label:'操作记录',icon:'ScrollText'},
 ];
 type Row = Record<string, unknown> & { id?: string };
 type RatePolicy = { accountRpm: number; deviceRpm: number; publicIpRpm: number; authIpRpm: number };
@@ -52,7 +49,8 @@ function modelAvailability(model: Row, provider: Row | undefined, access: ModelA
 }
 
 export default function AdminPage() {
-  const router = useRouter(); const [active, setActive] = useState('dashboard'); const [email, setEmail] = useState(''); const [rows, setRows] = useState<Row[]>([]); const [dashboard, setDashboard] = useState<Record<string, number>>({}); const [system, setSystem] = useState<Record<string, unknown>>({}); const [rateDraft, setRateDraft] = useState<Record<keyof RatePolicy, string> | null>(null); const [loading, setLoading] = useState(true); const [error, setError] = useState(''); const [message, setMessage] = useState(''); const [search, setSearch] = useState(''); const [selected, setSelected] = useState<Row | null>(null); const [form, setForm] = useState<Record<string, string>>({}); const [plans, setPlans] = useState<Plan[]>([]); const [providers, setProviders] = useState<Row[]>([]); const [models, setModels] = useState<Row[]>([]);
+  const [creatingUser, setCreatingUser] = useState(false);
+  const router = useRouter(); const [active, setActive] = useState('models'); const [email, setEmail] = useState(''); const [rows, setRows] = useState<Row[]>([]); const [dashboard, setDashboard] = useState<Record<string, number>>({}); const [system, setSystem] = useState<Record<string, unknown>>({}); const [rateDraft, setRateDraft] = useState<Record<keyof RatePolicy, string> | null>(null); const [loading, setLoading] = useState(true); const [error, setError] = useState(''); const [message, setMessage] = useState(''); const [search, setSearch] = useState(''); const [selected, setSelected] = useState<Row | null>(null); const [form, setForm] = useState<Record<string, string>>({}); const [plans, setPlans] = useState<Plan[]>([]); const [providers, setProviders] = useState<Row[]>([]); const [models, setModels] = useState<Row[]>([]);
   const [planAccess, setPlanAccess] = useState<ModelAccess | null>(null); const [userAccess, setUserAccess] = useState<ModelAccess | null>(null);
   const [userAccessId, setUserAccessId] = useState('');
   const [accessError, setAccessError] = useState(''); const [accessLoading, setAccessLoading] = useState(false); const [accessRevision, setAccessRevision] = useState(0);
@@ -62,14 +60,14 @@ export default function AdminPage() {
   const loadVersion = useRef(0);
   const load = useCallback(async () => {
     const version = ++loadVersion.current;
-    setLoading(true); setError(''); setEmail('');
+    setLoading(true); setError('');
     if (active === 'models' || active === 'plans') setPlanAccess(null);
     try {
       const me = await api<{ user: { email: string; role: string } }>('/api/v1/auth/me');
       if (version !== loadVersion.current) return false;
       if (me.user.role !== 'ADMIN') { router.replace('/dashboard'); return false; }
       setEmail(me.user.email);
-      if (active.startsWith('v2-') || active === 'website-settings') return true;
+      if (active.startsWith('v2-') || active === 'website-settings' || active === 'money-plans') return true;
       if (active === 'dashboard') {
         const result = await api<Record<string, number>>('/api/v1/admin/dashboard');
         if (version !== loadVersion.current) return false;
@@ -82,7 +80,7 @@ export default function AdminPage() {
         setSystem(diagnostics);
         setRateDraft(Object.fromEntries(Object.entries(rates.policy).map(([name, value]) => [name, String(value)])) as Record<keyof RatePolicy, string>);
       }
-      else { const result = await api<{ data: Row[] }>(`/api/v1/admin/${resourcePaths[active]}${active === 'users' && search ? `?search=${encodeURIComponent(search)}` : ''}`); if (version !== loadVersion.current) return false; setRows(result.data); }
+      else { const result = await api<{ data: Row[] }>(`/api/v1/admin/${resourcePaths[active]}${active === 'users' && search ? `?search=${encodeURIComponent(search)}` : ''}`); if (version !== loadVersion.current) return false; setRows(active === 'models' ? result.data.filter(row => !String(row.publicId).startsWith('mock/') && (row.enabled || !['deepseek/deepseek-chat','deepseek/deepseek-reasoner'].includes(String(row.publicId)))) : result.data); }
       if (active === 'models' || active === 'plans') {
         const [p, providersResult, modelsResult, access] = await Promise.all([
           api<{ data: Plan[] }>('/api/v1/admin/plans'),
@@ -138,6 +136,8 @@ export default function AdminPage() {
   return <AppShell title={title} description="管理账号、权限、模型与服务状态。" items={items} active={active} onChange={id => {setLoading(true);setRows([]);setEmail('');setActive(id);setSelected(null);setForm({});setSearch('');setMessage('');setSetupProvider(null);setModelProviderReady('');}} email={email} admin>
     {message && <div className="notice" role="status">{message}</div>}{error && <div className="error-text" role="alert">{error} <button className="mini-button" onClick={load}>重试</button></div>}
     {loading && <div className="loading-skeleton"/>}
+    {active === 'money-plans' && <MoneyPlanManager/>}
+    {active === 'models' && <DeepSeekConnectionCard onReady={() => void load()}/> }
     {!loading && active === 'website-settings' && <WebsiteSettings/>}
     {!loading && active.startsWith('v2-') && <V2AdminPanel section={active as 'v2-wallets' | 'v2-rates' | 'v2-referrals' | 'v2-costs'}/>}
     {!loading && active === 'dashboard' && <AdminInsights totals={dashboard}/>}
@@ -157,6 +157,7 @@ export default function AdminPage() {
       </section>}
     </>}
     {!loading && active === 'providers' && rows.some(row => row.code === 'COPILOT') && <CopilotAuthCard/>}
+    {active === 'users' && <button className="button button-small" onClick={() => setCreatingUser(true)}>创建用户</button>}
     {!loading && resourcePaths[active] && <><div className="toolbar"><h2>{title} <span style={{fontSize:12,color:'#9aa69b'}}>({rows.length})</span></h2>{active === 'users' && <input className="search-input" value={search} onChange={e => {setRows([]);setSelected(null);setSearch(e.target.value);}} placeholder="搜索邮箱" aria-label="搜索用户"/>}</div><section className="panel" style={{marginTop:0,padding:0}}>{rows.length ? <div className="table-wrap"><table className="data-table"><thead><tr>{columns[active]?.map(c => <th key={c}>{c}</th>)}<th>操作</th></tr></thead><tbody>{rows.map((row, idx) => <tr key={row.id ?? idx}>{columns[active]?.map(c => <td key={c}>{c === 'status' || c === 'enabled' || c === 'published' ? <span className={`badge ${row[c] === 'ACTIVE' || row[c] === true || row[c] === 'COMPLETED' ? '' : 'muted'}`}>{display(row[c])}</span> : display(row[c])}</td>)}<td><div className="inline-actions">
       {active === 'providers' && row.code === 'COPILOT' ? <span>见上方认证卡</span> : ['users','plans','providers','models','releases'].includes(active) && <button className="mini-button" onClick={() => {setSelected(row);setForm({});setUserAccess(null);setUserAccessId('');}}>管理</button>}
       {active === 'devices' && <button className="mini-button" onClick={() => run(() => patch(`/api/v1/admin/devices/${row.id}`, { status: row.status === 'ACTIVE' ? 'REVOKED' : 'ACTIVE' }))}>{row.status === 'ACTIVE' ? '停用' : '恢复'}</button>}
@@ -164,20 +165,8 @@ export default function AdminPage() {
       {active === 'subscriptions' && <button className="mini-button" onClick={() => {setSelected(row);setForm({});}}>调整</button>}
     </div></td></tr>)}</tbody></table></div> : <div className="empty"><strong>暂无记录</strong>新数据出现后会显示在这里。</div>}</section></>}
 
-    {active === 'users' && <section className="panel"><h2>创建用户</h2><div className="form-grid"><Field label="邮箱" type="email" value={form.email ?? ''} onChange={v => update('email',v)}/><Field label="初始密码（至少 12 位）" type="password" value={form.password ?? ''} onChange={v => update('password',v)}/></div><button className="button button-small" onClick={() => run(() => post('/api/v1/admin/users', { email: form.email, password: form.password, role: 'USER' }), '用户已创建')}>创建用户</button></section>}
-    {active === 'users' && selected && <section className="panel"><h2>{display(selected.email)}</h2><p>ID: {selected.id} · {display(selected.role)} · {display(selected.status)}</p>{selected.id && <AdminUserDetails key={selected.id} userId={selected.id}/>}<div className="inline-actions"><button className="mini-button" onClick={() => run(() => patch(`/api/v1/admin/users/${selected.id}`, { status: selected.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE' }))}>{selected.status === 'ACTIVE' ? '禁用用户' : '恢复用户'}</button></div><div className="form-grid"><Field label="新密码（至少 12 位）" type="password" value={form.newPassword ?? ''} onChange={v => update('newPassword',v)}/></div><button className="mini-button" onClick={() => run(() => post(`/api/v1/admin/users/${selected.id}/reset-password`, {password:form.newPassword}), '密码已重置')}>重置密码</button>
-      <h3>账号模型权限</h3><p>生效目录复用服务端判定；仍须有效设备和网关审核。用户覆盖 ALLOW 可越过套餐 ACL，但不能越过停用模型、停用 Provider 或测试账号限制。</p>
-      {accessLoading && <div role="status">权限加载中…</div>}
-      {accessError && <div className="error-text" role="alert">{accessError} <button className="mini-button" onClick={() => setAccessRevision(value => value + 1)}>重试</button></div>}
-      {userAccess && userAccessId === selected.id && <><p>有效订阅：{userAccess.subscription ? `${userAccess.subscription.planCode}（${userAccess.subscription.status}）` : '无（待管理员开通或订阅不可用）'} · 当前可用 {userAccess.effectiveModelIds.length} 个模型</p>
-        <div className="table-wrap"><table className="data-table"><thead><tr><th>模型 / Provider</th><th>套餐 ACL</th><th>用户覆盖</th><th>最终判定</th></tr></thead><tbody>{models.map(model => {
-          const provider = providers.find(row => row.id === model.providerId);
-          const override = userAccess.overrides.find(row => row.modelId === model.id)?.access ?? 'DEFAULT';
-          const planAllowed = userAccess.subscription && userAccess.planAccess.some(row => row.planId === userAccess.subscription?.planId && row.modelId === model.id);
-          return <tr key={model.id}><td>{display(model.publicId)}<br/><small>{display(provider?.name)}（{provider?.enabled ? '已启用' : '停用'}）· 模型{model.enabled ? '已启用' : '停用'}</small></td><td>{userAccess.subscription ? planAllowed ? '已开放' : '未开放' : '无有效订阅'}</td><td><select aria-label={`${display(model.publicId)} 用户覆盖`} disabled={running || accessLoading} value={override} onChange={event => void run(() => put(`/api/v1/admin/users/${selected.id}/models/${model.id}`, { access: event.target.value }), '用户覆盖已更新', true)}><option value="DEFAULT">默认（按套餐）</option><option value="ALLOW">允许</option><option value="DENY">拒绝</option></select></td><td>{modelAvailability(model, provider, userAccess)}</td></tr>;
-        })}</tbody></table></div></>}
-    </section>}
-
+    {active === 'users' && selected?.id && <AdminUserDialog userId={selected.id} onClose={() => setSelected(null)} onChanged={() => void load()}/>}
+    {creatingUser && <CreateUserDialog onClose={() => setCreatingUser(false)} onCreated={() => void load()}/>}
     {active === 'plans' && selected && <section className="panel"><h2>编辑 {display(selected.code)}</h2><p>正式产品方向只按模型实际用量扣点，不收月费。以下周期字段仅保留旧版测试开通兼容，不能当作正式收费设置；模型按量单价在「按量费率」发布。</p><div className="form-grid">{[['name','名称'],['description','描述'],['monthlyPrice','旧版测试月费（不对外展示）'],['monthlyPoints','旧版测试周期点数'],['currency','货币'],['maxDevices','设备上限'],['monthlyTokenLimit','月 Token 上限（旧版）'],['monthlyUsageCreditLimit','月 Credit 上限（旧版）'],['maxConcurrentRequests','最大并发'],['requestsPerMinute','每分钟请求']].map(([key,label]) => <Field key={key} label={label} value={form[key] ?? display(selected[key])} onChange={v => update(key,v)}/>)}</div><div className="field"><label>旧版测试点数结转</label><select value={form.rolloverPolicy ?? String(selected.rolloverPolicy ?? 'NONE')} onChange={e => update('rolloverPolicy',e.target.value)}><option value="NONE">周期结束后到期</option><option value="UNLIMITED">保留</option></select></div><label style={{fontSize:12}}><input type="checkbox" checked={(form.enabled ?? String(selected.enabled)) === 'true'} onChange={e => update('enabled', String(e.target.checked))}/> 启用套餐</label><div className="form-actions"><button className="button button-small" onClick={() => run(() => patch(`/api/v1/admin/plans/${selected.id}`, { name: form.name ?? selected.name, description: form.description ?? selected.description, monthlyPrice: Number(form.monthlyPrice ?? selected.monthlyPrice), monthlyPoints: Number(form.monthlyPoints ?? selected.monthlyPoints ?? 0), rolloverPolicy: form.rolloverPolicy ?? selected.rolloverPolicy ?? 'NONE', currency: form.currency ?? selected.currency, maxDevices: Number(form.maxDevices ?? selected.maxDevices), monthlyTokenLimit: Number(form.monthlyTokenLimit ?? selected.monthlyTokenLimit), monthlyUsageCreditLimit: Number(form.monthlyUsageCreditLimit ?? selected.monthlyUsageCreditLimit), maxConcurrentRequests: Number(form.maxConcurrentRequests ?? selected.maxConcurrentRequests), requestsPerMinute: Number(form.requestsPerMinute ?? selected.requestsPerMinute), enabled: (form.enabled ?? String(selected.enabled)) === 'true' }))}>保存套餐</button></div>
       <h3>绑定模型</h3>{!planAccess ? <p role="status">正在加载套餐模型权限…</p> : models.map(model => {
         const allowed = planAccess.planAccess.some(access => access.modelId === model.id && access.planId === selected.id);
@@ -189,11 +178,7 @@ export default function AdminPage() {
 
     {active === 'providers' && selected && selected.code !== 'COPILOT' && <section className="panel"><h2>{display(selected.name)}</h2><p>API Key 保存后只显示掩码。Copilot Provider 在授权评审前保持禁用。</p><div className="form-grid"><Field label="Base URL" value={form.baseUrl ?? String(selected.baseUrl ?? '')} onChange={v => update('baseUrl',v)}/><Field label="超时（毫秒）" type="number" value={form.timeoutMs ?? String(selected.timeoutMs ?? 60000)} onChange={v => update('timeoutMs',v)}/><Field label="新 API Key（留空则不修改）" type="password" value={form.apiKey ?? ''} onChange={v => update('apiKey',v)}/></div><label style={{fontSize:12}}><input type="checkbox" checked={(form.enabled ?? String(selected.enabled)) === 'true'} onChange={e => update('enabled',String(e.target.checked))}/> 启用 Provider</label><div className="form-actions"><button className="button button-small" onClick={() => run(() => patch(`/api/v1/admin/providers/${selected.id}`, {enabled:(form.enabled ?? String(selected.enabled)) === 'true',baseUrl:form.baseUrl || selected.baseUrl || undefined,timeoutMs:Number(form.timeoutMs ?? selected.timeoutMs),apiKey:form.apiKey || undefined}))}>保存 Provider</button><button className="mini-button" onClick={() => run(async () => { const result = await api<{ready:boolean;reason?:string}>(`/api/v1/admin/providers/${selected.id}/health`); setMessage(result.ready ? 'Provider 正常' : `Provider 不可用：${result.reason}`); })}>健康检查</button></div><p>已配置模型：{models.filter(m => m.providerId === selected.id).length}</p></section>}
 
-    {active === 'models' && <section className="panel"><h2>添加模型</h2><p>先绑定 Provider，再创建停用状态的模型草稿。Copilot 完成管理员认证不等于对用户开放。</p><div className="form-grid"><div className="field"><label htmlFor="model-provider">Provider</label><select id="model-provider" value={form.providerId ?? String(providers[0]?.id ?? '')} onChange={e => {update('providerId',e.target.value);setModelProviderReady('');}}>{providers.map(p => <option key={p.id} value={String(p.id)}>{display(p.name)}</option>)}</select></div></div>
-      <button className="mini-button" disabled={!providers.length} onClick={() => { const provider = providers.find(p => p.id === (form.providerId ?? providers[0]?.id)); if (provider) setSetupProvider(provider); }}>连接 / 认证 Provider</button>
-      {modelProviderReady === (form.providerId ?? providers[0]?.id) && <><p role="status">连接检查已完成；新模型仍以停用草稿保存。</p><div className="form-grid"><Field label="Provider Model ID" value={form.providerModelId ?? ''} onChange={v => update('providerModelId',v)}/><Field label="公开 ID（例如 deepseek/model）" value={form.publicId ?? ''} onChange={v => update('publicId',v)}/><Field label="显示名称" value={form.displayName ?? ''} onChange={v => update('displayName',v)}/></div><button className="button button-small" disabled={running || !form.providerModelId || !form.publicId || !form.displayName} onClick={() => run(() => post('/api/v1/admin/models', { providerId: form.providerId ?? providers[0]?.id, providerModelId: form.providerModelId, publicId: form.publicId, displayName: form.displayName, enabled: false, supportsTools: true, supportsVision: false, supportsReasoning: false, supportsStreaming: true, contextWindow: null, maxOutputTokens: null, usageWeight: 1, sortOrder: 0 }), '模型草稿已添加')}>创建模型草稿</button></>}
-    </section>}
-    {active === 'models' && setupProvider?.id && <ProviderSetupDialog key={setupProvider.id} provider={{ id: setupProvider.id, name: String(setupProvider.name), code: String(setupProvider.code), enabled: Boolean(setupProvider.enabled) }} onClose={() => setSetupProvider(null)} onReady={() => setModelProviderReady(String(setupProvider.id))}/>}
+
     {active === 'models' && selected && <section className="panel"><h2>{display(selected.displayName)}</h2><p>{display(selected.publicId)} · {selected.enabled ? '模型已启用' : '模型停用'} · Provider {providers.find(row => row.id === selected.providerId)?.enabled ? '已启用' : '停用'}</p><div className="inline-actions"><button className="mini-button" onClick={() => run(() => patch(`/api/v1/admin/models/${selected.id}`, { enabled: !selected.enabled }))}>{selected.enabled ? '停用模型' : '启用模型'}</button></div><div className="form-grid"><Field label="Usage Weight" type="number" value={form.usageWeight ?? String(selected.usageWeight)} onChange={v => update('usageWeight',v)}/></div><button className="mini-button" onClick={() => run(() => patch(`/api/v1/admin/models/${selected.id}`, { usageWeight: Number(form.usageWeight ?? selected.usageWeight) }))}>保存权重</button>
       <h3 style={{fontSize:14,marginTop:30}}>套餐 ACL（配置值，非最终可用性）</h3>
       {!planAccess && <p className="error-text">套餐权限尚未加载；请使用上方重试按钮刷新后操作。</p>}

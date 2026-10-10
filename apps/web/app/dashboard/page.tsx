@@ -90,7 +90,7 @@ export default function Dashboard() {
     <div className="stat-grid">
       <div className="stat"><span className="stat-label">账号状态</span><strong>{account.user.status === 'ACTIVE' ? account.subscription ? '已开通' : '待开通' : '不可用'}</strong><small>{account.user.email}</small></div>
       <div className="stat"><span className="stat-label">已邀请人数</span><strong>{referral.registered}</strong><small>注册不代表奖励已入账</small></div>
-      <div className="stat"><span className="stat-label">剩余 AI 点数</span><strong>{balance}</strong><small>以服务端钱包为准；测试测算不扣点</small></div>
+      <div className="stat"><span className="stat-label">人民币余额</span><strong>¥{(balance/10000).toFixed(4)}</strong><small>以服务端钱包为准，调用后自动结算</small></div>
       <div className="stat"><span className="stat-label">已绑定设备</span><strong>{activeDevices.length}</strong><small>{account.plan ? `当前上限 ${account.plan.maxDevices} 台` : '待开通后可绑定'}</small></div>
     </div>
     <section className="panel"><h2>下载客户端</h2><p>在 Windows 客户端登录后，已绑定设备会显示在这里。尚未发布安装包时，下载页会明确提示。</p><Link className="button button-small" href="/download">前往下载页面</Link></section>

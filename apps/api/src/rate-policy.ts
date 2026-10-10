@@ -17,9 +17,13 @@ const key = 'rate_policy';
 const oneMinute = 60_000;
 let nextPublicCleanup = 0;
 
-export async function currentRatePolicy(): Promise<RatePolicy> {
+export const UserLimitsSchema = z.object({ accountRpm: z.number().int().min(1).max(120), deviceRpm: z.number().int().min(1).max(60) }).strict();
+export async function currentRatePolicy(userId?: string): Promise<RatePolicy> {
   const [setting] = await db.select({ value: systemSettings.value }).from(systemSettings).where(eq(systemSettings.key, key)).limit(1);
-  return setting ? RatePolicySchema.parse(setting.value) : defaultRatePolicy;
+  const policy = setting ? RatePolicySchema.parse(setting.value) : defaultRatePolicy;
+  if (!userId) return policy;
+  const [override] = await db.select({ value: systemSettings.value }).from(systemSettings).where(eq(systemSettings.key, `user_limits:${userId}`)).limit(1);
+  return override ? { ...policy, ...UserLimitsSchema.parse(override.value) } : policy;
 }
 
 export function isPublicPath(req: Pick<FastifyRequest, 'url' | 'method'>) {
