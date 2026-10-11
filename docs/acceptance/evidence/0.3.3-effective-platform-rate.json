@@ -1,0 +1,11 @@
+{
+  "model": "deepseek/deepseek-flash",
+  "rate": {
+    "input": 1,
+    "output": 4,
+    "reasoning": 4,
+    "toolRmb": 0,
+    "minimumRmb": 0
+  },
+  "source": "Active platform MANAGED_USAGE rate, not supplier price"
+}

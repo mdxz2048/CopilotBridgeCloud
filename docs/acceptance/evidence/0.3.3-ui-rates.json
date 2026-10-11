@@ -1,0 +1,24 @@
+{
+  "result": "PASS",
+  "level": "MOCK_BROWSER_COMPONENT",
+  "alternateKeyPricingAllowed": true,
+  "crossFamilyPricingRejected": true,
+  "blankCommercialRatesBlocked": true,
+  "zeroDraftPublishBlocked": true,
+  "activeVersionReadOnly": true,
+  "rmbMapping": {
+    "inputRate": "20",
+    "outputRate": "80",
+    "cachedInputRate": "0",
+    "reasoningRate": "0",
+    "imageInputRate": "0",
+    "imageOutputRate": "0",
+    "toolRate": "10",
+    "minimumCharge": 2,
+    "effectiveFrom": null
+  },
+  "saveNeverPublishes": true,
+  "existingVersionUntouched": true,
+  "narrowOverflow": false,
+  "realFinanceWrites": 0
+}

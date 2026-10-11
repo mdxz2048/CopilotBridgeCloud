@@ -18,9 +18,9 @@ import { CopilotFailure } from './copilot-provider.js';
 import { currentRatePolicy } from './rate-policy.js';
 import { ensureMoneyRate,upstreamBalance } from './money-policy.js';
 import { currentUsage } from './core.js';
-import { requestContext } from './request-log.js';
+import { requestContext,requestCounts,requestMilestone,requestNativeMetrics } from './request-log.js';
 import { nextContinuationState, pendingContinuation } from './tool-continuation.js';
-import { chooseInstance } from './instance-router.js';
+import { chooseInstance,logicalCapabilities,responsesProfile } from './instance-router.js';
 import { nativeReasoning, validateNativeRequest } from './native-responses.js';
 import { once } from 'node:events';
 import { encryptSecret, decryptSecret } from './security.js';
@@ -42,18 +42,21 @@ export async function registerGateway(app: FastifyInstance) {
     const sub = await currentSubscription(a.user.id);
     if (!sub) throw await subscriptionError(a.user.id);
     const allowed = await allowedModels(a.user.id, sub.plan.id);
-    return { object: 'list', data: allowed.map(({ model, candidates }) => ({ id: model.publicId, object: 'model', owned_by: model.publicId.split('/')[0], capabilities: { tools: candidates.some(c=>c.instance.capabilities.tools===true), vision: candidates.some(c=>c.instance.capabilities.vision===true), reasoning: candidates.some(c=>c.instance.capabilities.reasoning===true), streaming: candidates.some(c=>c.instance.capabilities.streaming===true), nativeResponses:candidates.some(c=>c.instance.nativeProtocols.includes('responses')), reasoningModes:candidates.some(c=>c.instance.capabilities.reasoning===true)?['normal','thinking','auto']:['normal'], defaultReasoningMode:candidates.some(c=>c.instance.capabilities.reasoning===true)?'auto':'normal' } })) };
+    return { object: 'list', data: allowed.map(({ model, candidates }) => ({ id: model.publicId, object: 'model', owned_by: model.publicId.split('/')[0], capabilities:logicalCapabilities(candidates) })) };
   });
-  app.post('/v1/responses', async (req, reply) => {
+  app.post('/v1/responses',{bodyLimit:10*1024*1024}, async (req, reply) => {
     const a = await actor(req, true);
+    requestMilestone(req,'authDone');
     const threadId = req.headers['x-client-thread-id'];
     if (typeof threadId !== 'string' || !threadId.trim() || threadId.length > 200) throw new ApiError(400, 'CLIENT_THREAD_ID_REQUIRED');
     const body = ResponseRequestSchema.parse(req.body) as CanonicalRequest;
+    requestCounts(req,{requestBytes:Buffer.byteLength(JSON.stringify(req.body)),inputItemCount:Array.isArray(body.input)?body.input.length:1,toolCount:body.tools?.length??0,toolResultBytes:Array.isArray(body.input)?body.input.filter(i=>['function_call_output','custom_tool_call_output'].includes(String(i.type))).reduce((bytes,i)=>bytes+Buffer.byteLength(JSON.stringify(i.output??'')),0):0,upstreamAttemptCount:0});
     // Old desktop builds strip reasoning history; preserve their non-thinking tool behavior.
     const clientVersion = a.device!.appVersion.match(/^(\d+)\.(\d+)\./);
     const legacyDesktop = !clientVersion || (Number(clientVersion[1]) === 0 && Number(clientVersion[2]) < 3);
     if (legacyDesktop && body.reasoning?.mode === undefined) body.reasoning = {...body.reasoning,mode:'normal'};
     const ent = await requireEntitlement(a.user.id, a.device!.id, body.model);
+    requestMilestone(req,'entitlementDone');
     requestContext(req, { model: ent.model.publicId });
     const [threadSession] = await db.select().from(modelSessions).where(and(eq(modelSessions.userId,a.user.id),eq(modelSessions.deviceId,a.device!.id),eq(modelSessions.clientThreadId,threadId),gte(modelSessions.expiresAt,new Date()))).limit(1);
     let sessionHint = threadSession?.modelId === ent.model.id ? threadSession : undefined;
@@ -66,15 +69,20 @@ export async function registerGateway(app: FastifyInstance) {
       body.input = includesHistory ? delta : [...history,...delta];
       delete body.previous_response_id; sessionHint = previous;
     }
+    requestMilestone(req,'historyRecovered');
     const selected = chooseInstance(ent.candidates,body,sessionHint?.instanceId);
     ent.provider = selected.provider;
     ent.model = {...ent.model, providerModelId:selected.instance.providerModelId};
-    const native = selected.instance.nativeProtocols.includes('responses') && process.env.NATIVE_RESPONSES_ENABLED !== 'false';
-    const compatibility = native ? validateNativeRequest(body) : {};
-    const reasoning = nativeReasoning(body, selected.instance.capabilities.reasoning === true);
-    const resolvedMode = reasoning.effort === 'none' || (!native && !reasoning.effort) ? 'normal' : 'thinking';
+    const isolatedMock=ent.provider.code==='MOCK'&&integrationMockAllowed(ent.provider.code,a.user.email,process.env.INTEGRATION_MOCK_ENABLED==='true',process.env.INTEGRATION_MOCK_TEST_EMAIL);
+    const profile=responsesProfile(ent.provider.code)??'deepseek';
+    const native=!isolatedMock && selected.instance.nativeProtocols.includes('responses') && process.env.NATIVE_RESPONSES_ENABLED !== 'false';
+    if(!native&&!isolatedMock)throw new ApiError(422,'UNSUPPORTED_PROTOCOL','云模型仅支持原生 Responses。');
+    const compatibility = native ? validateNativeRequest(body,profile) : {};
+    const reasoning = nativeReasoning(body, selected.instance.capabilities.reasoning === true,profile);
+    const resolvedMode = body.reasoning?.mode==='normal'||reasoning.effort === 'none' || selected.instance.capabilities.reasoning!==true ? 'normal' : 'thinking';
     if (sessionHint?.state.resolvedMode && sessionHint.state.resolvedMode !== resolvedMode) throw new ApiError(409,'CONVERSATION_MODE_CHANGED','当前会话的思考模式已改变，请新建会话。');
-    requestContext(req, { providerId: ent.provider.id, instanceId:selected.instance.id, inputProtocol:'responses', outboundProtocol:native?'responses':'chat_completions', protocolMode:native?'native':'translated', reasoningMode:resolvedMode, stream:body.stream, ...compatibility });
+    requestMilestone(req,'routingDone');
+    requestContext(req, { providerId: ent.provider.id, instanceId:selected.instance.id, inputProtocol:'responses', outboundProtocol:native?'responses':'integration_mock', protocolMode:native?'native':'integration_mock', responsesProfile:profile,reasoningMode:resolvedMode, stream:body.stream, ...compatibility });
     const ratePolicy = await currentRatePolicy(a.user.id);
     const mode = ent.usage.moneyEnabled ? 'ENFORCED' : currentBillingMode();
     const connectionHeader = req.headers['x-provider-connection-id'];
@@ -84,6 +92,8 @@ export async function registerGateway(app: FastifyInstance) {
     const [connection] = connectionId ? await db.select().from(providerAccounts).where(and(eq(providerAccounts.id, connectionId), eq(providerAccounts.userId, a.user.id),
       eq(providerAccounts.providerId, ent.provider.id), eq(providerAccounts.ownership, 'BYOS'), eq(providerAccounts.status, 'ACTIVE'))).limit(1) : [];
     if (connectionId && !connection) throw new ApiError(403, 'PROVIDER_AUTH_REQUIRED');
+    const adapter = await providerFor(ent.provider.id, ent.provider.code, connection ? { id: connection.id, userId: a.user.id } : undefined);
+    if(native&&!adapter.executeNative)throw new ApiError(422,'UNSUPPORTED_PROTOCOL','该资源没有原生 Responses 执行能力。');
     const billingPolicy: BillingPolicy = connection ? 'BYOS_USAGE' : 'MANAGED_USAGE';
     const meteredMock = ent.provider.code === 'MOCK' && mode === 'SHADOW' && integrationMockAllowed(ent.provider.code, a.user.email,
       process.env.INTEGRATION_MOCK_ENABLED === 'true', process.env.INTEGRATION_MOCK_TEST_EMAIL);
@@ -96,6 +106,7 @@ export async function registerGateway(app: FastifyInstance) {
     if(upstream&&!upstream.isAvailable)throw new ApiError(503,'PROVIDER_UNAVAILABLE','DeepSeek 上游余额不足，请管理员充值。');
     const upstreamCny=upstream?.balances.find(balance=>balance.currency==='CNY');
     const upstreamPoints=upstreamCny?Math.floor(Number(upstreamCny.total)*10000):null;
+    requestMilestone(req,'preflightDone');
     const weight = Number(ent.model.usageWeight);
     const reserveTokens = Math.min(1024, Math.max(1, ent.usage.tokenLimit));
     const reserveCredit = usageCredit(reserveTokens, weight);
@@ -105,7 +116,7 @@ export async function registerGateway(app: FastifyInstance) {
     const { record, v2RequestId, continuation, maxOutputTokens } = await db.transaction(async tx => {
       await tx.execute(sql`select id from users where id = ${a.user.id} for update`);
       let reserveMoneyPoints=0;let maxOutputTokens:number|undefined;
-      if(ent.usage.moneyEnabled && v2Rate && !connection && isDeepSeekProvider(ent.provider.code)) {
+      if(ent.usage.moneyEnabled && v2Rate && !connection && native) {
         const fresh=await currentUsage(a.user.id,ent.subscription,ent.plan);
         const serialized=JSON.stringify(body);
         const estimatedInput=Math.min(ent.model.contextWindow??1000000,Buffer.byteLength(serialized)+256+(serialized.includes('input_image')?1000000:0));
@@ -143,7 +154,7 @@ export async function registerGateway(app: FastifyInstance) {
         providerId: ent.provider.id, modelId: ent.model.id, status: 'RUNNING', rateCounted: !continuation,
         totalTokens: reserveTokens, usageCredit: String(ent.usage.moneyEnabled?reserveMoneyPoints:reserveCredit) }).returning();
       const [request] = settlementMode ? await tx.insert(aiRequests).values({ responseId, userId: a.user.id, deviceId: a.device!.id,
-        instanceId:selected.instance.id, protocolMode:native?'native':'translated',
+        instanceId:selected.instance.id, protocolMode:native?'native':'integration_mock',
         providerId: ent.provider.id, modelId: ent.model.id, providerAccountId: connection?.id ?? null, billingPolicy, rateCardVersionId: v2Rate?.id ?? null,
         legacyUsageRecordId: newRecord.id, status: 'STARTED', startedAt: new Date() }).returning() : [];
       await tx.insert(deviceSessions).values({ userId: a.user.id, deviceId: a.device!.id, lastSeenAt: new Date(), lastIpHash: hashRiskSignal(req.ip), requestCount: 1 })
@@ -151,6 +162,7 @@ export async function registerGateway(app: FastifyInstance) {
       await tx.update(devices).set({ lastSeenAt: new Date(), updatedAt: new Date() }).where(eq(devices.id, a.device!.id));
       return { record: newRecord, v2RequestId: request?.id, continuation, maxOutputTokens };
     });
+    requestMilestone(req,'reservationDone');
     if(maxOutputTokens)body.maxOutputTokens=maxOutputTokens;
     const started = Date.now();
     if (v2RequestId) reply.header('X-Bridge-AI-Request-Id', v2RequestId);
@@ -172,8 +184,6 @@ export async function registerGateway(app: FastifyInstance) {
     });
     try {
       const [existing] = await db.select().from(modelSessions).where(and(eq(modelSessions.userId, a.user.id), eq(modelSessions.deviceId, a.device!.id), eq(modelSessions.clientThreadId, threadId), gte(modelSessions.expiresAt, new Date()))).limit(1);
-      const adapter = await providerFor(ent.provider.id, ent.provider.code, connection ? { id: connection.id, userId: a.user.id } : undefined);
-      if (native && !adapter.executeNative) throw new ApiError(422,'UNSUPPORTED_PROTOCOL','该资源没有原生 Responses 执行能力。');
       if (body.stream && (native || ent.provider.code === 'COPILOT' || isDeepSeekProvider(ent.provider.code))) {
         reply.hijack();
         reply.raw.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform',
@@ -194,6 +204,9 @@ export async function registerGateway(app: FastifyInstance) {
         }
       } : undefined;
       const onNativeEvent = async (type:string, event:Record<string,unknown>) => {
+        requestMilestone(req,'relayFirstEvent');
+        if(type==='response.output_text.delta'||type==='response.reasoning_text.delta')requestMilestone(req,'relayFirstText');
+        if(type==='response.function_call_arguments.done'||type==='response.custom_tool_call_input.done')requestMilestone(req,'relayToolArgumentsDone');
         observedTextDelta = true; // Even reasoning/tool events prove upstream execution; missing usage must be reviewed.
         const rewritten = { ...event, ...(event.response_id ? {response_id:responseId}:{}),
           ...(event.response && typeof event.response==='object' ? {response:{...event.response as Record<string,unknown>, id:responseId, model:body.model}}:{}) };
@@ -203,12 +216,14 @@ export async function registerGateway(app: FastifyInstance) {
         }
       };
       upstreamAttempted = true;
+      requestMilestone(req,'upstreamStarted');requestCounts(req,{upstreamAttemptCount:1});
       const result = native && adapter.executeNative
         ? await adapter.executeNative(body,ent.model.providerModelId,controller.signal,body.stream?onNativeEvent:undefined)
         : !connection && existing?.modelId === ent.model.id && existing.providerSessionId
         ? await adapter.resumeSession(body, ent.model.providerModelId, existing.providerSessionId, controller.signal, onTextDelta)
         : await adapter.createResponse(body, ent.model.providerModelId, controller.signal, onTextDelta);
       observedResult = result;
+      requestNativeMetrics(req,(result as CanonicalResult&{nativeMetrics?:Record<string,number>}).nativeMetrics);
       requestContext(req,{terminalStatus:result.status??'completed'});
       await db.update(modelInstances).set({healthStatus:result.status==='failed'?'DEGRADED':'READY',healthCheckedAt:new Date(),cooldownUntil:result.status==='failed'?new Date(Date.now()+60000):null}).where(eq(modelInstances.id,selected.instance.id));
       if (!native) result.output = result.output.map((item, index) => ({ ...item,
@@ -222,6 +237,7 @@ export async function registerGateway(app: FastifyInstance) {
         providerReportedUsage: result.providerReportedUsage, providerCost: result.providerCost === undefined ? undefined : String(result.providerCost),
         providerCurrency: result.providerCurrency,
       }, settlementMode) : null;
+      requestMilestone(req,'settlementDone');
       if(event?.billingStatus==='UNPAID')throw new ApiError(402,'INSUFFICIENT_POINTS','本次用量超过可用余额，需要管理员核对补足。');
       await db.transaction(async tx => {
         await tx.update(usageRecords).set({ status:result.status==='failed'?'FAILED':'COMPLETED',errorCode:result.status==='failed'?'PROVIDER_UNAVAILABLE':null, inputTokens: result.inputTokens, outputTokens: result.outputTokens, totalTokens: total, usageCredit: String(credit), providerCost: result.providerCost === undefined ? null : String(result.providerCost), costKind: result.costKind, durationMs: Date.now() - started, completedAt: new Date() }).where(eq(usageRecords.id, record.id));
@@ -233,6 +249,7 @@ export async function registerGateway(app: FastifyInstance) {
         await tx.insert(modelSessions).values({ userId: a.user.id, deviceId: a.device!.id, clientThreadId: threadId, providerId: ent.provider.id, modelId: ent.model.id, instanceId:selected.instance.id, providerSessionId: result.providerSessionId ?? responseId, expiresAt: new Date(Date.now() + 3600000), state })
           .onConflictDoUpdate({ target: [modelSessions.userId, modelSessions.deviceId, modelSessions.clientThreadId], set: { providerId: ent.provider.id, modelId: ent.model.id, instanceId:selected.instance.id, providerSessionId: result.providerSessionId ?? responseId, lastActiveAt: new Date(), expiresAt: new Date(Date.now() + 3600000), state } });
       });
+      requestMilestone(req,'historySaved');
       const latestUsage = await currentUsage(a.user.id, ent.subscription, ent.plan);
       const balance = latestUsage.moneyEnabled ? latestUsage.remainingPoints : event ? (await walletSummary(a.user.id)).balance : 0;
       const response = responseBody(responseId, body.model, result, event && v2RequestId

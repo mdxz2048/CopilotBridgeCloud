@@ -51,8 +51,9 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
     const [admin] = await db.insert(users).values({ email: `v2-admin-${randomUUID()}@example.test`, passwordHash: 'test', role: 'ADMIN' }).returning();
     const [device] = await db.insert(devices).values({ userId: user.id, deviceId: randomUUID(), deviceName: 'test', platform: 'test' }).returning();
     const [secondDevice] = await db.insert(devices).values({ userId: secondUser.id, deviceId: randomUUID(), deviceName: 'test', platform: 'test' }).returning();
-    const [provider] = await db.insert(providers).values({ code: 'V2_TEST', name: 'V2 Test', enabled: true }).returning();
+    const [provider] = await db.insert(providers).values({ code: 'DEEPSEEK_AA0011223344', name: 'V2 Test', enabled: true }).returning();
     const [model] = await db.insert(models).values({ providerId: provider.id, providerModelId: 'test', publicId: 'v2/test', displayName: 'Test', enabled: true }).returning();
+    await db.insert(dbModule.modelInstances).values({modelId:model.id,providerId:provider.id,providerModelId:'test',enabled:true,healthStatus:'READY',nativeProtocols:['responses'],capabilities:{}});
     const [plan] = await db.insert(plans).values({ code: 'V2_TEST', name: 'V2 Test', monthlyPrice: '1', maxDevices: 3,
       monthlyTokenLimit: 1000000, monthlyUsageCreditLimit: '1000000', maxConcurrentRequests: 10, requestsPerMinute: 100, monthlyPoints: 100, rolloverPolicy: 'UNLIMITED' }).returning();
     const [card] = await db.insert(rateCards).values({ providerId: provider.id, modelId: model.id, billingPolicy: 'MANAGED_USAGE' }).returning();
@@ -491,6 +492,22 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
     } finally { await app.close(); }
   });
 
+  it('rates alternate instances of the same logical model and rejects unrelated providers', async () => {
+    const { db, providers, models, modelInstances } = dbModule;
+    const [logical] = await db.insert(models).values({ providerId: ids.provider, providerModelId: 'deepseek-flash', publicId: 'deepseek/rate-binding-test', displayName: 'Rate binding test' }).returning();
+    const [alternate] = await db.insert(providers).values({ code: 'DEEPSEEK_BB0011223344', name: 'Alternate key' }).returning();
+    const [unrelated] = await db.insert(providers).values({ code: 'OPENAI_BB0011223344', name: 'Wrong family' }).returning();
+    await db.insert(modelInstances).values([{ modelId: logical.id, providerId: alternate.id, providerModelId: 'deepseek-flash' }, { modelId: logical.id, providerId: unrelated.id, providerModelId: 'deepseek-flash' }]);
+    const app = await (await import('./server.js')).createServer();
+    try {
+      const headers = await testCookieHeaders(dbModule, ids.admin);
+      const create = (providerId: string) => app.inject({ method: 'POST', url: '/api/v1/admin/rate-cards', headers, payload: { providerId, modelId: logical.id, billingPolicy: 'MANAGED_USAGE' } });
+      expect((await create(alternate.id)).statusCode).toBe(201);
+      expect((await create(unrelated.id)).statusCode).toBe(400);
+      expect((await create(ids.provider)).statusCode).toBe(201);
+    } finally { await app.close(); }
+  });
+
   it('audits Admin point adjustments and publishes new rate versions without rewriting history', async () => {
     const { db, auditLogs, rateCardVersions, usageEvents } = dbModule;
     const app = await (await import('./server.js')).createServer();
@@ -632,7 +649,11 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
         const payload={model:model.publicId,input,previous_response_id,tools:[{type:'function',name:'probe',parameters:{}}],reasoning:{mode:'thinking',effort:'low'},max_output_tokens:64};
         return app.inject({method:'POST',url:'/v1/responses',headers:{...await signedHeaders(privateKey,'POST','/v1/responses',payload,activeToken),authorization:`Bearer ${activeToken}`,'x-device-id':activeDevice.deviceId,'x-client-thread-id':useOtherDevice?randomUUID():thread},payload});
       };
-      const before=(await walletModule.walletSummary(user.id)).balance;const first=await send('private fixture prompt');expect(first.statusCode).toBe(200);expect(first.json().output[1].id).toBe('fc_native');
+      const before=(await walletModule.walletSummary(user.id)).balance;
+      const previousNative=process.env.NATIVE_RESPONSES_ENABLED;process.env.NATIVE_RESPONSES_ENABLED='false';
+      try {const closed=await send('private fixture prompt');expect(closed.statusCode).toBe(503);expect(executions).toBe(0);expect(await db.select().from(aiRequests).where(eq(aiRequests.userId,user.id))).toHaveLength(0);expect((await walletModule.walletSummary(user.id)).balance).toBe(before);}
+      finally {if(previousNative===undefined)delete process.env.NATIVE_RESPONSES_ENABLED;else process.env.NATIVE_RESPONSES_ENABLED=previousNative;}
+      const first=await send('private fixture prompt');expect(first.statusCode).toBe(200);expect(first.json().output[1].id).toBe('fc_native');
       const [session]=await db.select().from(modelSessions).where(eq(modelSessions.userId,user.id));expect(JSON.stringify(session.state)).not.toContain('private fixture');expect(session.state.encryptedHistory).toBeTruthy();expect(session.instanceId).toBe(instance.id);
       const foreign=await send([{type:'function_call_output',call_id:'call_native',output:'done'}],first.json().id,true);expect(foreign.statusCode).toBe(409);expect(foreign.json().error.code).toBe('CONVERSATION_NOT_FOUND');
       const replayOutput=first.json().output.map((item:Record<string,unknown>)=>{if(item.type!=='reasoning')return item;const {status:_status,...rest}=item;return {...rest,internal_chat_message_metadata_passthrough:{fixture:true}};});

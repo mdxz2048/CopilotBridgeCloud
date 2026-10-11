@@ -1,15 +1,29 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 
-type Context = { userId?: string; deviceId?: string; model?: string; providerId?: string; instanceId?: string; inputProtocol?: string; outboundProtocol?: string; protocolMode?: string; reasoningMode?: string; stream?: boolean; ignoredFields?: string[]; ignoredToolTypes?: string[]; traceId?:string; responseId?:string; terminalStatus?:string; errorCode?:string };
+type Stage='authDone'|'entitlementDone'|'historyRecovered'|'routingDone'|'preflightDone'|'reservationDone'|'upstreamStarted'|'relayFirstEvent'|'relayFirstText'|'relayToolArgumentsDone'|'settlementDone'|'historySaved';
+type Count='requestBytes'|'toolResultBytes'|'inputItemCount'|'toolCount'|'upstreamAttemptCount';
+type Context = { userId?: string; deviceId?: string; model?: string; providerId?: string; instanceId?: string; inputProtocol?: string; outboundProtocol?: string; protocolMode?: string; reasoningMode?: string; stream?: boolean; ignoredFields?: string[]; ignoredToolTypes?: string[]; traceId?:string; responseId?:string; terminalStatus?:string; errorCode?:string; responsesProfile?:string; stageTimingsMs?:Partial<Record<Stage,number>>; counts?:Partial<Record<Count,number>>; nativeMetrics?:Record<string,number> };
 const contexts = new WeakMap<FastifyRequest, Context>();
+const starts = new WeakMap<FastifyRequest, number>();
 export function requestContext(req: FastifyRequest, context: Context) {
   contexts.set(req, { ...contexts.get(req), ...context });
+}
+export function requestMilestone(req:FastifyRequest,stage:Stage) {
+  const context=contexts.get(req)??{};const stageTimingsMs={...context.stageTimingsMs};
+  stageTimingsMs[stage]??=Math.max(0,Date.now()-(starts.get(req)??Date.now()));requestContext(req,{stageTimingsMs});
+}
+export function requestCounts(req:FastifyRequest,counts:Partial<Record<Count,number>>) {
+  const safe=Object.fromEntries(Object.entries(counts).filter(([,v])=>typeof v==='number'&&Number.isSafeInteger(v)&&v>=0));
+  requestContext(req,{counts:{...contexts.get(req)?.counts,...safe}});
+}
+export function requestNativeMetrics(req:FastifyRequest,metrics:Record<string,number>|undefined) {
+  const allowed=['requestBytes','responseBytes','eventCount','upstreamAttemptCount','upstreamHeadersMs','upstreamFirstEventMs','upstreamFirstTextMs','upstreamFirstToolMs','upstreamToolArgumentsDoneMs','upstreamTerminalMs','serialHeldEventCount','serialHeldBytes'];
+  requestContext(req,{nativeMetrics:Object.fromEntries(Object.entries(metrics??{}).filter(([k,v])=>allowed.includes(k)&&Number.isSafeInteger(v)&&v>=0))});
 }
 
 // Deliberately exclude URL query strings, headers, bodies and error messages.
 export function registerRequestLog(app: FastifyInstance) {
   const errors = new WeakMap<FastifyRequest, string>();
-  const starts = new WeakMap<FastifyRequest, number>();
   app.addHook('onRequest', async (req, reply) => {
     starts.set(req, Date.now());
     reply.header('X-Request-Id', req.id);

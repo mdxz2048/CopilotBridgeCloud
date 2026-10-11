@@ -1,9 +1,12 @@
 import { ApiError } from './errors.js';
 import type { CanonicalRequest, CanonicalResult } from './provider.js';
+import type { ResponsesProfile } from './instance-router.js';
 
-export function validateNativeRequest(request: CanonicalRequest) {
+export function validateNativeRequest(request: CanonicalRequest,profile:ResponsesProfile='deepseek') {
+  if(request.background===true||request.conversation)throw new ApiError(422,'UNSUPPORTED_CAPABILITY','平台同步计费暂不支持后台响应或上游服务器会话引用。');
+  if(profile==='openai')return {ignoredFields:[],ignoredToolTypes:[]};
   if (request.background === true || request.prompt || request.conversation || request.context_management) throw new ApiError(422,'UNSUPPORTED_CAPABILITY','此资源不支持后台、服务器会话、模板或自动压缩。');
-  if (request.parallel_tool_calls === false && request.tools?.length) {
+  if (request.parallel_tool_calls === false && request.tools?.some(t=>['function','custom'].includes(String(t.type)))) {
     const instruction='[Bridge serial-tool policy] Emit at most one function_call or custom_tool_call per response. Wait for its result before choosing another tool. Never emit multiple tool calls in one response.';
     if(!String(request.instructions??'').includes(instruction))request.instructions=[request.instructions,instruction].filter(Boolean).join('\n');
   }
@@ -34,14 +37,20 @@ export function validateNativeRequest(request: CanonicalRequest) {
   return {ignoredFields,ignoredToolTypes};
 }
 
-export function nativeReasoning(request: CanonicalRequest, canThink = true) {
+export function nativeReasoning(request: CanonicalRequest, canThink = true,profile:ResponsesProfile='deepseek') {
   const value = request.reasoning ?? {};
   const mode = value.mode;
   if (mode !== undefined && !['normal','thinking','auto'].includes(String(mode))) throw new ApiError(422, 'UNSUPPORTED_CAPABILITY', '思考模式必须为 normal、thinking 或 auto。');
+  if(profile==='openai') {
+    const {mode:_mode,...rest}=value;
+    if(!canThink && (mode==='thinking'||(typeof rest.effort==='string'&&rest.effort!=='none'&&mode!=='normal')))throw new ApiError(422,'UNSUPPORTED_CAPABILITY','该资源未验证思考能力。');
+    if(mode==='normal'){if(canThink)return {...rest,effort:'none'};const {effort:_effort,...plain}=rest;return plain;}
+    return rest;
+  }
   const aliases: Record<string, string> = { minimal:'low', medium:'high', xhigh:'high', ultra:'max' };
   const effort = typeof value.effort === 'string' ? aliases[value.effort] ?? value.effort : undefined;
   if (effort && !['none','low','high','max'].includes(effort)) throw new ApiError(422, 'UNSUPPORTED_CAPABILITY', '不支持的上游思考强度。');
-  const resolved = mode === 'normal' ? 'none' : mode === 'thinking' ? (effort && effort !== 'none' ? effort : 'high') : effort;
+  const resolved = mode === 'normal' ? 'none' : mode === 'thinking' ? (effort && effort !== 'none' ? effort : 'high') : effort??(!canThink?'none':undefined);
   if (!canThink && resolved && resolved !== 'none') throw new ApiError(422, 'UNSUPPORTED_CAPABILITY', '该资源不支持思考模式。');
   const { mode: _mode, ...rest } = value;
   return { ...rest, ...(resolved ? { effort: resolved } : {}) };
@@ -64,14 +73,19 @@ export function nativeResult(response: Record<string, unknown>, terminal?: strin
     providerReportedUsage: usage as Record<string, unknown>, costKind:'UNKNOWN', nativeResponse: response, nativeTerminalEvent: terminal, status: response.status as CanonicalResult['status'] };
 }
 export async function executeNativeResponses(baseUrl: string, key: string, request: CanonicalRequest, modelId: string, signal: AbortSignal,
-  onEvent?: (type: string, event: Record<string, unknown>) => Promise<void>): Promise<CanonicalResult> {
-  validateNativeRequest(request);
-  const { maxOutputTokens, ...wire } = request;
-  const body = { ...wire, model: modelId, reasoning: nativeReasoning(request),
+  onEvent?: (type: string, event: Record<string, unknown>) => Promise<void>,options:{responsesProfile?:ResponsesProfile;canThink?:boolean}={}): Promise<CanonicalResult> {
+  const profile=options.responsesProfile??'deepseek';validateNativeRequest(request,profile);
+  const { maxOutputTokens, reasoning:_wireReasoning, ...wire } = request;
+  const reasoning=nativeReasoning(request,options.canThink??true,profile);
+  const body = { ...wire, model: modelId, ...(Object.keys(reasoning).length||profile==='deepseek'?{reasoning}:{}),
     ...(maxOutputTokens ? { max_output_tokens: Math.min(maxOutputTokens, typeof request.max_output_tokens === 'number' ? request.max_output_tokens : maxOutputTokens) } : {}) };
-  const response = await fetch(`${baseUrl.replace(/\/$/,'')}/responses`, { method:'POST', headers:{ Authorization:`Bearer ${key}`, 'Content-Type':'application/json' }, body:JSON.stringify(body), signal });
+  const started=performance.now();const encodedBody=JSON.stringify(body);
+  const metrics:Record<string,number>={requestBytes:Buffer.byteLength(encodedBody),responseBytes:0,eventCount:0,upstreamAttemptCount:1};
+  const elapsed=()=>Math.max(0,Math.round(performance.now()-started));
+  const response = await fetch(`${baseUrl.replace(/\/$/,'')}/responses`, { method:'POST', headers:{ Authorization:`Bearer ${key}`, 'Content-Type':'application/json' }, body:encodedBody, signal });
+  metrics.upstreamHeadersMs=elapsed();
   if (!response.ok) { await response.body?.cancel(); throw providerHttpFailure(response.status); }
-  const serial=request.parallel_tool_calls===false;
+  const serial=profile==='deepseek'&&request.parallel_tool_calls===false&&request.tools?.some(t=>['function','custom'].includes(String(t.type)))===true;
   const observedCalls=new Set<string>();
   const callSlots=new Map<string,string>();
   const enforceSerial=(result:CanonicalResult)=>{
@@ -82,10 +96,10 @@ export async function executeNativeResponses(baseUrl: string, key: string, reque
     }
     return result;
   };
-  if (!request.stream) return enforceSerial(nativeResult(await response.json() as Record<string, unknown>));
+  if (!request.stream) {const json=await response.text();metrics.responseBytes=Buffer.byteLength(json);metrics.upstreamTerminalMs=elapsed();return Object.assign(enforceSerial(nativeResult(JSON.parse(json) as Record<string,unknown>)),{nativeMetrics:metrics});}
   if (!response.body) throw new ApiError(502,'PROTOCOL_INVALID');
   const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = ''; let terminal: CanonicalResult | undefined;
-  const held:Array<{type:string;event:Record<string,unknown>}>=[];let heldBytes=0;
+  const held:Array<{type:string;event:Record<string,unknown>}>=[];let heldBytes=0;let holding=false;
   const consume = async (block: string) => {
     const lines = block.split(/\r?\n/);
     const data = lines.filter(l => l.startsWith('data:')).map(l => l.slice(5).trimStart()).join('\n');
@@ -94,20 +108,25 @@ export async function executeNativeResponses(baseUrl: string, key: string, reque
     try { event = JSON.parse(data); } catch { throw new ApiError(502,'PROTOCOL_INVALID','上游流格式无效。'); }
     const type = typeof event.type === 'string' ? event.type : lines.find(l => l.startsWith('event:'))?.slice(6).trim();
     if (!type) throw new ApiError(502,'PROTOCOL_INVALID');
+    metrics.eventCount++;metrics.upstreamFirstEventMs??=elapsed();
+    if(type==='response.output_text.delta'||type==='response.reasoning_text.delta')metrics.upstreamFirstTextMs??=elapsed();
     const item=event.item as Record<string,unknown>|undefined;
     if(serial && item && ['function_call','custom_tool_call'].includes(String(item.type))) {
+      holding=true;metrics.upstreamFirstToolMs??=elapsed();
       // call_id can be blank in added and assigned in done; identify the output slot.
       const aliases=[typeof item.id==='string'&&item.id?`item:${item.id}`:null,typeof item.call_id==='string'&&item.call_id?`call:${item.call_id}`:null].filter((id):id is string=>!!id);
       const identity=Number.isSafeInteger(event.output_index)?`index:${event.output_index}`:aliases.map(id=>callSlots.get(id)).find(Boolean)??aliases[0];
       if(identity){for(const alias of aliases){const prior=callSlots.get(alias);if(prior && prior!==identity)observedCalls.delete(prior);callSlots.set(alias,identity);}observedCalls.add(identity);}
     }
     if (terminal) throw new ApiError(502,'PROTOCOL_INVALID','上游终止事件之后仍发送数据。');
+    if(type==='response.function_call_arguments.done'||type==='response.custom_tool_call_input.done')metrics.upstreamToolArgumentsDoneMs??=elapsed();
     if (['response.completed','response.incomplete','response.failed'].includes(type)) {
       if (!event.response || typeof event.response !== 'object') throw new ApiError(502,'PROTOCOL_INVALID');
       terminal = nativeResult(event.response as Record<string, unknown>, type); terminal.nativeTerminalData=event;
+      metrics.upstreamTerminalMs=elapsed();
       // Withhold the terminal until the existing billing transaction settles.
     } else if (onEvent) {
-      if(serial && type!=='response.created' && type!=='response.in_progress') {
+      if(serial && holding) {
         heldBytes+=Buffer.byteLength(data);if(heldBytes>8*1024*1024)throw new ApiError(502,'PROTOCOL_INVALID','上游串行缓冲超过安全大小限制。');
         held.push({type,event});
       }else await onEvent(type,serial && event.response && typeof event.response==='object'?{...event,response:{...event.response as Record<string,unknown>,output:[]}}:event);
@@ -115,7 +134,7 @@ export async function executeNativeResponses(baseUrl: string, key: string, reque
   };
   try {
     while (true) {
-      const part = await reader.read(); buffer += decoder.decode(part.value, { stream:!part.done });
+      const part = await reader.read();metrics.responseBytes+=part.value?.byteLength??0; buffer += decoder.decode(part.value, { stream:!part.done });
       if (buffer.length > 8 * 1024 * 1024) throw new ApiError(502,'PROTOCOL_INVALID','上游事件超过安全大小限制。');
       let boundary: RegExpExecArray | null;
       while ((boundary = /\r?\n\r?\n/.exec(buffer))) { await consume(buffer.slice(0,boundary.index)); buffer = buffer.slice(boundary.index + boundary[0].length); }
@@ -125,6 +144,7 @@ export async function executeNativeResponses(baseUrl: string, key: string, reque
     if (!terminal) throw new ApiError(502,'PROTOCOL_INVALID','上游流未正常终止。');
     const checked=enforceSerial(terminal);
     if(onEvent && checked.status!=='failed')for(const entry of held)await onEvent(entry.type,entry.event);
-    return checked;
+    metrics.serialHeldEventCount=held.length;metrics.serialHeldBytes=heldBytes;
+    return Object.assign(checked,{nativeMetrics:metrics});
   } finally { await reader.cancel().catch(() => {}); reader.releaseLock(); }
 }

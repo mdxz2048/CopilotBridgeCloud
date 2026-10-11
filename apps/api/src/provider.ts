@@ -3,6 +3,9 @@ import { and, eq } from 'drizzle-orm';
 import { decryptSecret } from './security.js';
 import { MockProvider } from './mock-provider.js';
 import { DeepSeekProvider } from './deepseek-provider.js';
+import { OpenAIProvider } from './openai-provider.js';
+export { OpenAIProvider } from './openai-provider.js';
+export const isOpenAIProvider = (code: string) => code === 'OPENAI' || /^OPENAI_[A-F0-9]{12}$/.test(code);
 export { DeepSeekProvider } from './deepseek-provider.js';
 export const isDeepSeekProvider = (code: string) => code === 'DEEPSEEK' || /^DEEPSEEK_[A-F0-9]{12}$/.test(code);
 import { CopilotFailure, CopilotProvider } from './copilot-provider.js';
@@ -55,5 +58,7 @@ export async function providerFor(providerId: string, code: string, connection?:
   const key = decryptSecret(credential);
   if (code === 'COPILOT') return new CopilotProvider(key, provider.timeoutMs);
   if (isDeepSeekProvider(code)) return new DeepSeekProvider(provider.baseUrl ?? 'https://api.deepseek.com', key, provider.timeoutMs);
+  if (isOpenAIProvider(code)) return new OpenAIProvider(provider.baseUrl ?? 'https://api.openai.com/v1', key, provider.timeoutMs,
+    Array.isArray(provider.config.nativeReasoningModels) ? provider.config.nativeReasoningModels.filter((value): value is string => typeof value === 'string') : []);
   throw new Error('PROVIDER_UNAVAILABLE');
 }

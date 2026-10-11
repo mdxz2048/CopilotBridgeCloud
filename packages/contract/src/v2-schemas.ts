@@ -55,7 +55,7 @@ export const ProviderConnectionV2Schema = z.object({
 });
 export const ModelV2Schema = z.object({
   id, publicId: z.string(), displayName: z.string(),
-  capabilities: z.object({ tools: z.boolean(), vision: z.boolean(), reasoning: z.boolean(), streaming: z.boolean(), nativeResponses:z.boolean().optional(), reasoningModes:z.array(z.enum(['normal','thinking','auto'])).optional(), defaultReasoningMode:z.enum(['normal','thinking','auto']).optional() }),
+  capabilities: z.object({ tools: z.boolean(), vision: z.boolean(), reasoning: z.boolean(), streaming: z.boolean(), nativeResponses:z.boolean().optional(), responsesProfile:z.enum(['deepseek','openai']).optional(),reasoningModes:z.array(z.enum(['normal','thinking','auto'])).optional(), defaultReasoningMode:z.enum(['normal','thinking','auto']).optional() }),
 });
 export const UsageSummaryV2Schema = z.object({
   requests: z.number().int().nonnegative(), pointsRated: z.number().int().nonnegative(), pointsCharged: z.number().int().nonnegative(),
@@ -76,7 +76,7 @@ export const ReferralRecordV2Schema = z.object({
 });
 export const ErrorCodeV2Schema = z.enum([
   'UNSUPPORTED_CAPABILITY','UNSUPPORTED_PROTOCOL','PROTOCOL_INVALID','PROVIDER_RATE_LIMITED','PROVIDER_BALANCE_EXHAUSTED','PROVIDER_USAGE_UNAVAILABLE','CONVERSATION_NOT_FOUND','CONVERSATION_MODE_CHANGED','RATE_CARD_IDENTITY_MISMATCH','INSTANCE_ALREADY_EXISTS',
-  'INVALID_CONFIG','INVALID_RELEASE_FILE','INVALID_RELEASE_SIZE','RELEASE_FILE_MISSING','RELEASE_TOO_LARGE','UNSUPPORTED_MEDIA_TYPE',
+  'INVALID_CONFIG','INVALID_RELEASE_FILE','INVALID_RELEASE_SIZE','RELEASE_FILE_MISSING','RELEASE_TOO_LARGE','UNSUPPORTED_MEDIA_TYPE','PAYLOAD_TOO_LARGE',
   'ACCOUNT_DISABLED', 'AUTH_REQUIRED', 'BILLING_REVIEW_REQUIRED', 'CANNOT_DISABLE_SELF', 'CLIENT_THREAD_ID_REQUIRED', 'CLIENT_UPGRADE_REQUIRED', 'COPILOT_AUTH_EXPIRED', 'COPILOT_NOT_ENTITLED', 'COPILOT_USAGE_UNAVAILABLE',
   'CSRF_REJECTED', 'DEVICE_LIMIT_REACHED', 'DEVICE_NOT_REGISTERED', 'DEVICE_PROOF_INVALID', 'DEVICE_PROOF_REPLAYED', 'DEVICE_REVOKED', 'EMAIL_IN_USE', 'EMAIL_CODE_INVALID', 'EMAIL_DELIVERY_UNAVAILABLE', 'FEATURE_DISABLED', 'TURNSTILE_INVALID', 'TURNSTILE_UNAVAILABLE', 'FORBIDDEN',
   'GATEWAY_TIMEOUT', 'IDEMPOTENCY_CONFLICT', 'INSUFFICIENT_POINTS', 'INTERNAL_ERROR', 'INVALID_CREDENTIALS', 'INVALID_POINTS',

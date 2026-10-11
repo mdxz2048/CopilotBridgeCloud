@@ -132,11 +132,13 @@ route('get','/api/v1/admin/model-instances',adminResponse);
 route('post','/api/v1/admin/model-instances',adminResponse,z.object({modelId:z.uuid(),providerId:z.uuid(),providerModelId:z.string(),priority:z.number().int().optional(),weight:z.number().int().min(0).optional()}));
 route('patch','/api/v1/admin/model-instances/{id}',adminResponse,z.object({enabled:z.boolean().optional(),priority:z.number().int().optional(),weight:z.number().int().min(0).optional()}));
 route('post','/api/v1/admin/model-instances/{id}/check',adminResponse);
+route('post','/api/v1/admin/providers',adminResponse,z.object({name:z.string().trim().min(1).max(120),kind:z.enum(['DEEPSEEK','OPENAI']).default('DEEPSEEK')}),201);
+route('post','/api/v1/admin/providers/{id}/connect-openai',adminResponse,z.object({apiKey:z.string().trim().min(10).max(512),modelId:z.string().trim().min(1).max(120),reasoning:z.boolean().default(false)}));
 
 export function buildOpenApiV2(): Record<string, unknown> {
   const base = JSON.parse(readFileSync(new URL('../../../docs/protocol/openapi.v1.json', import.meta.url), 'utf8')) as Record<string, any>;
   const v2 = new OpenApiGeneratorV31(registry.definitions).generateDocument({ openapi: '3.1.0',
-    info: { title: 'Copilot Bridge Cloud App and Gateway API', version: '2.5.0' },
+    info: { title: 'Copilot Bridge Cloud App and Gateway API', version: '2.6.0' },
     servers: [{ url: 'https://ai.mddxz.top' }] });
   return { ...base, info: v2.info, servers: v2.servers,
     paths: { ...base.paths, ...v2.paths },

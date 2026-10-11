@@ -35,6 +35,7 @@ export async function createServer() {
   app.setErrorHandler((error, req, reply) => {
     if (error instanceof ApiError) return reply.code(error.status).send({ error: { code: error.code, message: error.message, requestId: req.id, request_id: req.id } });
     if (error instanceof ZodError) return reply.code(400).send({ error: { code: 'VALIDATION_ERROR', message: 'Invalid request', requestId: req.id, request_id: req.id } });
+    if(error && typeof error==='object' && 'statusCode' in error && error.statusCode===413)return reply.code(413).send({error:{code:'PAYLOAD_TOO_LARGE',message:'Request body exceeds the endpoint size limit.',requestId:req.id,request_id:req.id}});
     if (error && typeof error === 'object' && 'statusCode' in error && error.statusCode === 400) return reply.code(400).send({ error: { code: 'VALIDATION_ERROR', message: 'Invalid request', requestId: req.id, request_id: req.id } });
     if (error && typeof error === 'object' && 'statusCode' in error && error.statusCode === 429) return reply.code(429).send({ error: { code: 'RATE_LIMITED', message: 'Too many requests', requestId: req.id, request_id: req.id } });
     req.log.error({ errorType: error instanceof Error ? error.name : 'UnknownError', requestId: req.id }, 'request failed');

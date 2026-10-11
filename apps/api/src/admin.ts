@@ -5,7 +5,8 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { admin, allowedModels, ApiError, audit, changeDeviceStatus, currentSubscription, currentUsage } from './core.js';
 import { nextPeriod } from './logic.js';
-import { providerFor, DeepSeekProvider, isDeepSeekProvider } from './provider.js';
+import { providerFor, DeepSeekProvider, isDeepSeekProvider, OpenAIProvider, isOpenAIProvider } from './provider.js';
+import { probeOpenAIResponses } from './native-provider-probe.js';
 import { currentRatePolicy, UserLimitsSchema } from './rate-policy.js';
 import { currentBillingMode } from './billing-mode.js';
 import { encryptSecret, hashPassword } from './security.js';
@@ -55,7 +56,7 @@ export async function registerAdmin(app: FastifyInstance) {
     const data = z.object({modelId:z.uuid(),providerId:z.uuid(),providerModelId:z.string().min(1).max(120),priority:z.number().int().min(-100000).max(100000).default(0),weight:z.number().int().min(0).max(100000).default(1)}).parse(req.body);
     const [model] = await db.select().from(models).where(eq(models.id,data.modelId)).limit(1);
     const [provider] = await db.select().from(providers).where(eq(providers.id,data.providerId)).limit(1);
-    if (!model || !provider || !isDeepSeekProvider(provider.code)) throw new ApiError(400,'MODEL_PROVIDER_MISMATCH');
+    if (!model || !provider || !(isDeepSeekProvider(provider.code)||isOpenAIProvider(provider.code)) || model.publicId.split('/')[0] !== (isOpenAIProvider(provider.code)?'openai':'deepseek')) throw new ApiError(400,'MODEL_PROVIDER_MISMATCH');
     // The existing rate-card identity is provider/logical model; prohibit ambiguous upstream costs.
     if (model.providerModelId !== data.providerModelId) throw new ApiError(409,'RATE_CARD_IDENTITY_MISMATCH','同一逻辑模型仅绑定相同上游型号，避免费率混用。');
     const [instance] = await db.insert(modelInstances).values({...data,enabled:false,healthStatus:'UNKNOWN'}).onConflictDoNothing().returning();
@@ -77,10 +78,15 @@ export async function registerAdmin(app: FastifyInstance) {
     const [instance] = await db.select().from(modelInstances).where(eq(modelInstances.id,id)).limit(1);
     if (!instance) throw new ApiError(404,'NOT_FOUND');
     const [provider] = await db.select().from(providers).where(eq(providers.id,instance.providerId)).limit(1);
-    if (!provider || !isDeepSeekProvider(provider.code) || !currentDeepSeekModel(instance.providerModelId)) throw new ApiError(422,'UNSUPPORTED_CAPABILITY','此型号尚无原生 Responses 兼容证据。');
+    if (!provider || !(isDeepSeekProvider(provider.code)||isOpenAIProvider(provider.code)) || (isDeepSeekProvider(provider.code)&&!currentDeepSeekModel(instance.providerModelId))) throw new ApiError(422,'UNSUPPORTED_CAPABILITY','此型号尚无原生 Responses 兼容证据。');
     const adapter = await providerFor(provider.id,provider.code);
     if (!adapter.executeNative) throw new ApiError(422,'UNSUPPORTED_PROTOCOL');
     try {
+      if(isOpenAIProvider(provider.code)) {
+        const checked=await probeOpenAIResponses(adapter as OpenAIProvider,instance.providerModelId,instance.capabilities.reasoning===true);
+        const [updated]=await db.update(modelInstances).set({healthStatus:'READY',healthCheckedAt:new Date(),cooldownUntil:null,nativeProtocols:['responses'],capabilities:checked.capabilities}).where(eq(modelInstances.id,id)).returning();
+        await audit(a.user.id,'MODEL_INSTANCE_CHECKED','MODEL_INSTANCE',id,{ready:true,inputTokens:checked.inputTokens,outputTokens:checked.outputTokens});return updated;
+      }
       const normal = await adapter.executeNative({model:instance.providerModelId,input:'Reply OK.',stream:false,reasoning:{mode:'normal'},maxOutputTokens:32},instance.providerModelId,AbortSignal.timeout(20000));
       if (!normal.output.length) throw new ApiError(502,'PROTOCOL_INVALID');
       let sawTerminal = false;
@@ -287,9 +293,9 @@ export async function registerAdmin(app: FastifyInstance) {
   });
   app.post('/api/v1/admin/providers', async (req, reply) => {
     const a = await admin(req);
-    const { name } = z.object({ name: z.string().trim().min(1).max(120) }).parse(req.body);
-    const code = `DEEPSEEK_${randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase()}`;
-    const [provider] = await db.insert(providers).values({ code, name, baseUrl: 'https://api.deepseek.com', enabled: false }).returning();
+    const { name,kind } = z.object({ name: z.string().trim().min(1).max(120),kind:z.enum(['DEEPSEEK','OPENAI']).default('DEEPSEEK') }).parse(req.body);
+    const code = `${kind}_${randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase()}`;
+    const [provider] = await db.insert(providers).values({ code, name, baseUrl: kind==='OPENAI'?'https://api.openai.com/v1':'https://api.deepseek.com', enabled: false }).returning();
     await audit(a.user.id, 'PROVIDER_CREATED', 'PROVIDER', provider.id, { name, code });
     return reply.code(201).send(provider);
   });
@@ -320,6 +326,31 @@ export async function registerAdmin(app: FastifyInstance) {
     if (!p.enabled) return { ready: false, reason: 'DISABLED' };
     try { return await (await providerFor(p.id, p.code)).health(); } catch { return { ready: false, reason: 'NOT_CONFIGURED' }; }
   });
+  app.post('/api/v1/admin/providers/:id/connect-openai', async req => {
+    const a=await admin(req),id=idParam(req.params);
+    const {apiKey,modelId,reasoning}=z.object({apiKey:z.string().trim().min(10).max(512),modelId:z.string().trim().min(1).max(120),reasoning:z.boolean().default(false)}).parse(req.body);
+    const [provider]=await db.select().from(providers).where(eq(providers.id,id)).limit(1);
+    if(!provider||!isOpenAIProvider(provider.code))throw new ApiError(400,'MODEL_PROVIDER_MISMATCH');
+    const adapter=new OpenAIProvider('https://api.openai.com/v1',apiKey,15000,reasoning?[modelId]:[]);
+    let catalog:string[];
+    try{catalog=await adapter.listModels();}catch{throw new ApiError(400,'PROVIDER_AUTH_REQUIRED','OpenAI 连接检查失败，请核对独立 API Key、项目权限及 API 余额。');}
+    if(!catalog.includes(modelId))throw new ApiError(400,'MODEL_NOT_AVAILABLE','该 API Key 的模型目录中没有所选模型。');
+    const checked=await probeOpenAIResponses(adapter,modelId,reasoning);
+    const model=await db.transaction(async tx=>{
+      await tx.select().from(providers).where(eq(providers.id,id)).for('update');
+      const secret=encryptSecret(apiKey);
+      await tx.insert(providerCredentials).values({providerId:id,...secret}).onConflictDoUpdate({target:providerCredentials.providerId,set:{...secret,updatedAt:new Date()}});
+      const previous=Array.isArray(provider.config.nativeReasoningModels)?provider.config.nativeReasoningModels.filter(value=>typeof value==='string'&&value!==modelId):[];
+      await tx.update(providers).set({enabled:true,baseUrl:'https://api.openai.com/v1',config:{...provider.config,nativeReasoningModels:[...previous,...(reasoning?[modelId]:[])]}}).where(eq(providers.id,id));
+      const publicId=`openai/${modelId}`;
+      await tx.insert(models).values({providerId:id,providerModelId:modelId,publicId,displayName:`OpenAI · ${modelId}`,enabled:false,supportsTools:true,supportsStreaming:true,supportsReasoning:reasoning,supportsVision:false,usageWeight:'1'}).onConflictDoNothing();
+      const [logical]=await tx.select().from(models).where(eq(models.publicId,publicId)).limit(1);
+      await tx.insert(modelInstances).values({modelId:logical.id,providerId:id,providerModelId:modelId,enabled:false,nativeProtocols:['responses'],healthStatus:'READY',healthCheckedAt:new Date(),capabilities:checked.capabilities}).onConflictDoUpdate({target:[modelInstances.modelId,modelInstances.providerId,modelInstances.providerModelId],set:{nativeProtocols:['responses'],healthStatus:'READY',healthCheckedAt:new Date(),cooldownUntil:null,capabilities:checked.capabilities}});
+      await tx.insert(auditLogs).values({actorId:a.user.id,action:'OPENAI_CONNECTED',targetType:'PROVIDER',targetId:id,metadata:{modelId:logical.id,inputTokens:checked.inputTokens,outputTokens:checked.outputTokens,reasoning}});
+      return logical;
+    });
+    return {ready:true,model,models:[model],catalog,billingMode:currentBillingMode(),requiresUserAccess:true,requiresRateCard:true};
+  });
   app.post('/api/v1/admin/providers/:id/connect-deepseek', async req => {
     const a = await admin(req); const id = idParam(req.params);
     const { apiKey, modelId } = z.object({ apiKey: z.string().trim().min(10).max(512), modelId: z.string().trim().min(3).max(120).optional() }).parse(req.body);
@@ -328,7 +359,7 @@ export async function registerAdmin(app: FastifyInstance) {
     // Connect only to the official endpoint; never send this credential to an admin-supplied URL.
     const adapter = new DeepSeekProvider('https://api.deepseek.com', apiKey, 15000);
     let catalog: string[];
-    try { catalog = (await adapter.listModels()).filter(model => /^deepseek-[a-z0-9-]+$/.test(model)); }
+    try { catalog = (await adapter.listModels()).filter(currentDeepSeekModel); }
     catch (error) { throw new ApiError(400, 'PROVIDER_AUTH_REQUIRED', `DeepSeek 连接检查失败：${error instanceof Error ? error.message : 'UNREACHABLE'}`); }
     if (modelId && !catalog.includes(modelId)) throw new ApiError(400, 'MODEL_NOT_AVAILABLE', '此 API Key 的模型目录中没有该模型。');
     const selected = modelId ?? (catalog.includes('deepseek-flash') ? 'deepseek-flash' : catalog.includes('deepseek-chat') ? 'deepseek-chat' : catalog.find(model => !model.includes('reasoner')));
@@ -341,15 +372,16 @@ export async function registerAdmin(app: FastifyInstance) {
       await tx.update(providers).set({ enabled: true, baseUrl: 'https://api.deepseek.com' }).where(eq(providers.id, id));
       const connectedModels: typeof models.$inferSelect[] = [];
       for (const selected of (modelId ? [modelId] : catalog)) {
-      const publicId = provider.code === 'DEEPSEEK' ? `deepseek/${selected}` : `deepseek/${provider.code.slice(9).toLowerCase()}/${selected}`;
-      const [model] = await tx.insert(models).values({ providerId: id, providerModelId: selected, publicId,
-        displayName: `${provider.name} · ${selected}`, enabled: true, supportsTools: true, supportsStreaming: true, supportsReasoning: false,
-        supportsVision: selected === 'deepseek-flash', usageWeight: '1' }).onConflictDoUpdate({ target: models.publicId,
-        set: { displayName: `${provider.name} · ${selected}`, enabled: true, supportsTools: true, supportsStreaming: true, supportsReasoning: false, supportsVision: selected === 'deepseek-flash' } }).returning();
+      const publicId = `deepseek/${selected}`;
+      await tx.insert(models).values({ providerId: id, providerModelId: selected, publicId,
+        displayName: `DeepSeek · ${selected}`, enabled: false, supportsTools: true, supportsStreaming: true, supportsReasoning: false,
+        supportsVision: selected === 'deepseek-flash', usageWeight: '1' }).onConflictDoNothing();
+      const [model]=await tx.select().from(models).where(eq(models.publicId,publicId)).limit(1);
+      await tx.insert(modelInstances).values({modelId:model.id,providerId:id,providerModelId:selected,enabled:false,healthStatus:'UNKNOWN',nativeProtocols:[],capabilities:{responsesProfile:'deepseek'}}).onConflictDoNothing();
       // Only SHADOW may use an explicit zero-rate test card. Never invent a commercial price.
       if (shadow) {
         await tx.insert(rateCards).values({ providerId: id, modelId: model.id, billingPolicy: 'MANAGED_USAGE' }).onConflictDoNothing();
-        const [card] = await tx.select().from(rateCards).where(and(eq(rateCards.modelId, model.id), eq(rateCards.billingPolicy, 'MANAGED_USAGE'))).limit(1);
+        const [card] = await tx.select().from(rateCards).where(and(eq(rateCards.providerId,id),eq(rateCards.modelId, model.id), eq(rateCards.billingPolicy, 'MANAGED_USAGE'))).limit(1);
         const [version] = await tx.select().from(rateCardVersions).where(eq(rateCardVersions.rateCardId, card.id)).limit(1);
         if (!version) await tx.insert(rateCardVersions).values({ rateCardId: card.id, version: 1, status: 'ACTIVE', effectiveFrom: new Date(), createdBy: a.user.id,
           inputRate: '0', outputRate: '0', cachedInputRate: '0', reasoningRate: '0', imageInputRate: '0', imageOutputRate: '0', toolRate: '0', minimumCharge: 0 });

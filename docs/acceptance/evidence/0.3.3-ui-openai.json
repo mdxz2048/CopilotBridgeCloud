@@ -1,0 +1,13 @@
+{
+  "result": "PASS",
+  "level": "MOCK_BROWSER_COMPONENT",
+  "createdKind": "OPENAI",
+  "crossProviderBindingBlocked": true,
+  "explicitReasoningProbe": true,
+  "keyCleared": true,
+  "newModelDisabled": true,
+  "requiresRatesAndAcl": true,
+  "errorRequestId": true,
+  "narrowOverflow": false,
+  "realProviderCalls": 0
+}

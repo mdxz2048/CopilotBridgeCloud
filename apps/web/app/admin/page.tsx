@@ -17,6 +17,7 @@ const items: NavItem[] = [
   {id:'models',label:'模型与连接',icon:'Boxes'},
   {id:'users',label:'用户与权限',icon:'Users'},
   {id:'money-plans',label:'套餐与计费',icon:'Boxes'},
+  {id:'v2-rates',label:'模型售价',icon:'Boxes'},
 
   {id:'audit',label:'操作记录',icon:'ScrollText'},
 ];
@@ -187,7 +188,8 @@ export default function AdminPage() {
         const allowed = planAccess?.planAccess.some(row => row.modelId === selected.id && row.planId === p.id);
         return <div className="inline-actions" style={{marginBottom:9}} key={p.id}><span style={{minWidth:160,fontSize:12}}>{p.name}（{p.enabled ? '启用' : '停用'}）：{planAccess ? allowed ? '已开放' : '未开放' : '读取中'}</span><button className="mini-button" disabled={running || !planAccess || Boolean(allowed)} onClick={() => run(() => put(`/api/v1/admin/models/${selected.id}/plans/${p.id}`, { allowed:true }), `${p.name} 套餐 ACL 已开放`, true)}>开放</button><button className="mini-button danger" disabled={running || !planAccess || !allowed} onClick={() => run(() => put(`/api/v1/admin/models/${selected.id}/plans/${p.id}`, { allowed:false }), `${p.name} 套餐 ACL 已关闭`, true)}>关闭</button></div>;
       })}
-      <p>实际账号可用性还受有效订阅、用户覆盖、Provider/模型启用和测试限制影响；请在用户页核对最终判定。此处不启用 Copilot Provider 或生产计费。</p>
+      <p>先在“模型售价”发布售价，再启用逻辑模型与已验证实例，并在“用户与权限”分配逻辑模型。实际可用性仍由服务端按订阅、额度、用户权限和实例状态判断。</p>
+      <button className="mini-button" onClick={()=>{setActive('v2-rates');setSelected(null);setForm({});}}>配置模型售价</button>
     </section>}
 
     {active === 'releases' && <ReleaseUpload onUploaded={() => { setMessage('安装包已上传并计算 SHA-256；仍是未发布草稿，请核对后发布。'); void load(); }}/>}

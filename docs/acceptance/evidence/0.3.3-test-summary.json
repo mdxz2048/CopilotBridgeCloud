@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "appFullTests": 151,
+  "cloudUnitTests": 105,
+  "postgresIsolatedTests": 21,
+  "contractTests": 10,
+  "uiUnitTests": 6,
+  "apiTypecheck": true,
+  "apiBuild": true,
+  "webTypecheck": true,
+  "productionWebBuild": true,
+  "fixtureRealDesktop": false,
+  "notes": "Unit suite skipped DB tests; separate disposable PostgreSQL run passed all 21."
+}

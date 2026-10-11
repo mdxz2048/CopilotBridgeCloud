@@ -10,7 +10,7 @@ import { ApiError } from './errors.js';
 import { moneyPolicy } from './money-policy.js';
 import { walletSummary } from './wallet.js';
 import { requestContext } from './request-log.js';
-import { modelCandidates, eligible, ensureLegacyInstance } from './instance-router.js';
+import { modelCandidates, eligible, ensureLegacyInstance, responsesProfile } from './instance-router.js';
 import { latestClientRelease, requireCurrentClient } from './latest-release.js';
 
 export { ApiError };
@@ -129,6 +129,7 @@ export async function allowedModels(userId: string, planId: string, includeUnava
     let resources = await modelCandidates(row.model.id);
     if (!resources.length) { await ensureLegacyInstance(row.model); resources = await modelCandidates(row.model.id); }
     const candidates = resources.filter(c => eligible(c));
+    if(!includeUnavailable && new Set(candidates.map(c=>responsesProfile(c.provider.code)).filter(Boolean)).size>1)return null;
     // Keep old provider/model identity solely as an additive rollback default.
     return candidates.length || includeUnavailable ? { ...row, provider: candidates[0]?.provider ?? row.provider, candidates:includeUnavailable?resources:candidates } : null;
   }));

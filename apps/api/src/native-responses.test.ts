@@ -4,6 +4,31 @@ import { executeNativeResponses, nativeReasoning, nativeResult, providerHttpFail
 afterEach(()=>vi.unstubAllGlobals());
 const terminal = {id:'upstream',object:'response',model:'deepseek-flash',status:'completed',output:[{id:'rs_1',type:'reasoning',content:[{type:'reasoning_text',text:'fixture reasoning'}]},{id:'fc_1',type:'function_call',call_id:'call_1',name:'probe',arguments:'{}'}],usage:{input_tokens:20,input_tokens_details:{cached_tokens:4},output_tokens:8,output_tokens_details:{reasoning_tokens:3},total_tokens:28},provider_extension:{keep:true}};
 describe('native Responses protocol',()=>{
+  it('keeps OpenAI fields and tool semantics while rejecting platform asynchronous ownership',async()=>{
+    const request={model:'logical',input:[{type:'message',role:'user',content:[{type:'input_file',file_data:'data:application/pdf;base64,fixture'}]}],tools:[{type:'namespace',name:'functions',tools:[{type:'custom',name:'exec'}]}],parallel_tool_calls:false,reasoning:{mode:'thinking',effort:'medium'},metadata:{keep:true},future_extension:{keep:true}};
+    expect(validateNativeRequest(request,'openai')).toEqual({ignoredFields:[],ignoredToolTypes:[]});
+    expect(nativeReasoning(request,true,'openai')).toEqual({effort:'medium'});
+    expect(nativeReasoning({...request,reasoning:{mode:'normal'}},false,'openai')).toEqual({});
+    for(const profile of ['openai','deepseek'] as const)for(const patch of [{background:true},{conversation:'external'}])expect(()=>validateNativeRequest({...request,...patch},profile)).toThrow();
+    vi.stubGlobal('fetch',vi.fn(async(_url,init)=>{const wire=JSON.parse(init.body);expect(wire.tools).toEqual(request.tools);expect(wire.instructions).toBeUndefined();expect(wire.reasoning).toEqual({effort:'medium'});expect(wire.metadata).toEqual({keep:true});return Response.json({...terminal,output:[terminal.output[1],{...terminal.output[1],id:'fc_2',call_id:'call_2'}]});}));
+    const result=await executeNativeResponses('https://api.openai.com/v1','fixture',request,'gpt-fixture',new AbortController().signal,undefined,{responsesProfile:'openai',canThink:true});expect(result.status).toBe('completed');expect(result.toolCalls).toBe(2);
+  });
+  it('streams reasoning before the first tool while holding its ordered suffix without another POST',async()=>{
+    let controller!:ReadableStreamDefaultController;const received:string[]=[];
+    const push=(event:unknown)=>controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`));
+    const fetch=vi.fn(async()=>new Response(new ReadableStream({start(c){controller=c;}})));vi.stubGlobal('fetch',fetch);
+    const pending=executeNativeResponses('https://api.deepseek.com','fixture',{model:'x',input:'fixture',stream:true,parallel_tool_calls:false,tools:[{type:'function',name:'probe'}]},'deepseek-flash',new AbortController().signal,async type=>{received.push(type);});
+    await vi.waitFor(()=>expect(controller).toBeDefined());
+    push({type:'response.reasoning_text.delta',delta:'private fixture'});await vi.waitFor(()=>expect(received).toEqual(['response.reasoning_text.delta']));
+    push({type:'response.output_item.added',output_index:1,item:terminal.output[1]});push({type:'response.output_text.delta',delta:'later fixture'});
+    await new Promise(resolve=>setTimeout(resolve,10));expect(received).toEqual(['response.reasoning_text.delta']);
+    push({type:'response.completed',response:terminal});controller.close();
+    const result=await pending;expect(received).toEqual(['response.reasoning_text.delta','response.output_item.added','response.output_text.delta']);expect(fetch).toHaveBeenCalledTimes(1);expect(result).toMatchObject({nativeMetrics:{upstreamAttemptCount:1,eventCount:4,serialHeldEventCount:2}});
+  });
+  it('does not add serial instructions for advertised nonexecutable tools',async()=>{
+    vi.stubGlobal('fetch',vi.fn(async(_url,init)=>{expect(JSON.parse(init.body).instructions).toBeUndefined();return Response.json(terminal);}));
+    const result=await executeNativeResponses('https://api.deepseek.com','fixture',{model:'x',input:'fixture',parallel_tool_calls:false,tools:[{type:'web_search'}]},'deepseek-flash',new AbortController().signal);expect(result.status).toBe('completed');
+  });
   it('preserves full wire fields and output IDs without forcing a Canonical translation',async()=>{
     vi.stubGlobal('fetch',vi.fn(async(url,init)=>{
       expect(url).toBe('https://api.deepseek.com/responses');
@@ -69,19 +94,19 @@ describe('native Responses protocol',()=>{
     const events:string[]=[];const result=await executeNativeResponses('https://api.deepseek.com','fixture',{model:'x',input:'fixture',tools:[{type:'function',name:'probe'}],parallel_tool_calls:false,stream:true},'deepseek-flash',new AbortController().signal,async type=>{events.push(type);});
     expect(events).toEqual(['response.created']);expect(result.status).toBe('failed');expect(result.output).toEqual([]);expect(result.inputTokens).toBe(20);expect(result.outputTokens).toBe(8);expect(result.toolCalls).toBe(2);expect(result.nativeResponse?.error).toMatchObject({code:'UNSUPPORTED_CAPABILITY'});
     vi.stubGlobal('fetch',vi.fn(async()=>Response.json(multi)));
-    const json=await executeNativeResponses('https://api.deepseek.com','fixture',{model:'x',input:'fixture',parallel_tool_calls:false},'deepseek-flash',new AbortController().signal);expect(json.status).toBe('failed');expect(json.output).toEqual([]);
+    const json=await executeNativeResponses('https://api.deepseek.com','fixture',{model:'x',input:'fixture',tools:[{type:'function',name:'probe'}],parallel_tool_calls:false},'deepseek-flash',new AbortController().signal);expect(json.status).toBe('failed');expect(json.output).toEqual([]);
   });
   it('releases a single-call serial stream only after validated completion',async()=>{
     const events=[{type:'response.created',response:{id:'upstream'}},{type:'response.output_item.added',item:terminal.output[1]},{type:'response.completed',response:terminal}];
     vi.stubGlobal('fetch',vi.fn(async()=>new Response(events.map(e=>`data: ${JSON.stringify(e)}\n\n`).join(''))));
-    const delivered:string[]=[];const result=await executeNativeResponses('https://api.deepseek.com','fixture',{model:'x',input:'fixture',parallel_tool_calls:false,stream:true},'deepseek-flash',new AbortController().signal,async type=>{delivered.push(type);});
+    const delivered:string[]=[];const result=await executeNativeResponses('https://api.deepseek.com','fixture',{model:'x',input:'fixture',tools:[{type:'function',name:'probe'}],parallel_tool_calls:false,stream:true},'deepseek-flash',new AbortController().signal,async type=>{delivered.push(type);});
     expect(result.status).toBe('completed');expect(result.output).toEqual(terminal.output);expect(delivered).toEqual(['response.created','response.output_item.added']);
   });
   it('does not mistake assigned call IDs or repeated item events for additional serial tools',async()=>{
     const item=terminal.output[1];
     const events=[{type:'response.output_item.added',item:{...item,call_id:''}},{type:'response.output_item.done',output_index:1,item},{type:'response.output_item.done',item},{type:'response.completed',response:terminal}];
     vi.stubGlobal('fetch',vi.fn(async()=>new Response(events.map(e=>`data: ${JSON.stringify(e)}\n\n`).join(''))));
-    const result=await executeNativeResponses('https://api.deepseek.com','fixture',{model:'x',input:'fixture',parallel_tool_calls:false,stream:true},'deepseek-flash',new AbortController().signal,async()=>{});
+    const result=await executeNativeResponses('https://api.deepseek.com','fixture',{model:'x',input:'fixture',tools:[{type:'function',name:'probe'}],parallel_tool_calls:false,stream:true},'deepseek-flash',new AbortController().signal,async()=>{});
     expect(result.status).toBe('completed');expect(result.toolCalls).toBe(1);
   });
 });

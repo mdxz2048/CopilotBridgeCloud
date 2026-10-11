@@ -1,0 +1,2597 @@
+{
+  "date": "2026-10-11T11:07:09.029Z",
+  "appVersion": "0.3.3",
+  "scope": "EXTERNAL_FIXED_DIAGNOSTIC_NOT_PRODUCTION_HARNESS",
+  "paidEnabled": true,
+  "supplierCostKnown": false,
+  "maxRmb": 0.03,
+  "matrix": [
+    {
+      "profile": "openai",
+      "mode": "normal",
+      "case": "W",
+      "status": "BLOCKED_NO_GPT_CONNECTION"
+    },
+    {
+      "profile": "openai",
+      "mode": "thinking",
+      "case": "W",
+      "status": "BLOCKED_NO_GPT_CONNECTION"
+    },
+    {
+      "profile": "deepseek",
+      "model": "deepseek/deepseek-flash",
+      "mode": "normal",
+      "case": "W",
+      "status": "PASS",
+      "requests": [
+        {
+          "traceId": "7637f083-b21d-4b03-9ae1-c0b878c76c05",
+          "threadId": "40a1cbd6-0d07-4b0e-9751-b7ff281d67e2",
+          "requestBytes": 550,
+          "shapeDiff": [
+            {
+              "path": "/previous_response_id",
+              "before": null,
+              "after": {
+                "type": "undefined",
+                "bytes": 0
+              }
+            }
+          ],
+          "budgetUpperRmb": 0.0053,
+          "actualPostCount": 1,
+          "httpStatus": 200,
+          "headersMs": 915,
+          "requestId": "74f7b614-6912-41bc-a7d0-fe55cc3e23d4",
+          "responseBytes": 9249,
+          "firstEventMs": 3,
+          "ttftMs": 1047,
+          "firstToolMs": 1439,
+          "streamMs": 719,
+          "eventCount": 21,
+          "totalMs": 1634,
+          "responseId": "resp_f5954f0217b545d0a166b8a1174da843",
+          "status": "completed",
+          "eventTypes": [
+            "response.created",
+            "response.in_progress",
+            "response.output_item.added",
+            "response.content_part.added",
+            "response.output_text.delta",
+            "response.output_text.done",
+            "response.content_part.done",
+            "response.output_item.done",
+            "response.function_call_arguments.delta",
+            "response.function_call_arguments.done",
+            "response.completed"
+          ],
+          "billingStatus": "SETTLED",
+          "pointsCharged": 5,
+          "costRmb": 0.0005,
+          "supplierCostKnown": false
+        },
+        {
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "threadId": "40a1cbd6-0d07-4b0e-9751-b7ff281d67e2",
+          "requestBytes": 1138,
+          "shapeDiff": [
+            {
+              "path": "/",
+              "before": {
+                "type": "object",
+                "bytes": 643
+              },
+              "after": {
+                "type": "object",
+                "bytes": 1138
+              }
+            },
+            {
+              "path": "/previous_response_id",
+              "before": {
+                "type": "string",
+                "bytes": 37
+              },
+              "after": {
+                "type": "undefined",
+                "bytes": 0
+              }
+            },
+            {
+              "path": "/input",
+              "before": {
+                "type": "array",
+                "bytes": 176
+              },
+              "after": {
+                "type": "array",
+                "bytes": 734
+              }
+            },
+            {
+              "path": "/input/0",
+              "before": {
+                "type": "object",
+                "bytes": 174
+              },
+              "after": {
+                "type": "object",
+                "bytes": 144
+              }
+            },
+            {
+              "path": "/input/0/type",
+              "before": {
+                "type": "string",
+                "bytes": 20
+              },
+              "after": null
+            },
+            {
+              "path": "/input/0/call_id",
+              "before": {
+                "type": "string",
+                "bytes": 32
+              },
+              "after": null
+            },
+            {
+              "path": "/input/0/output",
+              "before": {
+                "type": "string",
+                "bytes": 86
+              },
+              "after": null
+            },
+            {
+              "path": "/input/0/role",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 4
+              }
+            },
+            {
+              "path": "/input/0/content",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 116
+              }
+            },
+            {
+              "path": "/input/1",
+              "before": null,
+              "after": {
+                "type": "object",
+                "bytes": 236
+              }
+            },
+            {
+              "path": "/input/1/role",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 9
+              }
+            },
+            {
+              "path": "/input/1/content",
+              "before": null,
+              "after": {
+                "type": "array",
+                "bytes": 102
+              }
+            },
+            {
+              "path": "/input/1/content/0",
+              "before": null,
+              "after": {
+                "type": "object",
+                "bytes": 100
+              }
+            },
+            {
+              "path": "/input/1/content/0/type",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 11
+              }
+            },
+            {
+              "path": "/input/1/content/0/text",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 37
+              }
+            },
+            {
+              "path": "/input/1/content/0/annotations",
+              "before": null,
+              "after": {
+                "type": "array",
+                "bytes": 2
+              }
+            },
+            {
+              "path": "/input/1/content/0/logprobs",
+              "before": null,
+              "after": {
+                "type": "array",
+                "bytes": 2
+              }
+            },
+            {
+              "path": "/input/1/type",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 7
+              }
+            },
+            {
+              "path": "/input/1/id",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 36
+              }
+            },
+            {
+              "path": "/input/1/status",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 9
+              }
+            },
+            {
+              "path": "/input/1/phase",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 10
+              }
+            },
+            {
+              "path": "/input/2",
+              "before": null,
+              "after": {
+                "type": "object",
+                "bytes": 175
+              }
+            },
+            {
+              "path": "/input/2/type",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 13
+              }
+            },
+            {
+              "path": "/input/2/call_id",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 32
+              }
+            },
+            {
+              "path": "/input/2/name",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 14
+              }
+            },
+            {
+              "path": "/input/2/arguments",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 2
+              }
+            },
+            {
+              "path": "/input/2/id",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 36
+              }
+            },
+            {
+              "path": "/input/2/status",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 9
+              }
+            },
+            {
+              "path": "/input/3",
+              "before": null,
+              "after": {
+                "type": "object",
+                "bytes": 174
+              }
+            },
+            {
+              "path": "/input/3/type",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 20
+              }
+            },
+            {
+              "path": "/input/3/call_id",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 32
+              }
+            },
+            {
+              "path": "/input/3/output",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 86
+              }
+            }
+          ],
+          "budgetUpperRmb": 0.0059,
+          "actualPostCount": 1,
+          "httpStatus": 200,
+          "headersMs": 743,
+          "requestId": "79d50c4e-7f09-4777-b0e5-bbc5826c679c",
+          "responseBytes": 18713,
+          "firstEventMs": 1,
+          "ttftMs": 1214,
+          "streamMs": 682,
+          "eventCount": 65,
+          "totalMs": 1425,
+          "responseId": "resp_4ef4902fd4224ec08b56863fb7c81a58",
+          "status": "completed",
+          "eventTypes": [
+            "response.created",
+            "response.in_progress",
+            "response.output_item.added",
+            "response.content_part.added",
+            "response.output_text.delta",
+            "response.output_text.done",
+            "response.content_part.done",
+            "response.output_item.done",
+            "response.completed"
+          ],
+          "firstToolMs": null,
+          "billingStatus": "SETTLED",
+          "pointsCharged": 4,
+          "costRmb": 0.0004,
+          "supplierCostKnown": false
+        }
+      ],
+      "localRequests": [
+        {
+          "requestBytes": 550,
+          "httpStatus": 200,
+          "responseBytes": 9270,
+          "firstEventMs": 0,
+          "ttftMs": 128,
+          "firstToolMs": 522,
+          "streamMs": 716,
+          "eventCount": 21,
+          "totalMs": 2837
+        },
+        {
+          "requestBytes": 643,
+          "httpStatus": 200,
+          "responseBytes": 18778,
+          "firstEventMs": 0,
+          "ttftMs": 470,
+          "streamMs": 682,
+          "eventCount": 65,
+          "totalMs": 1954
+        }
+      ],
+      "fixedToolExecutions": 1,
+      "officialDesktop": "NOT_VERIFIED_EXTERNAL_DRIVER",
+      "bridgeStages": [
+        {
+          "stage": "desktop_received",
+          "traceId": "7637f083-b21d-4b03-9ae1-c0b878c76c05",
+          "metrics": {}
+        },
+        {
+          "stage": "desktop_request",
+          "traceId": "7637f083-b21d-4b03-9ae1-c0b878c76c05",
+          "metrics": {
+            "stream": true
+          }
+        },
+        {
+          "stage": "request_normalized",
+          "traceId": "7637f083-b21d-4b03-9ae1-c0b878c76c05",
+          "metrics": {
+            "bodyBytes": 550,
+            "inputItemCount": 1,
+            "toolCount": 1,
+            "cloudForwarded": true,
+            "imageParts": 0,
+            "fileParts": 0,
+            "toolOutputCount": 0
+          }
+        },
+        {
+          "stage": "cloud_request",
+          "traceId": "7637f083-b21d-4b03-9ae1-c0b878c76c05",
+          "metrics": {
+            "bodyBytes": 550,
+            "stream": true,
+            "toolCount": 1
+          }
+        },
+        {
+          "stage": "cloud_headers",
+          "traceId": "7637f083-b21d-4b03-9ae1-c0b878c76c05",
+          "metrics": {
+            "cloudHeadersMs": 1861,
+            "status": 200
+          }
+        },
+        {
+          "stage": "stream_first_event",
+          "traceId": "7637f083-b21d-4b03-9ae1-c0b878c76c05",
+          "metrics": {
+            "elapsedMs": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "7637f083-b21d-4b03-9ae1-c0b878c76c05",
+          "metrics": {}
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "7637f083-b21d-4b03-9ae1-c0b878c76c05",
+          "metrics": {}
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "7637f083-b21d-4b03-9ae1-c0b878c76c05",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "7637f083-b21d-4b03-9ae1-c0b878c76c05",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "stream_first_text",
+          "traceId": "7637f083-b21d-4b03-9ae1-c0b878c76c05",
+          "metrics": {
+            "elapsedMs": 131
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "7637f083-b21d-4b03-9ae1-c0b878c76c05",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "7637f083-b21d-4b03-9ae1-c0b878c76c05",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "7637f083-b21d-4b03-9ae1-c0b878c76c05",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "7637f083-b21d-4b03-9ae1-c0b878c76c05",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "7637f083-b21d-4b03-9ae1-c0b878c76c05",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "7637f083-b21d-4b03-9ae1-c0b878c76c05",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "7637f083-b21d-4b03-9ae1-c0b878c76c05",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "7637f083-b21d-4b03-9ae1-c0b878c76c05",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "7637f083-b21d-4b03-9ae1-c0b878c76c05",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "7637f083-b21d-4b03-9ae1-c0b878c76c05",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "7637f083-b21d-4b03-9ae1-c0b878c76c05",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "7637f083-b21d-4b03-9ae1-c0b878c76c05",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "7637f083-b21d-4b03-9ae1-c0b878c76c05",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "7637f083-b21d-4b03-9ae1-c0b878c76c05",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "7637f083-b21d-4b03-9ae1-c0b878c76c05",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "7637f083-b21d-4b03-9ae1-c0b878c76c05",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "7637f083-b21d-4b03-9ae1-c0b878c76c05",
+          "metrics": {}
+        },
+        {
+          "stage": "stream_finished",
+          "traceId": "7637f083-b21d-4b03-9ae1-c0b878c76c05",
+          "metrics": {
+            "streamMs": 718,
+            "receivedBytes": 9249,
+            "eventCount": 21,
+            "terminalDetected": true
+          }
+        },
+        {
+          "stage": "desktop_finished",
+          "traceId": "7637f083-b21d-4b03-9ae1-c0b878c76c05",
+          "metrics": {
+            "status": 200,
+            "totalMs": 2832
+          }
+        },
+        {
+          "stage": "desktop_received",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {}
+        },
+        {
+          "stage": "desktop_request",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "stream": true
+          }
+        },
+        {
+          "stage": "request_normalized",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "bodyBytes": 643,
+            "inputItemCount": 4,
+            "toolCount": 1,
+            "cloudForwarded": true,
+            "imageParts": 0,
+            "fileParts": 0,
+            "toolOutputCount": 1
+          }
+        },
+        {
+          "stage": "cloud_request",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "bodyBytes": 1138,
+            "stream": true,
+            "toolCount": 1
+          }
+        },
+        {
+          "stage": "cloud_headers",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "cloudHeadersMs": 1004,
+            "status": 200
+          }
+        },
+        {
+          "stage": "stream_first_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "elapsedMs": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {}
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {}
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "stream_first_text",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "elapsedMs": 470
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {}
+        },
+        {
+          "stage": "stream_finished",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "streamMs": 682,
+            "receivedBytes": 18713,
+            "eventCount": 65,
+            "terminalDetected": true
+          }
+        },
+        {
+          "stage": "desktop_finished",
+          "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+          "metrics": {
+            "status": 200,
+            "totalMs": 1939
+          }
+        }
+      ],
+      "correctness": true,
+      "realSyntheticDocxRead": true,
+      "noAutomaticRetries": true,
+      "totalPoints": 9,
+      "totalRmb": 0.0009
+    },
+    {
+      "profile": "deepseek",
+      "model": "deepseek/deepseek-flash",
+      "mode": "thinking",
+      "case": "W",
+      "status": "PASS",
+      "requests": [
+        {
+          "traceId": "69396e13-8191-49bb-8a47-9d50433e4251",
+          "threadId": "e5175560-a948-4733-9f65-cdbfed069199",
+          "requestBytes": 552,
+          "shapeDiff": [
+            {
+              "path": "/previous_response_id",
+              "before": null,
+              "after": {
+                "type": "undefined",
+                "bytes": 0
+              }
+            }
+          ],
+          "budgetUpperRmb": 0.0053,
+          "actualPostCount": 1,
+          "httpStatus": 200,
+          "headersMs": 633,
+          "requestId": "4843c8f5-5f0c-4ae5-a3d6-215933b90d15",
+          "responseBytes": 9036,
+          "firstEventMs": 1,
+          "ttftMs": 1359,
+          "firstToolMs": 1407,
+          "streamMs": 1120,
+          "eventCount": 20,
+          "totalMs": 1753,
+          "responseId": "resp_5622f338964a404a9afb7c20bf08bcdc",
+          "status": "completed",
+          "eventTypes": [
+            "response.created",
+            "response.in_progress",
+            "response.output_item.added",
+            "response.content_part.added",
+            "response.output_text.delta",
+            "response.output_text.done",
+            "response.content_part.done",
+            "response.output_item.done",
+            "response.function_call_arguments.delta",
+            "response.function_call_arguments.done",
+            "response.completed"
+          ],
+          "billingStatus": "SETTLED",
+          "pointsCharged": 4,
+          "costRmb": 0.0004,
+          "supplierCostKnown": false
+        },
+        {
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "threadId": "e5175560-a948-4733-9f65-cdbfed069199",
+          "requestBytes": 1143,
+          "shapeDiff": [
+            {
+              "path": "/",
+              "before": {
+                "type": "object",
+                "bytes": 648
+              },
+              "after": {
+                "type": "object",
+                "bytes": 1143
+              }
+            },
+            {
+              "path": "/previous_response_id",
+              "before": {
+                "type": "string",
+                "bytes": 37
+              },
+              "after": {
+                "type": "undefined",
+                "bytes": 0
+              }
+            },
+            {
+              "path": "/input",
+              "before": {
+                "type": "array",
+                "bytes": 179
+              },
+              "after": {
+                "type": "array",
+                "bytes": 737
+              }
+            },
+            {
+              "path": "/input/0",
+              "before": {
+                "type": "object",
+                "bytes": 177
+              },
+              "after": {
+                "type": "object",
+                "bytes": 144
+              }
+            },
+            {
+              "path": "/input/0/type",
+              "before": {
+                "type": "string",
+                "bytes": 20
+              },
+              "after": null
+            },
+            {
+              "path": "/input/0/call_id",
+              "before": {
+                "type": "string",
+                "bytes": 35
+              },
+              "after": null
+            },
+            {
+              "path": "/input/0/output",
+              "before": {
+                "type": "string",
+                "bytes": 86
+              },
+              "after": null
+            },
+            {
+              "path": "/input/0/role",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 4
+              }
+            },
+            {
+              "path": "/input/0/content",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 116
+              }
+            },
+            {
+              "path": "/input/1",
+              "before": null,
+              "after": {
+                "type": "object",
+                "bytes": 233
+              }
+            },
+            {
+              "path": "/input/1/role",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 9
+              }
+            },
+            {
+              "path": "/input/1/content",
+              "before": null,
+              "after": {
+                "type": "array",
+                "bytes": 99
+              }
+            },
+            {
+              "path": "/input/1/content/0",
+              "before": null,
+              "after": {
+                "type": "object",
+                "bytes": 97
+              }
+            },
+            {
+              "path": "/input/1/content/0/type",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 11
+              }
+            },
+            {
+              "path": "/input/1/content/0/text",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 34
+              }
+            },
+            {
+              "path": "/input/1/content/0/annotations",
+              "before": null,
+              "after": {
+                "type": "array",
+                "bytes": 2
+              }
+            },
+            {
+              "path": "/input/1/content/0/logprobs",
+              "before": null,
+              "after": {
+                "type": "array",
+                "bytes": 2
+              }
+            },
+            {
+              "path": "/input/1/type",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 7
+              }
+            },
+            {
+              "path": "/input/1/id",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 36
+              }
+            },
+            {
+              "path": "/input/1/status",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 9
+              }
+            },
+            {
+              "path": "/input/1/phase",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 10
+              }
+            },
+            {
+              "path": "/input/2",
+              "before": null,
+              "after": {
+                "type": "object",
+                "bytes": 178
+              }
+            },
+            {
+              "path": "/input/2/type",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 13
+              }
+            },
+            {
+              "path": "/input/2/call_id",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 35
+              }
+            },
+            {
+              "path": "/input/2/name",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 14
+              }
+            },
+            {
+              "path": "/input/2/arguments",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 2
+              }
+            },
+            {
+              "path": "/input/2/id",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 36
+              }
+            },
+            {
+              "path": "/input/2/status",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 9
+              }
+            },
+            {
+              "path": "/input/3",
+              "before": null,
+              "after": {
+                "type": "object",
+                "bytes": 177
+              }
+            },
+            {
+              "path": "/input/3/type",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 20
+              }
+            },
+            {
+              "path": "/input/3/call_id",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 35
+              }
+            },
+            {
+              "path": "/input/3/output",
+              "before": null,
+              "after": {
+                "type": "string",
+                "bytes": 86
+              }
+            }
+          ],
+          "budgetUpperRmb": 0.0059,
+          "actualPostCount": 1,
+          "httpStatus": 200,
+          "headersMs": 872,
+          "requestId": "73dd4dc0-c9d1-4cf4-8af9-850e4c6160e0",
+          "responseBytes": 28628,
+          "firstEventMs": 1,
+          "firstReasoningMs": 133,
+          "ttftMs": 1210,
+          "streamMs": 529,
+          "eventCount": 110,
+          "totalMs": 1402,
+          "responseId": "resp_eb6983d7cf7445b098dc0ea47eba1069",
+          "status": "completed",
+          "eventTypes": [
+            "response.created",
+            "response.in_progress",
+            "response.output_item.added",
+            "response.content_part.added",
+            "response.reasoning_text.delta",
+            "response.reasoning_text.done",
+            "response.content_part.done",
+            "response.output_item.done",
+            "response.output_text.delta",
+            "response.output_text.done",
+            "response.completed"
+          ],
+          "firstToolMs": null,
+          "billingStatus": "SETTLED",
+          "pointsCharged": 6,
+          "costRmb": 0.0006,
+          "supplierCostKnown": false
+        }
+      ],
+      "localRequests": [
+        {
+          "requestBytes": 552,
+          "httpStatus": 200,
+          "responseBytes": 9056,
+          "firstEventMs": 0,
+          "ttftMs": 725,
+          "firstToolMs": 773,
+          "streamMs": 1120,
+          "eventCount": 20,
+          "totalMs": 2349
+        },
+        {
+          "requestBytes": 648,
+          "httpStatus": 200,
+          "responseBytes": 28738,
+          "firstEventMs": 0,
+          "firstReasoningMs": 131,
+          "ttftMs": 337,
+          "streamMs": 529,
+          "eventCount": 110,
+          "totalMs": 2270
+        }
+      ],
+      "fixedToolExecutions": 1,
+      "officialDesktop": "NOT_VERIFIED_EXTERNAL_DRIVER",
+      "bridgeStages": [
+        {
+          "stage": "desktop_received",
+          "traceId": "69396e13-8191-49bb-8a47-9d50433e4251",
+          "metrics": {}
+        },
+        {
+          "stage": "desktop_request",
+          "traceId": "69396e13-8191-49bb-8a47-9d50433e4251",
+          "metrics": {
+            "stream": true
+          }
+        },
+        {
+          "stage": "request_normalized",
+          "traceId": "69396e13-8191-49bb-8a47-9d50433e4251",
+          "metrics": {
+            "bodyBytes": 552,
+            "inputItemCount": 1,
+            "toolCount": 1,
+            "cloudForwarded": true,
+            "imageParts": 0,
+            "fileParts": 0,
+            "toolOutputCount": 0
+          }
+        },
+        {
+          "stage": "cloud_request",
+          "traceId": "69396e13-8191-49bb-8a47-9d50433e4251",
+          "metrics": {
+            "bodyBytes": 552,
+            "stream": true,
+            "toolCount": 1
+          }
+        },
+        {
+          "stage": "cloud_headers",
+          "traceId": "69396e13-8191-49bb-8a47-9d50433e4251",
+          "metrics": {
+            "cloudHeadersMs": 895,
+            "status": 200
+          }
+        },
+        {
+          "stage": "stream_first_event",
+          "traceId": "69396e13-8191-49bb-8a47-9d50433e4251",
+          "metrics": {
+            "elapsedMs": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "69396e13-8191-49bb-8a47-9d50433e4251",
+          "metrics": {}
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "69396e13-8191-49bb-8a47-9d50433e4251",
+          "metrics": {}
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "69396e13-8191-49bb-8a47-9d50433e4251",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "69396e13-8191-49bb-8a47-9d50433e4251",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "stream_first_text",
+          "traceId": "69396e13-8191-49bb-8a47-9d50433e4251",
+          "metrics": {
+            "elapsedMs": 725
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "69396e13-8191-49bb-8a47-9d50433e4251",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "69396e13-8191-49bb-8a47-9d50433e4251",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "69396e13-8191-49bb-8a47-9d50433e4251",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "69396e13-8191-49bb-8a47-9d50433e4251",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "69396e13-8191-49bb-8a47-9d50433e4251",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "69396e13-8191-49bb-8a47-9d50433e4251",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "69396e13-8191-49bb-8a47-9d50433e4251",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "69396e13-8191-49bb-8a47-9d50433e4251",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "69396e13-8191-49bb-8a47-9d50433e4251",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "69396e13-8191-49bb-8a47-9d50433e4251",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "69396e13-8191-49bb-8a47-9d50433e4251",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "69396e13-8191-49bb-8a47-9d50433e4251",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "69396e13-8191-49bb-8a47-9d50433e4251",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "69396e13-8191-49bb-8a47-9d50433e4251",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "69396e13-8191-49bb-8a47-9d50433e4251",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "69396e13-8191-49bb-8a47-9d50433e4251",
+          "metrics": {}
+        },
+        {
+          "stage": "stream_finished",
+          "traceId": "69396e13-8191-49bb-8a47-9d50433e4251",
+          "metrics": {
+            "streamMs": 1120,
+            "receivedBytes": 9036,
+            "eventCount": 20,
+            "terminalDetected": true
+          }
+        },
+        {
+          "stage": "desktop_finished",
+          "traceId": "69396e13-8191-49bb-8a47-9d50433e4251",
+          "metrics": {
+            "status": 200,
+            "totalMs": 2347
+          }
+        },
+        {
+          "stage": "desktop_received",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {}
+        },
+        {
+          "stage": "desktop_request",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "stream": true
+          }
+        },
+        {
+          "stage": "request_normalized",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "bodyBytes": 648,
+            "inputItemCount": 4,
+            "toolCount": 1,
+            "cloudForwarded": true,
+            "imageParts": 0,
+            "fileParts": 0,
+            "toolOutputCount": 1
+          }
+        },
+        {
+          "stage": "cloud_request",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "bodyBytes": 1143,
+            "stream": true,
+            "toolCount": 1
+          }
+        },
+        {
+          "stage": "cloud_headers",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "cloudHeadersMs": 1269,
+            "status": 200
+          }
+        },
+        {
+          "stage": "stream_first_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "elapsedMs": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {}
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {}
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 0
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "stream_first_text",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "elapsedMs": 338
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "outputIndex": 1
+          }
+        },
+        {
+          "stage": "cloud_event",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {}
+        },
+        {
+          "stage": "stream_finished",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "streamMs": 529,
+            "receivedBytes": 28628,
+            "eventCount": 110,
+            "terminalDetected": true
+          }
+        },
+        {
+          "stage": "desktop_finished",
+          "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+          "metrics": {
+            "status": 200,
+            "totalMs": 2254
+          }
+        }
+      ],
+      "correctness": true,
+      "realSyntheticDocxRead": true,
+      "noAutomaticRetries": true,
+      "totalPoints": 10,
+      "totalRmb": 0.001
+    }
+  ],
+  "actualPostCount": 4,
+  "totalPoints": 19,
+  "testDeviceRevoked": true,
+  "totalRmb": 0.0019,
+  "timingCaveat": "Initial Word smoke: local first-content offsets start after HTTP headers; use 0.3.3-native-tasks.json for corrected end-to-end timings. These four paid requests are included in production total."
+}

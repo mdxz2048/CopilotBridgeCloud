@@ -1,5 +1,18 @@
 # PRODUCTION_INTEGRATION_MANIFEST
 
+## 2026-10-11 0.3.3 Native Responses platform deployed
+
+PENDING_CONTRACT_VERSION: 2.6.0
+PENDING_OPENAPI_HASH: sha256:59790292af2895672c65c0c770c066a1fcc7b0dd5009fcd6e6a8eac248c3d5f0
+PENDING_GATEWAY_V1_OPENAPI_HASH: sha256:4c72178606ecd71ec047c9618e89eff6581e489f53d80ff54f4035d7152a2d85
+GATEWAY_CURRENT_REVISION: 1.2.0
+GATEWAY_CURRENT_OPENAPI_HASH: sha256:e5b0e179f02f31e9a2402325e73a424e1d872869cd4bd5ce0d2f74bb853aa68d
+PRODUCTION_STATUS: PARTIAL
+
+Native-only routing/provider-specific handling is deployed: API1fc558eec086/Webbad2760d8e82; App0.3.3 release12b72da5-6b24-4acb-bb47-6957bb96c50c public full download/hash READY. App151/API105/contract10/UI6/isolatedPostgres21/build/installer15check PASS. REAL_EXTERNAL_DRIVER DeepSeek N/W/C/T both modes eight rows PASS16POST, plus preliminaryWord4POST; all20trace native/attempt1/SETTLED96points. PARTIAL means GPT eight rows BLOCKED_NO_GPT_CONNECTION, officialGUI/UAC not verified, automatic same-request failover not implemented; it does not mean deployed DeepSeek acceptance failed. Cloud stage timings use Date.now relative values, native transport/runner monotonic. Current evidence is in RELEASE_0_3_3_GATE.md. Historical release records below remain unchanged.
+
+
+
 ## 2026-10-11 0.3.1 patch candidate
 
 Latest-only HTTP426 and official offline ZIP routes are implemented. parallel_tool_calls=false uses a bounded single-call guard, not native DeepSeek serial support; real generated usage remains billable. Current metadata pins the new generated Domain/Gateway hashes; full contract10/10 and API95unit PASS. DB20, final App/Word/upgrade/deployment evidence pending Root. See docs/product/IMPLEMENTATION_0_3_1.md and docs/acceptance/RELEASE_0_3_1_GATE.md. The following 0.3.0 records are historical; old Bridge installers may be pruned under the latest-only policy.

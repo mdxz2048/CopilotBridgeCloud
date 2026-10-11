@@ -1,10 +1,11 @@
 import type { FastifyInstance } from 'fastify';
-import { aiRequests, auditLogs, billingOrders, db, devices, models, providers, rateCards, rateCardVersions, referralRewards, referrals, systemSettings, usageEvents, users, walletTransactions, wallets } from '@bridge/db';
+import { aiRequests, auditLogs, billingOrders, db, devices, models, modelInstances, providers, rateCards, rateCardVersions, referralRewards, referrals, systemSettings, usageEvents, users, walletTransactions, wallets } from '@bridge/db';
 import { and, desc, eq, gte, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { admin, ApiError } from './core.js';
 import { applyWalletChange } from './wallet.js';
 import { qualifyReferralFromPaidOrder } from './referral.js';
+import { isDeepSeekProvider, isOpenAIProvider } from './provider.js';
 
 const uuidParam = (params: unknown) => z.uuid().parse((params as { id: string }).id);
 const decimal = z.string().regex(/^\d+(?:\.\d{1,6})?$/);
@@ -80,8 +81,16 @@ export async function registerV2Admin(app: FastifyInstance) {
   app.post('/api/v1/admin/rate-cards', async (req, reply) => {
     const a = await admin(req);
     const data = z.object({ providerId: z.uuid(), modelId: z.uuid(), billingPolicy: z.enum(['MANAGED_USAGE', 'BYOS_USAGE', 'LOCAL_USAGE']) }).parse(req.body);
-    const [model] = await db.select().from(models).where(and(eq(models.id, data.modelId), eq(models.providerId, data.providerId))).limit(1);
+    const [model] = await db.select().from(models).where(eq(models.id, data.modelId)).limit(1);
     if (!model) throw new ApiError(400, 'MODEL_PROVIDER_MISMATCH');
+    if (model.providerId !== data.providerId) {
+      const [binding] = await db.select({ code: providers.code }).from(modelInstances)
+        .innerJoin(providers, eq(providers.id, modelInstances.providerId))
+        .where(and(eq(modelInstances.modelId, model.id), eq(modelInstances.providerId, data.providerId),
+          eq(modelInstances.providerModelId, model.providerModelId))).limit(1);
+      const family = binding && (isOpenAIProvider(binding.code) ? 'openai' : isDeepSeekProvider(binding.code) ? 'deepseek' : undefined);
+      if (!family || model.publicId.split('/')[0] !== family) throw new ApiError(400, 'MODEL_PROVIDER_MISMATCH');
+    }
     const [card] = await db.insert(rateCards).values(data).onConflictDoNothing().returning();
     if (!card) throw new ApiError(409, 'RATE_CARD_EXISTS');
     await db.insert(auditLogs).values({ actorId: a.user.id, action: 'RATE_CARD_CREATED', targetType: 'RATE_CARD', targetId: card.id });

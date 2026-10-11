@@ -1,0 +1,819 @@
+{
+  "matchedRequests": 20,
+  "nativeOnly": true,
+  "oneUpstreamAttemptEach": true,
+  "entries": [
+    {
+      "traceId": "7637f083-b21d-4b03-9ae1-c0b878c76c05",
+      "statusCode": 200,
+      "protocolMode": "native",
+      "responsesProfile": "deepseek",
+      "terminalStatus": "completed",
+      "stageTimingsMs": {
+        "authDone": 17,
+        "entitlementDone": 43,
+        "historyRecovered": 50,
+        "routingDone": 52,
+        "preflightDone": 389,
+        "reservationDone": 503,
+        "upstreamStarted": 506,
+        "relayFirstEvent": 695,
+        "relayFirstText": 848,
+        "relayToolArgumentsDone": 1035,
+        "settlementDone": 1127,
+        "historySaved": 1148
+      },
+      "counts": {
+        "requestBytes": 550,
+        "inputItemCount": 1,
+        "toolCount": 1,
+        "toolResultBytes": 0,
+        "upstreamAttemptCount": 1
+      },
+      "nativeMetrics": {
+        "requestBytes": 749,
+        "responseBytes": 8877,
+        "eventCount": 21,
+        "upstreamAttemptCount": 1,
+        "upstreamHeadersMs": 184,
+        "upstreamFirstEventMs": 188,
+        "upstreamFirstTextMs": 341,
+        "upstreamFirstToolMs": 513,
+        "upstreamToolArgumentsDoneMs": 526,
+        "upstreamTerminalMs": 527,
+        "serialHeldEventCount": 4,
+        "serialHeldBytes": 816
+      }
+    },
+    {
+      "traceId": "53591b6f-4f59-410b-861e-8db1c9ed3a57",
+      "statusCode": 200,
+      "protocolMode": "native",
+      "responsesProfile": "deepseek",
+      "terminalStatus": "completed",
+      "stageTimingsMs": {
+        "authDone": 103,
+        "entitlementDone": 174,
+        "historyRecovered": 181,
+        "routingDone": 181,
+        "preflightDone": 218,
+        "reservationDone": 260,
+        "upstreamStarted": 263,
+        "relayFirstEvent": 454,
+        "relayFirstText": 919,
+        "settlementDone": 1123,
+        "historySaved": 1134
+      },
+      "counts": {
+        "requestBytes": 1138,
+        "inputItemCount": 4,
+        "toolCount": 1,
+        "toolResultBytes": 88,
+        "upstreamAttemptCount": 1
+      },
+      "nativeMetrics": {
+        "requestBytes": 1337,
+        "responseBytes": 18343,
+        "eventCount": 65,
+        "upstreamAttemptCount": 1,
+        "upstreamHeadersMs": 190,
+        "upstreamFirstEventMs": 191,
+        "upstreamFirstTextMs": 655,
+        "upstreamTerminalMs": 831,
+        "serialHeldEventCount": 0,
+        "serialHeldBytes": 0
+      }
+    },
+    {
+      "traceId": "69396e13-8191-49bb-8a47-9d50433e4251",
+      "statusCode": 200,
+      "protocolMode": "native",
+      "responsesProfile": "deepseek",
+      "terminalStatus": "completed",
+      "stageTimingsMs": {
+        "authDone": 25,
+        "entitlementDone": 68,
+        "historyRecovered": 73,
+        "routingDone": 73,
+        "preflightDone": 133,
+        "reservationDone": 193,
+        "upstreamStarted": 196,
+        "relayFirstEvent": 409,
+        "relayFirstText": 1054,
+        "relayToolArgumentsDone": 1112,
+        "settlementDone": 1340,
+        "historySaved": 1359
+      },
+      "counts": {
+        "requestBytes": 552,
+        "inputItemCount": 1,
+        "toolCount": 1,
+        "toolResultBytes": 0,
+        "upstreamAttemptCount": 1
+      },
+      "nativeMetrics": {
+        "requestBytes": 749,
+        "responseBytes": 8664,
+        "eventCount": 20,
+        "upstreamAttemptCount": 1,
+        "upstreamHeadersMs": 211,
+        "upstreamFirstEventMs": 212,
+        "upstreamFirstTextMs": 858,
+        "upstreamFirstToolMs": 893,
+        "upstreamToolArgumentsDoneMs": 896,
+        "upstreamTerminalMs": 905,
+        "serialHeldEventCount": 4,
+        "serialHeldBytes": 822
+      }
+    },
+    {
+      "traceId": "0bdcf940-0876-42f3-b6d4-495f3a5e8844",
+      "statusCode": 200,
+      "protocolMode": "native",
+      "responsesProfile": "deepseek",
+      "terminalStatus": "completed",
+      "stageTimingsMs": {
+        "authDone": 24,
+        "entitlementDone": 89,
+        "historyRecovered": 91,
+        "routingDone": 91,
+        "preflightDone": 331,
+        "reservationDone": 434,
+        "upstreamStarted": 438,
+        "relayFirstEvent": 631,
+        "relayFirstText": 775,
+        "settlementDone": 1150,
+        "historySaved": 1159
+      },
+      "counts": {
+        "requestBytes": 1143,
+        "inputItemCount": 4,
+        "toolCount": 1,
+        "toolResultBytes": 88,
+        "upstreamAttemptCount": 1
+      },
+      "nativeMetrics": {
+        "requestBytes": 1340,
+        "responseBytes": 28258,
+        "eventCount": 110,
+        "upstreamAttemptCount": 1,
+        "upstreamHeadersMs": 191,
+        "upstreamFirstEventMs": 192,
+        "upstreamFirstTextMs": 336,
+        "upstreamTerminalMs": 683,
+        "serialHeldEventCount": 0,
+        "serialHeldBytes": 0
+      }
+    },
+    {
+      "traceId": "7d449c49-56d0-449e-85cb-632631df6806",
+      "statusCode": 200,
+      "protocolMode": "native",
+      "responsesProfile": "deepseek",
+      "terminalStatus": "completed",
+      "stageTimingsMs": {
+        "authDone": 19,
+        "entitlementDone": 97,
+        "historyRecovered": 118,
+        "routingDone": 130,
+        "preflightDone": 593,
+        "reservationDone": 719,
+        "upstreamStarted": 722,
+        "relayFirstEvent": 922,
+        "relayFirstText": 1256,
+        "settlementDone": 1496,
+        "historySaved": 1513
+      },
+      "counts": {
+        "requestBytes": 241,
+        "inputItemCount": 1,
+        "toolCount": 0,
+        "toolResultBytes": 0,
+        "upstreamAttemptCount": 1
+      },
+      "nativeMetrics": {
+        "requestBytes": 232,
+        "responseBytes": 4962,
+        "eventCount": 11,
+        "upstreamAttemptCount": 1,
+        "upstreamHeadersMs": 195,
+        "upstreamFirstEventMs": 200,
+        "upstreamFirstTextMs": 534,
+        "upstreamTerminalMs": 631,
+        "serialHeldEventCount": 0,
+        "serialHeldBytes": 0
+      }
+    },
+    {
+      "traceId": "9ce66f6d-405e-4cb2-ada9-c8a56c0775c7",
+      "statusCode": 200,
+      "protocolMode": "native",
+      "responsesProfile": "deepseek",
+      "terminalStatus": "completed",
+      "stageTimingsMs": {
+        "authDone": 9,
+        "entitlementDone": 38,
+        "historyRecovered": 41,
+        "routingDone": 41,
+        "preflightDone": 74,
+        "reservationDone": 111,
+        "upstreamStarted": 116,
+        "relayFirstEvent": 307,
+        "relayFirstText": 660,
+        "relayToolArgumentsDone": 819,
+        "settlementDone": 873,
+        "historySaved": 891
+      },
+      "counts": {
+        "requestBytes": 550,
+        "inputItemCount": 1,
+        "toolCount": 1,
+        "toolResultBytes": 0,
+        "upstreamAttemptCount": 1
+      },
+      "nativeMetrics": {
+        "requestBytes": 749,
+        "responseBytes": 8879,
+        "eventCount": 21,
+        "upstreamAttemptCount": 1,
+        "upstreamHeadersMs": 190,
+        "upstreamFirstEventMs": 191,
+        "upstreamFirstTextMs": 544,
+        "upstreamFirstToolMs": 687,
+        "upstreamToolArgumentsDoneMs": 701,
+        "upstreamTerminalMs": 702,
+        "serialHeldEventCount": 4,
+        "serialHeldBytes": 816
+      }
+    },
+    {
+      "traceId": "1b75c43b-9f7e-4524-94e6-10bfbc440e65",
+      "statusCode": 200,
+      "protocolMode": "native",
+      "responsesProfile": "deepseek",
+      "terminalStatus": "completed",
+      "stageTimingsMs": {
+        "authDone": 8,
+        "entitlementDone": 22,
+        "historyRecovered": 24,
+        "routingDone": 24,
+        "preflightDone": 43,
+        "reservationDone": 82,
+        "upstreamStarted": 84,
+        "relayFirstEvent": 280,
+        "relayFirstText": 620,
+        "settlementDone": 894,
+        "historySaved": 923
+      },
+      "counts": {
+        "requestBytes": 1138,
+        "inputItemCount": 4,
+        "toolCount": 1,
+        "toolResultBytes": 88,
+        "upstreamAttemptCount": 1
+      },
+      "nativeMetrics": {
+        "requestBytes": 1337,
+        "responseBytes": 17731,
+        "eventCount": 62,
+        "upstreamAttemptCount": 1,
+        "upstreamHeadersMs": 193,
+        "upstreamFirstEventMs": 195,
+        "upstreamFirstTextMs": 535,
+        "upstreamTerminalMs": 752,
+        "serialHeldEventCount": 0,
+        "serialHeldBytes": 0
+      }
+    },
+    {
+      "traceId": "14707016-ced0-4748-b722-ddc41621dd01",
+      "statusCode": 200,
+      "protocolMode": "native",
+      "responsesProfile": "deepseek",
+      "terminalStatus": "completed",
+      "stageTimingsMs": {
+        "authDone": 11,
+        "entitlementDone": 24,
+        "historyRecovered": 25,
+        "routingDone": 31,
+        "preflightDone": 238,
+        "reservationDone": 282,
+        "upstreamStarted": 286,
+        "relayFirstEvent": 557,
+        "relayFirstText": 1094,
+        "relayToolArgumentsDone": 1254,
+        "settlementDone": 1275,
+        "historySaved": 1280
+      },
+      "counts": {
+        "requestBytes": 884,
+        "inputItemCount": 1,
+        "toolCount": 2,
+        "toolResultBytes": 0,
+        "upstreamAttemptCount": 1
+      },
+      "nativeMetrics": {
+        "requestBytes": 1083,
+        "responseBytes": 9272,
+        "eventCount": 19,
+        "upstreamAttemptCount": 1,
+        "upstreamHeadersMs": 270,
+        "upstreamFirstEventMs": 271,
+        "upstreamFirstTextMs": 808,
+        "upstreamFirstToolMs": 954,
+        "upstreamToolArgumentsDoneMs": 967,
+        "upstreamTerminalMs": 968,
+        "serialHeldEventCount": 4,
+        "serialHeldBytes": 806
+      }
+    },
+    {
+      "traceId": "0be6f7e5-eaeb-4c42-9eae-c3db8c98d825",
+      "statusCode": 200,
+      "protocolMode": "native",
+      "responsesProfile": "deepseek",
+      "terminalStatus": "completed",
+      "stageTimingsMs": {
+        "authDone": 20,
+        "entitlementDone": 43,
+        "historyRecovered": 44,
+        "routingDone": 45,
+        "preflightDone": 72,
+        "reservationDone": 103,
+        "upstreamStarted": 105,
+        "relayFirstEvent": 304,
+        "relayFirstText": 973,
+        "relayToolArgumentsDone": 1184,
+        "settlementDone": 1213,
+        "historySaved": 1221
+      },
+      "counts": {
+        "requestBytes": 1583,
+        "inputItemCount": 4,
+        "toolCount": 2,
+        "toolResultBytes": 216,
+        "upstreamAttemptCount": 1
+      },
+      "nativeMetrics": {
+        "requestBytes": 1782,
+        "responseBytes": 13993,
+        "eventCount": 41,
+        "upstreamAttemptCount": 1,
+        "upstreamHeadersMs": 195,
+        "upstreamFirstEventMs": 199,
+        "upstreamFirstTextMs": 868,
+        "upstreamFirstToolMs": 994,
+        "upstreamToolArgumentsDoneMs": 1077,
+        "upstreamTerminalMs": 1077,
+        "serialHeldEventCount": 25,
+        "serialHeldBytes": 4083
+      }
+    },
+    {
+      "traceId": "e97a6080-15a4-45d2-a70e-e5e5e38c91e0",
+      "statusCode": 200,
+      "protocolMode": "native",
+      "responsesProfile": "deepseek",
+      "terminalStatus": "completed",
+      "stageTimingsMs": {
+        "authDone": 28,
+        "entitlementDone": 84,
+        "historyRecovered": 86,
+        "routingDone": 87,
+        "preflightDone": 242,
+        "reservationDone": 304,
+        "upstreamStarted": 306,
+        "relayFirstEvent": 522,
+        "relayFirstText": 853,
+        "settlementDone": 1273,
+        "historySaved": 1283
+      },
+      "counts": {
+        "requestBytes": 2204,
+        "inputItemCount": 7,
+        "toolCount": 2,
+        "toolResultBytes": 283,
+        "upstreamAttemptCount": 1
+      },
+      "nativeMetrics": {
+        "requestBytes": 2403,
+        "responseBytes": 31402,
+        "eventCount": 119,
+        "upstreamAttemptCount": 1,
+        "upstreamHeadersMs": 212,
+        "upstreamFirstEventMs": 216,
+        "upstreamFirstTextMs": 547,
+        "upstreamTerminalMs": 936,
+        "serialHeldEventCount": 0,
+        "serialHeldBytes": 0
+      }
+    },
+    {
+      "traceId": "85a84129-7d49-4f08-9fc5-7d65017a904d",
+      "statusCode": 200,
+      "protocolMode": "native",
+      "responsesProfile": "deepseek",
+      "terminalStatus": "completed",
+      "stageTimingsMs": {
+        "authDone": 15,
+        "entitlementDone": 28,
+        "historyRecovered": 30,
+        "routingDone": 30,
+        "preflightDone": 245,
+        "reservationDone": 287,
+        "upstreamStarted": 289,
+        "relayFirstEvent": 480,
+        "relayToolArgumentsDone": 856,
+        "settlementDone": 877,
+        "historySaved": 885
+      },
+      "counts": {
+        "requestBytes": 667,
+        "inputItemCount": 1,
+        "toolCount": 1,
+        "toolResultBytes": 0,
+        "upstreamAttemptCount": 1
+      },
+      "nativeMetrics": {
+        "requestBytes": 866,
+        "responseBytes": 10492,
+        "eventCount": 30,
+        "upstreamAttemptCount": 1,
+        "upstreamHeadersMs": 190,
+        "upstreamFirstEventMs": 191,
+        "upstreamFirstToolMs": 462,
+        "upstreamToolArgumentsDoneMs": 567,
+        "upstreamTerminalMs": 567,
+        "serialHeldEventCount": 27,
+        "serialHeldBytes": 4404
+      }
+    },
+    {
+      "traceId": "821334af-7af7-456d-a888-b23bfc49e7da",
+      "statusCode": 200,
+      "protocolMode": "native",
+      "responsesProfile": "deepseek",
+      "terminalStatus": "completed",
+      "stageTimingsMs": {
+        "authDone": 9,
+        "entitlementDone": 23,
+        "historyRecovered": 24,
+        "routingDone": 24,
+        "preflightDone": 45,
+        "reservationDone": 65,
+        "upstreamStarted": 69,
+        "relayFirstEvent": 260,
+        "relayFirstText": 751,
+        "settlementDone": 918,
+        "historySaved": 927
+      },
+      "counts": {
+        "requestBytes": 1025,
+        "inputItemCount": 3,
+        "toolCount": 1,
+        "toolResultBytes": 23,
+        "upstreamAttemptCount": 1
+      },
+      "nativeMetrics": {
+        "requestBytes": 1224,
+        "responseBytes": 9898,
+        "eventCount": 26,
+        "upstreamAttemptCount": 1,
+        "upstreamHeadersMs": 181,
+        "upstreamFirstEventMs": 191,
+        "upstreamFirstTextMs": 682,
+        "upstreamTerminalMs": 820,
+        "serialHeldEventCount": 0,
+        "serialHeldBytes": 0
+      }
+    },
+    {
+      "traceId": "f65d42e0-a9e6-488d-9fec-2eabb2fc378a",
+      "statusCode": 200,
+      "protocolMode": "native",
+      "responsesProfile": "deepseek",
+      "terminalStatus": "completed",
+      "stageTimingsMs": {
+        "authDone": 21,
+        "entitlementDone": 39,
+        "historyRecovered": 42,
+        "routingDone": 42,
+        "preflightDone": 72,
+        "reservationDone": 110,
+        "upstreamStarted": 111,
+        "relayFirstEvent": 304,
+        "relayFirstText": 868,
+        "settlementDone": 1161,
+        "historySaved": 1168
+      },
+      "counts": {
+        "requestBytes": 243,
+        "inputItemCount": 1,
+        "toolCount": 0,
+        "toolResultBytes": 0,
+        "upstreamAttemptCount": 1
+      },
+      "nativeMetrics": {
+        "requestBytes": 232,
+        "responseBytes": 15381,
+        "eventCount": 57,
+        "upstreamAttemptCount": 1,
+        "upstreamHeadersMs": 185,
+        "upstreamFirstEventMs": 193,
+        "upstreamFirstTextMs": 757,
+        "upstreamTerminalMs": 1017,
+        "serialHeldEventCount": 0,
+        "serialHeldBytes": 0
+      }
+    },
+    {
+      "traceId": "3afa7e60-573f-406e-9378-87bfac690f4c",
+      "statusCode": 200,
+      "protocolMode": "native",
+      "responsesProfile": "deepseek",
+      "terminalStatus": "completed",
+      "stageTimingsMs": {
+        "authDone": 9,
+        "entitlementDone": 23,
+        "historyRecovered": 24,
+        "routingDone": 24,
+        "preflightDone": 219,
+        "reservationDone": 245,
+        "upstreamStarted": 246,
+        "relayFirstEvent": 435,
+        "relayFirstText": 779,
+        "relayToolArgumentsDone": 1051,
+        "settlementDone": 1143,
+        "historySaved": 1151
+      },
+      "counts": {
+        "requestBytes": 552,
+        "inputItemCount": 1,
+        "toolCount": 1,
+        "toolResultBytes": 0,
+        "upstreamAttemptCount": 1
+      },
+      "nativeMetrics": {
+        "requestBytes": 749,
+        "responseBytes": 15245,
+        "eventCount": 48,
+        "upstreamAttemptCount": 1,
+        "upstreamHeadersMs": 188,
+        "upstreamFirstEventMs": 189,
+        "upstreamFirstTextMs": 533,
+        "upstreamFirstToolMs": 765,
+        "upstreamToolArgumentsDoneMs": 799,
+        "upstreamTerminalMs": 800,
+        "serialHeldEventCount": 4,
+        "serialHeldBytes": 816
+      }
+    },
+    {
+      "traceId": "97a6d4ae-8ed5-4ba4-9e52-f6189801f701",
+      "statusCode": 200,
+      "protocolMode": "native",
+      "responsesProfile": "deepseek",
+      "terminalStatus": "completed",
+      "stageTimingsMs": {
+        "authDone": 8,
+        "entitlementDone": 65,
+        "historyRecovered": 67,
+        "routingDone": 68,
+        "preflightDone": 99,
+        "reservationDone": 118,
+        "upstreamStarted": 120,
+        "relayFirstEvent": 319,
+        "relayFirstText": 851,
+        "settlementDone": 1283,
+        "historySaved": 1306
+      },
+      "counts": {
+        "requestBytes": 1440,
+        "inputItemCount": 5,
+        "toolCount": 1,
+        "toolResultBytes": 88,
+        "upstreamAttemptCount": 1
+      },
+      "nativeMetrics": {
+        "requestBytes": 1637,
+        "responseBytes": 28885,
+        "eventCount": 112,
+        "upstreamAttemptCount": 1,
+        "upstreamHeadersMs": 196,
+        "upstreamFirstEventMs": 199,
+        "upstreamFirstTextMs": 731,
+        "upstreamTerminalMs": 1088,
+        "serialHeldEventCount": 0,
+        "serialHeldBytes": 0
+      }
+    },
+    {
+      "traceId": "0b6cfa87-6da3-4555-9124-e979c7239859",
+      "statusCode": 200,
+      "protocolMode": "native",
+      "responsesProfile": "deepseek",
+      "terminalStatus": "completed",
+      "stageTimingsMs": {
+        "authDone": 12,
+        "entitlementDone": 37,
+        "historyRecovered": 40,
+        "routingDone": 40,
+        "preflightDone": 59,
+        "reservationDone": 90,
+        "upstreamStarted": 91,
+        "relayFirstEvent": 305,
+        "relayFirstText": 553,
+        "relayToolArgumentsDone": 812,
+        "settlementDone": 848,
+        "historySaved": 855
+      },
+      "counts": {
+        "requestBytes": 886,
+        "inputItemCount": 1,
+        "toolCount": 2,
+        "toolResultBytes": 0,
+        "upstreamAttemptCount": 1
+      },
+      "nativeMetrics": {
+        "requestBytes": 1083,
+        "responseBytes": 15327,
+        "eventCount": 46,
+        "upstreamAttemptCount": 1,
+        "upstreamHeadersMs": 213,
+        "upstreamFirstEventMs": 214,
+        "upstreamFirstTextMs": 461,
+        "upstreamFirstToolMs": 700,
+        "upstreamToolArgumentsDoneMs": 717,
+        "upstreamTerminalMs": 718,
+        "serialHeldEventCount": 4,
+        "serialHeldBytes": 806
+      }
+    },
+    {
+      "traceId": "623e993a-6c9c-4c55-8e29-5f5bb42a9144",
+      "statusCode": 200,
+      "protocolMode": "native",
+      "responsesProfile": "deepseek",
+      "terminalStatus": "completed",
+      "stageTimingsMs": {
+        "authDone": 15,
+        "entitlementDone": 63,
+        "historyRecovered": 69,
+        "routingDone": 69,
+        "preflightDone": 398,
+        "reservationDone": 582,
+        "upstreamStarted": 584,
+        "relayFirstEvent": 789,
+        "relayFirstText": 1256,
+        "relayToolArgumentsDone": 1467,
+        "settlementDone": 1486,
+        "historySaved": 1492
+      },
+      "counts": {
+        "requestBytes": 1732,
+        "inputItemCount": 4,
+        "toolCount": 2,
+        "toolResultBytes": 216,
+        "upstreamAttemptCount": 1
+      },
+      "nativeMetrics": {
+        "requestBytes": 1929,
+        "responseBytes": 13724,
+        "eventCount": 40,
+        "upstreamAttemptCount": 1,
+        "upstreamHeadersMs": 193,
+        "upstreamFirstEventMs": 205,
+        "upstreamFirstTextMs": 672,
+        "upstreamFirstToolMs": 865,
+        "upstreamToolArgumentsDoneMs": 881,
+        "upstreamTerminalMs": 882,
+        "serialHeldEventCount": 25,
+        "serialHeldBytes": 4083
+      }
+    },
+    {
+      "traceId": "438f5d59-1d88-4d5d-9911-dd8e4678bc35",
+      "statusCode": 200,
+      "protocolMode": "native",
+      "responsesProfile": "deepseek",
+      "terminalStatus": "completed",
+      "stageTimingsMs": {
+        "authDone": 10,
+        "entitlementDone": 30,
+        "historyRecovered": 31,
+        "routingDone": 31,
+        "preflightDone": 48,
+        "reservationDone": 64,
+        "upstreamStarted": 65,
+        "relayFirstEvent": 252,
+        "relayFirstText": 615,
+        "settlementDone": 960,
+        "historySaved": 966
+      },
+      "counts": {
+        "requestBytes": 2363,
+        "inputItemCount": 7,
+        "toolCount": 2,
+        "toolResultBytes": 283,
+        "upstreamAttemptCount": 1
+      },
+      "nativeMetrics": {
+        "requestBytes": 2560,
+        "responseBytes": 26245,
+        "eventCount": 96,
+        "upstreamAttemptCount": 1,
+        "upstreamHeadersMs": 187,
+        "upstreamFirstEventMs": 187,
+        "upstreamFirstTextMs": 550,
+        "upstreamTerminalMs": 876,
+        "serialHeldEventCount": 0,
+        "serialHeldBytes": 0
+      }
+    },
+    {
+      "traceId": "9ae23ecd-cbf9-4a0e-9ff4-d8fd924942fb",
+      "statusCode": 200,
+      "protocolMode": "native",
+      "responsesProfile": "deepseek",
+      "terminalStatus": "completed",
+      "stageTimingsMs": {
+        "authDone": 11,
+        "entitlementDone": 35,
+        "historyRecovered": 36,
+        "routingDone": 36,
+        "preflightDone": 52,
+        "reservationDone": 69,
+        "upstreamStarted": 70,
+        "relayFirstEvent": 274,
+        "relayFirstText": 685,
+        "relayToolArgumentsDone": 1176,
+        "settlementDone": 1195,
+        "historySaved": 1200
+      },
+      "counts": {
+        "requestBytes": 669,
+        "inputItemCount": 1,
+        "toolCount": 1,
+        "toolResultBytes": 0,
+        "upstreamAttemptCount": 1
+      },
+      "nativeMetrics": {
+        "requestBytes": 866,
+        "responseBytes": 25463,
+        "eventCount": 96,
+        "upstreamAttemptCount": 1,
+        "upstreamHeadersMs": 199,
+        "upstreamFirstEventMs": 204,
+        "upstreamFirstTextMs": 614,
+        "upstreamFirstToolMs": 1007,
+        "upstreamToolArgumentsDoneMs": 1104,
+        "upstreamTerminalMs": 1105,
+        "serialHeldEventCount": 27,
+        "serialHeldBytes": 4412
+      }
+    },
+    {
+      "traceId": "34997849-e965-4c86-b201-d3a5919f4ec8",
+      "statusCode": 200,
+      "protocolMode": "native",
+      "responsesProfile": "deepseek",
+      "terminalStatus": "completed",
+      "stageTimingsMs": {
+        "authDone": 10,
+        "entitlementDone": 34,
+        "historyRecovered": 43,
+        "routingDone": 49,
+        "preflightDone": 276,
+        "reservationDone": 293,
+        "upstreamStarted": 294,
+        "relayFirstEvent": 483,
+        "relayFirstText": 800,
+        "settlementDone": 949,
+        "historySaved": 953
+      },
+      "counts": {
+        "requestBytes": 1478,
+        "inputItemCount": 4,
+        "toolCount": 1,
+        "toolResultBytes": 23,
+        "upstreamAttemptCount": 1
+      },
+      "nativeMetrics": {
+        "requestBytes": 1675,
+        "responseBytes": 13479,
+        "eventCount": 41,
+        "upstreamAttemptCount": 1,
+        "upstreamHeadersMs": 188,
+        "upstreamFirstEventMs": 188,
+        "upstreamFirstTextMs": 505,
+        "upstreamTerminalMs": 640,
+        "serialHeldEventCount": 0,
+        "serialHeldBytes": 0
+      }
+    }
+  ],
+  "totalPlatformPoints": 96,
+  "totalPlatformRmb": 0.0096,
+  "supplierCostKnown": false,
+  "passed": true
+}
