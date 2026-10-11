@@ -1,15 +1,20 @@
 # PRODUCTION_INTEGRATION_MANIFEST
 
+## 2026-10-11 0.3.1 patch candidate
+
+Latest-only HTTP426 and official offline ZIP routes are implemented. parallel_tool_calls=false uses a bounded single-call guard, not native DeepSeek serial support; real generated usage remains billable. Current metadata pins the new generated Domain/Gateway hashes; full contract10/10 and API95unit PASS. DB20, final App/Word/upgrade/deployment evidence pending Root. See docs/product/IMPLEMENTATION_0_3_1.md and docs/acceptance/RELEASE_0_3_1_GATE.md. The following 0.3.0 records are historical; old Bridge installers may be pruned under the latest-only policy.
+
+
 ## 2026-10-11 0.3.0 / Domain 2.5.0 deployed release
 
 This section supersedes the historical deployment assumptions below. Source includes DeepSeek native Responses, logical model instances, encrypted stateless history recovery and capability/error diagnostics. API/Web and migration0010 are deployed; real normal/thinking tool loops, audited billing review, Admin UI and public automatic update download passed.
 
 ```text
 PENDING_CONTRACT_VERSION: 2.5.0
-PENDING_OPENAPI_HASH: sha256:20269272a7f5e429d73036f96b0fad3dc4e89f126e4bb02f10e40bdc9a8ee6a8
+PENDING_OPENAPI_HASH: sha256:01d5d70e80919a88e21a3ae38a8bda027ff0e2e44639625a3ff47b1c254d2be8
 PENDING_GATEWAY_V1_OPENAPI_HASH: sha256:4c72178606ecd71ec047c9618e89eff6581e489f53d80ff54f4035d7152a2d85
 GATEWAY_CURRENT_REVISION: 1.1.0
-GATEWAY_CURRENT_OPENAPI_HASH: sha256:706ee93f9223bb676c0b38cf3736d6c8a52306e09a085c2168901c8e95cb3619
+GATEWAY_CURRENT_OPENAPI_HASH: sha256:e522763e7e3cea1a9edc4c9d3aa5b06c047697847b2d9165efef2168c21991f7
 APP_RELEASE: 0.3.0 published; 96c4ab92-b904-48d3-9a11-4015cbb3c422
 PRODUCTION_STATUS: RELEASED (core production acceptance and automatic download READY; final Git commit/image record by Root)
 ```

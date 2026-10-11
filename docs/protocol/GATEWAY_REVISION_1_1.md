@@ -39,7 +39,7 @@
 
 Cloud Agent 实时核对 [DeepSeek Responses](https://api-docs.deepseek.com/guides/responses_api/) 与 [Thinking mode](https://api-docs.deepseek.com/guides/thinking_mode/)：当前 deepseek-flash/deepseek-v4-pro 有原生 Responses；Flash 支持视觉，两者有工具/思考。Phase 0 记录“当前源码无原生路径”仍正确，但其“未验证是否有原生服务”现已被官网证据更新。模型能力上线还须真实 probe，不由目录发现直接打开。
 
-DeepSeek Responses 是 stateless：发送完整 input，不支持上游 previous_response_id/conversation。Cloud 先按安全归属恢复前序历史，再展开 input 并删除上游不支持的引用字段。parallel_tool_calls 在上游被忽略且并行默认 true；false 必须拒绝或选支持约束的实例，不能假称遵守。原生 SSE 没有 `[DONE]`，以 response.completed/incomplete/failed 终止；不得追加破坏原生协议的终止标记。原生失败不静默转换重发可能已收费的请求。
+DeepSeek Responses 是 stateless：发送完整 input，不支持上游 previous_response_id/conversation。Cloud 先按安全归属恢复前序历史，再展开 input 并删除上游不支持的引用字段。parallel_tool_calls 在上游被忽略且并行默认 true；0.3.1保留false并采用单call安全guard，不能假称上游原生遵守：附instructions、SSE缓冲<=8MiB，确认最多1执行call才释放，>1failed不释放工具，实际usage仍结算。原生 SSE 没有 `[DONE]`，以 response.completed/incomplete/failed 终止；不得追加破坏原生协议的终止标记。原生失败不静默转换重发可能已收费的请求。
 
 生产真实补充：原生reasoning可能同时带可用plaintext content、summary[]和opaque encrypted_content；有可用明文时整体保留opaque字段续接，不能一律拒encrypted。只有加密/摘要、没有可用明文的推理历史才明确422。thinking模式不支持tool_choice=required或指定function/custom，Cloud在上游前明确422并建议normal或auto；真实normal named200、thinking auto200。
 
@@ -97,3 +97,7 @@ Local 与 Cloud 共同维护受限响应映射，key 至少隔离账号、设备
 ## 合同验收
 
 Cloud/App 对同一 fixture 核对请求字段、JSON output、完整SSE序列、tools + thinking、previous response、取消、unknown字段原生保留/转换拒绝；确认两端schema和生成OpenAPI/hash一致。内部 E2E 补充真实模型和官方客户端版本，公开仓库仅提交匿名fixture和摘要。
+
+## 0.3.1 latest-only补丁
+
+HTTP426 CLIENT_UPGRADE_REQUIRED：device.appVersion须等最新published stable windows/x64，client/config min=latest，管理员网站不受限。公开official-client/windows与固定ZIP download路由，原样MSIX/license，详见[0.3.1方案](../product/IMPLEMENTATION_0_3_1.md)。新Domain hash01d5…d2be8/Gateway e522…991f7已同步；旧0.3.0hash为历史。

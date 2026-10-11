@@ -3,7 +3,10 @@ import type { CanonicalRequest, CanonicalResult } from './provider.js';
 
 export function validateNativeRequest(request: CanonicalRequest) {
   if (request.background === true || request.prompt || request.conversation || request.context_management) throw new ApiError(422,'UNSUPPORTED_CAPABILITY','此资源不支持后台、服务器会话、模板或自动压缩。');
-  if (request.parallel_tool_calls === false && request.tools?.length) throw new ApiError(422,'UNSUPPORTED_CAPABILITY','DeepSeek 不支持关闭并行工具调用。');
+  if (request.parallel_tool_calls === false && request.tools?.length) {
+    const instruction='[Bridge serial-tool policy] Emit at most one function_call or custom_tool_call per response. Wait for its result before choosing another tool. Never emit multiple tool calls in one response.';
+    if(!String(request.instructions??'').includes(instruction))request.instructions=[request.instructions,instruction].filter(Boolean).join('\n');
+  }
   const supportedItems = new Set(['message','function_call','function_call_output','custom_tool_call','custom_tool_call_output','reasoning','web_search_call']);
   const checkParts = (parts: unknown) => {
     if (!Array.isArray(parts)) return;
@@ -68,9 +71,21 @@ export async function executeNativeResponses(baseUrl: string, key: string, reque
     ...(maxOutputTokens ? { max_output_tokens: Math.min(maxOutputTokens, typeof request.max_output_tokens === 'number' ? request.max_output_tokens : maxOutputTokens) } : {}) };
   const response = await fetch(`${baseUrl.replace(/\/$/,'')}/responses`, { method:'POST', headers:{ Authorization:`Bearer ${key}`, 'Content-Type':'application/json' }, body:JSON.stringify(body), signal });
   if (!response.ok) { await response.body?.cancel(); throw providerHttpFailure(response.status); }
-  if (!request.stream) return nativeResult(await response.json() as Record<string, unknown>);
+  const serial=request.parallel_tool_calls===false;
+  const observedCalls=new Set<string>();
+  const callSlots=new Map<string,string>();
+  const enforceSerial=(result:CanonicalResult)=>{
+    if(serial && (observedCalls.size>1 || result.output.filter(item=>['function_call','custom_tool_call'].includes(String(item.type))).length>1)) {
+      result.output=[];result.status='failed';result.nativeTerminalEvent='response.failed';
+      result.nativeResponse={...result.nativeResponse,status:'failed',output:[],error:{code:'UNSUPPORTED_CAPABILITY',message:'上游生成多个工具调用，Bridge 已阻止执行以保持串行安全。请重发请求。'}};
+      result.nativeTerminalData={...result.nativeTerminalData,type:'response.failed',response:result.nativeResponse};
+    }
+    return result;
+  };
+  if (!request.stream) return enforceSerial(nativeResult(await response.json() as Record<string, unknown>));
   if (!response.body) throw new ApiError(502,'PROTOCOL_INVALID');
   const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = ''; let terminal: CanonicalResult | undefined;
+  const held:Array<{type:string;event:Record<string,unknown>}>=[];let heldBytes=0;
   const consume = async (block: string) => {
     const lines = block.split(/\r?\n/);
     const data = lines.filter(l => l.startsWith('data:')).map(l => l.slice(5).trimStart()).join('\n');
@@ -79,12 +94,24 @@ export async function executeNativeResponses(baseUrl: string, key: string, reque
     try { event = JSON.parse(data); } catch { throw new ApiError(502,'PROTOCOL_INVALID','上游流格式无效。'); }
     const type = typeof event.type === 'string' ? event.type : lines.find(l => l.startsWith('event:'))?.slice(6).trim();
     if (!type) throw new ApiError(502,'PROTOCOL_INVALID');
+    const item=event.item as Record<string,unknown>|undefined;
+    if(serial && item && ['function_call','custom_tool_call'].includes(String(item.type))) {
+      // call_id can be blank in added and assigned in done; identify the output slot.
+      const aliases=[typeof item.id==='string'&&item.id?`item:${item.id}`:null,typeof item.call_id==='string'&&item.call_id?`call:${item.call_id}`:null].filter((id):id is string=>!!id);
+      const identity=Number.isSafeInteger(event.output_index)?`index:${event.output_index}`:aliases.map(id=>callSlots.get(id)).find(Boolean)??aliases[0];
+      if(identity){for(const alias of aliases){const prior=callSlots.get(alias);if(prior && prior!==identity)observedCalls.delete(prior);callSlots.set(alias,identity);}observedCalls.add(identity);}
+    }
     if (terminal) throw new ApiError(502,'PROTOCOL_INVALID','上游终止事件之后仍发送数据。');
     if (['response.completed','response.incomplete','response.failed'].includes(type)) {
       if (!event.response || typeof event.response !== 'object') throw new ApiError(502,'PROTOCOL_INVALID');
       terminal = nativeResult(event.response as Record<string, unknown>, type); terminal.nativeTerminalData=event;
       // Withhold the terminal until the existing billing transaction settles.
-    } else if (onEvent) await onEvent(type, event);
+    } else if (onEvent) {
+      if(serial && type!=='response.created' && type!=='response.in_progress') {
+        heldBytes+=Buffer.byteLength(data);if(heldBytes>8*1024*1024)throw new ApiError(502,'PROTOCOL_INVALID','上游串行缓冲超过安全大小限制。');
+        held.push({type,event});
+      }else await onEvent(type,serial && event.response && typeof event.response==='object'?{...event,response:{...event.response as Record<string,unknown>,output:[]}}:event);
+    }
   };
   try {
     while (true) {
@@ -96,6 +123,8 @@ export async function executeNativeResponses(baseUrl: string, key: string, reque
     }
     if (buffer.trim()) await consume(buffer);
     if (!terminal) throw new ApiError(502,'PROTOCOL_INVALID','上游流未正常终止。');
-    return terminal;
+    const checked=enforceSerial(terminal);
+    if(onEvent && checked.status!=='failed')for(const entry of held)await onEvent(entry.type,entry.event);
+    return checked;
   } finally { await reader.cancel().catch(() => {}); reader.releaseLock(); }
 }

@@ -11,6 +11,7 @@ import { moneyPolicy } from './money-policy.js';
 import { walletSummary } from './wallet.js';
 import { requestContext } from './request-log.js';
 import { modelCandidates, eligible, ensureLegacyInstance } from './instance-router.js';
+import { latestClientRelease, requireCurrentClient } from './latest-release.js';
 
 export { ApiError };
 export type Actor = { user: typeof users.$inferSelect; device?: typeof devices.$inferSelect; web: boolean };
@@ -48,6 +49,7 @@ export async function actor(req: FastifyRequest, desktop = false): Promise<Actor
   if (desktop) {
     const deviceUuid = req.headers['x-device-id'];
     if (!device || typeof deviceUuid !== 'string' || device.deviceId !== deviceUuid) throw new ApiError(403, 'DEVICE_NOT_REGISTERED');
+    requireCurrentClient(device.appVersion,(await latestClientRelease())?.version);
   }
   requestContext(req, { userId: user.id, deviceId: device?.id });
   return { user, device, web: !bearer };

@@ -362,7 +362,8 @@
                   "PROVIDER_AUTH_REQUIRED",
                   "PROVIDER_USAGE_UNAVAILABLE",
                   "CONVERSATION_NOT_FOUND",
-                  "CONVERSATION_MODE_CHANGED"
+                  "CONVERSATION_MODE_CHANGED",
+                  "CLIENT_UPGRADE_REQUIRED"
                 ]
               },
               "message": {
@@ -1662,7 +1663,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -1724,7 +1726,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -1786,7 +1789,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -1848,7 +1852,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -1964,7 +1969,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -2026,7 +2032,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -2088,7 +2095,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -2150,7 +2158,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -2260,7 +2269,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -2322,7 +2332,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -2384,7 +2395,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -2446,7 +2458,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -2569,7 +2582,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -2631,7 +2645,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -2693,7 +2708,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -2755,7 +2771,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -2949,7 +2966,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -3011,7 +3029,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -3073,7 +3092,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -3135,7 +3155,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -3292,7 +3313,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -3354,7 +3376,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -3416,7 +3439,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -3478,7 +3502,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -3643,7 +3668,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -3705,7 +3731,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -3767,7 +3794,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -3829,7 +3857,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -4214,7 +4243,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -4276,7 +4306,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -4338,7 +4369,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -4400,7 +4432,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -4617,7 +4650,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -4679,7 +4713,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -4741,7 +4776,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -4803,7 +4839,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -4944,7 +4981,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -5006,7 +5044,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -5068,7 +5107,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -5130,7 +5170,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -5277,7 +5318,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -5339,7 +5381,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -5401,7 +5444,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -5463,7 +5507,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -5570,7 +5615,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -5632,7 +5678,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -5694,7 +5741,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -5756,7 +5804,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -5892,7 +5941,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -5954,7 +6004,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -6016,7 +6067,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -6078,7 +6130,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -6264,7 +6317,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -6326,7 +6380,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -6388,7 +6443,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -6450,7 +6506,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -6947,7 +7004,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -7009,7 +7067,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -7071,7 +7130,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {
@@ -7133,7 +7193,8 @@
                             "PROVIDER_AUTH_REQUIRED",
                             "PROVIDER_USAGE_UNAVAILABLE",
                             "CONVERSATION_NOT_FOUND",
-                            "CONVERSATION_MODE_CHANGED"
+                            "CONVERSATION_MODE_CHANGED",
+                            "CLIENT_UPGRADE_REQUIRED"
                           ]
                         },
                         "message": {

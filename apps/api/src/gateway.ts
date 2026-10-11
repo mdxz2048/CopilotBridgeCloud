@@ -74,7 +74,6 @@ export async function registerGateway(app: FastifyInstance) {
     const reasoning = nativeReasoning(body, selected.instance.capabilities.reasoning === true);
     const resolvedMode = reasoning.effort === 'none' || (!native && !reasoning.effort) ? 'normal' : 'thinking';
     if (sessionHint?.state.resolvedMode && sessionHint.state.resolvedMode !== resolvedMode) throw new ApiError(409,'CONVERSATION_MODE_CHANGED','当前会话的思考模式已改变，请新建会话。');
-    if (native && body.parallel_tool_calls === false && body.tools?.length) throw new ApiError(422,'UNSUPPORTED_CAPABILITY','DeepSeek 不支持关闭并行工具调用。');
     requestContext(req, { providerId: ent.provider.id, instanceId:selected.instance.id, inputProtocol:'responses', outboundProtocol:native?'responses':'chat_completions', protocolMode:native?'native':'translated', reasoningMode:resolvedMode, stream:body.stream, ...compatibility });
     const ratePolicy = await currentRatePolicy(a.user.id);
     const mode = ent.usage.moneyEnabled ? 'ENFORCED' : currentBillingMode();

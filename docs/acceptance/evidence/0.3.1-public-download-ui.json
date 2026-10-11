@@ -1,0 +1,32 @@
+{
+  "result": "PASS",
+  "level": "REAL_PUBLIC_WEBSITE",
+  "url": "https://ai.mddxz.top/download#chatgpt",
+  "browser": "155.0.4283.45",
+  "manifest": {
+    "version": "26.1007.2314.0",
+    "arch": "x64",
+    "sha256": "51b8bb192e6dee8da92421605d59b61b4bd424678ac36676a7df95b02bf1d88d",
+    "size": 944698333,
+    "filename": "ChatGPT-Windows-x64.zip",
+    "downloadUrl": "https://ai.mddxz.top/api/v1/official-client/files/ChatGPT-Windows-x64.zip"
+  },
+  "officialHead": {
+    "status": 200,
+    "contentLength": 944698333,
+    "contentType": "application/zip"
+  },
+  "bridgeLink": "https://ai.mddxz.top/api/v1/releases/files/55b65673-0d6e-4283-af85-9bcbacbaa9ba",
+  "widths": [
+    {
+      "width": 1280,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "overflow": false
+    }
+  ],
+  "anchorReachable": true,
+  "noInstallerExecuted": true
+}

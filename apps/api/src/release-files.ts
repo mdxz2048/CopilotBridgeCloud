@@ -11,11 +11,12 @@ import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { admin, ApiError } from './core.js';
 import { config } from './config.js';
+import { registerOfficialClient } from './official-client.js';
 
 const storage = resolve(process.env.RELEASE_STORAGE_DIR ?? join(homedir(), '.bridge-cloud', 'releases'));
 const maxBytes = 512 * 1024 * 1024;
 const metadata = z.object({
-  version: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/),
+  version: z.string().regex(/^\d+\.\d+\.\d+$/).max(64),
   channel: z.enum(['stable', 'beta']),
   notes: z.string().max(4000),
 });
@@ -40,6 +41,7 @@ export function releaseInspector(limit = maxBytes) {
 }
 
 export function registerReleaseFiles(app: FastifyInstance) {
+  registerOfficialClient(app);
   app.addContentTypeParser('application/octet-stream', (req, payload, done) => done(null, payload));
 
   app.post('/api/v1/admin/releases/upload', { bodyLimit: maxBytes, onRequest: async req => { await admin(req); } }, async (req, reply) => {

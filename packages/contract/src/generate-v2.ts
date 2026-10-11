@@ -125,6 +125,8 @@ route('post', '/v1/responses', responseV2, ResponseRequestSchema);
 route('get','/api/v1/admin/insights',adminResponse);
 route('get','/api/v1/admin/users/{id}/activity',adminResponse);
 route('get','/api/v1/admin/usage-events/review',adminResponse);
+route('get','/api/v1/official-client/windows',generic);
+route('get','/api/v1/official-client/files/{filename}',generic);
 route('post','/api/v1/admin/usage-events/{id}/review',adminResponse,z.object({resolution:z.literal('platform_waived'),reason:z.string().trim().min(1).max(500)}));
 route('get','/api/v1/admin/model-instances',adminResponse);
 route('post','/api/v1/admin/model-instances',adminResponse,z.object({modelId:z.uuid(),providerId:z.uuid(),providerModelId:z.string(),priority:z.number().int().optional(),weight:z.number().int().min(0).optional()}));

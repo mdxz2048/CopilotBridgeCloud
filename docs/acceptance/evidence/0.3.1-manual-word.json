@@ -1,0 +1,177 @@
+{
+  "date": "2026-10-11T06:04:47.629Z",
+  "appVersion": "0.3.1",
+  "model": "deepseek/deepseek-flash",
+  "flow": "Fixed application tool reads real synthetic DOCX word/document.xml; native JSON Cloud tool loop",
+  "officialDesktopWordDragDrop": "BLOCKED_HOST_TOOL_POLICY_NOT_VERIFIED",
+  "documentBytes": 844,
+  "turns": [
+    {
+      "mode": "normal",
+      "parallelToolCalls": false,
+      "requests": [
+        {
+          "httpStatus": 200,
+          "status": "completed",
+          "responseId": "resp_c8a2234b3fae4da29c2100ef8f7c02b8",
+          "requestId": "ae7a3e5c-5add-472d-a3ea-4529cb8173c2",
+          "instanceId": null,
+          "protocolMode": null,
+          "parallelToolCalls": false,
+          "outputTypes": [
+            "message",
+            "function_call"
+          ],
+          "inputTokens": 346,
+          "outputTokens": 31,
+          "reasoningTokens": 0
+        },
+        {
+          "httpStatus": 200,
+          "status": "completed",
+          "responseId": "resp_ef0564a0e49d4da2a7fb8dbbde1de542",
+          "requestId": "d32a1f63-9a34-4382-97d6-899ef028ccb1",
+          "instanceId": null,
+          "protocolMode": null,
+          "parallelToolCalls": false,
+          "outputTypes": [
+            "message"
+          ],
+          "inputTokens": 426,
+          "outputTokens": 69,
+          "reasoningTokens": 0
+        }
+      ],
+      "settlements": [
+        {
+          "requestId": "ae7a3e5c-5add-472d-a3ea-4529cb8173c2",
+          "status": "COMPLETED",
+          "billingStatus": "SETTLED",
+          "pointsCharged": 5,
+          "costRmb": 0.0005,
+          "reasoningTokens": 0
+        },
+        {
+          "requestId": "d32a1f63-9a34-4382-97d6-899ef028ccb1",
+          "status": "COMPLETED",
+          "billingStatus": "SETTLED",
+          "pointsCharged": 5,
+          "costRmb": 0.0005,
+          "reasoningTokens": 0
+        }
+      ],
+      "reasoningShape": [],
+      "hiddenMarkerPresent": true,
+      "answersCorrect": true,
+      "fixedDocxReadExecuted": true,
+      "passed": true,
+      "testDeviceRevoked": true
+    },
+    {
+      "mode": "thinking",
+      "parallelToolCalls": false,
+      "requests": [
+        {
+          "httpStatus": 200,
+          "status": "completed",
+          "responseId": "resp_936cdc5e33714e8dbd20ebb28ebefb24",
+          "requestId": "310a86d3-76d9-4e3c-b7a0-ac4721735ef2",
+          "instanceId": null,
+          "protocolMode": null,
+          "parallelToolCalls": false,
+          "outputTypes": [
+            "reasoning",
+            "function_call"
+          ],
+          "inputTokens": 371,
+          "outputTokens": 32,
+          "reasoningTokens": 8
+        },
+        {
+          "httpStatus": 200,
+          "status": "completed",
+          "responseId": "resp_8e27e33d820043d3a593d393f9139549",
+          "requestId": "dbb2002d-76c2-4542-83f7-bbc2d3df68fc",
+          "instanceId": null,
+          "protocolMode": null,
+          "parallelToolCalls": false,
+          "outputTypes": [
+            "reasoning",
+            "message"
+          ],
+          "inputTokens": 452,
+          "outputTokens": 78,
+          "reasoningTokens": 33
+        }
+      ],
+      "settlements": [
+        {
+          "requestId": "310a86d3-76d9-4e3c-b7a0-ac4721735ef2",
+          "status": "COMPLETED",
+          "billingStatus": "SETTLED",
+          "pointsCharged": 5,
+          "costRmb": 0.0005,
+          "reasoningTokens": 8
+        },
+        {
+          "requestId": "dbb2002d-76c2-4542-83f7-bbc2d3df68fc",
+          "status": "COMPLETED",
+          "billingStatus": "SETTLED",
+          "pointsCharged": 6,
+          "costRmb": 0.0006,
+          "reasoningTokens": 33
+        }
+      ],
+      "reasoningShape": [
+        {
+          "keys": [
+            "content",
+            "encrypted_content",
+            "id",
+            "status",
+            "summary",
+            "type"
+          ],
+          "contentLength": 1,
+          "encryptedContentPresent": true
+        }
+      ],
+      "hiddenMarkerPresent": true,
+      "answersCorrect": true,
+      "fixedDocxReadExecuted": true,
+      "passed": true,
+      "testDeviceRevoked": true
+    }
+  ],
+  "passed": true,
+  "databaseVerification": [
+    {
+      "id": "ae7a3e5c-5add-472d-a3ea-4529cb8173c2",
+      "instance_id": "82a3dd2e-f2ec-4ba9-9a83-f91f778fb990",
+      "protocol_mode": "native",
+      "billing_status": "SETTLED",
+      "points_charged": 5
+    },
+    {
+      "id": "d32a1f63-9a34-4382-97d6-899ef028ccb1",
+      "instance_id": "82a3dd2e-f2ec-4ba9-9a83-f91f778fb990",
+      "protocol_mode": "native",
+      "billing_status": "SETTLED",
+      "points_charged": 5
+    },
+    {
+      "id": "310a86d3-76d9-4e3c-b7a0-ac4721735ef2",
+      "instance_id": "82a3dd2e-f2ec-4ba9-9a83-f91f778fb990",
+      "protocol_mode": "native",
+      "billing_status": "SETTLED",
+      "points_charged": 5
+    },
+    {
+      "id": "dbb2002d-76c2-4542-83f7-bbc2d3df68fc",
+      "instance_id": "82a3dd2e-f2ec-4ba9-9a83-f91f778fb990",
+      "protocol_mode": "native",
+      "billing_status": "SETTLED",
+      "points_charged": 6
+    }
+  ]
+}

@@ -39,7 +39,7 @@ describe('native Responses protocol',()=>{
     expect(nativeReasoning({model:'x',input:'',reasoning:{mode:'normal',effort:'max'}})).toEqual({effort:'none'});
     expect(()=>validateNativeRequest({model:'x',input:[{role:'user',content:[{type:'input_file',file_data:'fixture'}]}]})).toThrow();
     expect(()=>validateNativeRequest({model:'x',input:[{type:'reasoning',encrypted_content:'fixture'}]})).toThrow();
-    expect(()=>validateNativeRequest({model:'x',input:'',parallel_tool_calls:false,tools:[{type:'function',name:'probe'}]})).toThrow();
+    expect(()=>validateNativeRequest({model:'x',input:'',parallel_tool_calls:false,tools:[{type:'function',name:'probe'}]})).not.toThrow();
     expect(validateNativeRequest({model:'x',input:'',metadata:{fixture:true},tools:[{type:'web_search'}]})).toEqual({ignoredFields:['metadata'],ignoredToolTypes:['web_search']});
   });
   it('separates upstream auth, quota, rate and invalid protocol without exposing provider bodies',()=>{
@@ -61,5 +61,27 @@ describe('native Responses protocol',()=>{
     for(const reasoning of [{mode:'thinking'},{mode:'auto'},{}]) for(const tool_choice of ['required',{type:'function',name:'probe'}]) expect(()=>validateNativeRequest({model:'x',input:'fixture',reasoning,tool_choice})).toThrow('思考模式不支持强制指定工具');
     expect(()=>validateNativeRequest({model:'x',input:'fixture',reasoning:{mode:'normal'},tool_choice:{type:'function',name:'probe'}})).not.toThrow();
     expect(()=>validateNativeRequest({model:'x',input:'fixture',reasoning:{mode:'thinking'},tool_choice:'auto'})).not.toThrow();
+  });
+  it('withholds all tool events on a serial violation while retaining actual billable usage',async()=>{
+    const multi={...terminal,output:[terminal.output[1],{...terminal.output[1],id:'fc_2',call_id:'call_2'}]};
+    const wire=[{type:'response.created',response:{id:'upstream'}},{type:'response.output_item.added',item:multi.output[0]},{type:'response.output_item.added',item:multi.output[1]},{type:'response.completed',response:multi}].map(e=>`data: ${JSON.stringify(e)}\n\n`).join('');
+    vi.stubGlobal('fetch',vi.fn(async(_url,init)=>{const body=JSON.parse(init.body);expect(body.parallel_tool_calls).toBe(false);expect(body.instructions).toContain('at most one');return new Response(wire);}));
+    const events:string[]=[];const result=await executeNativeResponses('https://api.deepseek.com','fixture',{model:'x',input:'fixture',tools:[{type:'function',name:'probe'}],parallel_tool_calls:false,stream:true},'deepseek-flash',new AbortController().signal,async type=>{events.push(type);});
+    expect(events).toEqual(['response.created']);expect(result.status).toBe('failed');expect(result.output).toEqual([]);expect(result.inputTokens).toBe(20);expect(result.outputTokens).toBe(8);expect(result.toolCalls).toBe(2);expect(result.nativeResponse?.error).toMatchObject({code:'UNSUPPORTED_CAPABILITY'});
+    vi.stubGlobal('fetch',vi.fn(async()=>Response.json(multi)));
+    const json=await executeNativeResponses('https://api.deepseek.com','fixture',{model:'x',input:'fixture',parallel_tool_calls:false},'deepseek-flash',new AbortController().signal);expect(json.status).toBe('failed');expect(json.output).toEqual([]);
+  });
+  it('releases a single-call serial stream only after validated completion',async()=>{
+    const events=[{type:'response.created',response:{id:'upstream'}},{type:'response.output_item.added',item:terminal.output[1]},{type:'response.completed',response:terminal}];
+    vi.stubGlobal('fetch',vi.fn(async()=>new Response(events.map(e=>`data: ${JSON.stringify(e)}\n\n`).join(''))));
+    const delivered:string[]=[];const result=await executeNativeResponses('https://api.deepseek.com','fixture',{model:'x',input:'fixture',parallel_tool_calls:false,stream:true},'deepseek-flash',new AbortController().signal,async type=>{delivered.push(type);});
+    expect(result.status).toBe('completed');expect(result.output).toEqual(terminal.output);expect(delivered).toEqual(['response.created','response.output_item.added']);
+  });
+  it('does not mistake assigned call IDs or repeated item events for additional serial tools',async()=>{
+    const item=terminal.output[1];
+    const events=[{type:'response.output_item.added',item:{...item,call_id:''}},{type:'response.output_item.done',output_index:1,item},{type:'response.output_item.done',item},{type:'response.completed',response:terminal}];
+    vi.stubGlobal('fetch',vi.fn(async()=>new Response(events.map(e=>`data: ${JSON.stringify(e)}\n\n`).join(''))));
+    const result=await executeNativeResponses('https://api.deepseek.com','fixture',{model:'x',input:'fixture',parallel_tool_calls:false,stream:true},'deepseek-flash',new AbortController().signal,async()=>{});
+    expect(result.status).toBe('completed');expect(result.toolCalls).toBe(1);
   });
 });

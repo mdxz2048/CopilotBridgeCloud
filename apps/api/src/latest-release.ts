@@ -6,3 +6,12 @@ export function latestWindowsRelease<T extends { version: string; published: boo
       return b.createdAt.getTime() - a.createdAt.getTime();
     })[0] ?? null;
 }
+import { db, releases } from '@bridge/db';
+import { ApiError } from './errors.js';
+
+export async function latestClientRelease() {
+  return latestWindowsRelease(await db.select().from(releases));
+}
+export function requireCurrentClient(version: string, latest: string | undefined) {
+  if(latest && version!==latest) throw new ApiError(426,'CLIENT_UPGRADE_REQUIRED',`请升级 Copilot Bridge 至 ${latest} 后再使用云模型。`);
+}

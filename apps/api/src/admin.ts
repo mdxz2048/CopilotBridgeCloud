@@ -14,6 +14,7 @@ import { qualifyReferralFromPaidOrder } from './referral.js';
 import { publicWebsiteSettings, saveWebsiteSettings, websiteSettingsInput } from './website-settings.js';
 import { currentDeepSeekModel, ensureLegacyInstance } from './instance-router.js';
 import { registerBillingReview } from './billing-review.js';
+import { retainLatestPublishedRelease } from './release-lifecycle.js';
 
 const planData = z.object({ name: z.string().min(1), description: z.string(), monthlyPrice: z.number().nonnegative(), currency: z.string().length(3), maxDevices: z.number().int().positive(), monthlyTokenLimit: z.number().int().positive(), monthlyUsageCreditLimit: z.number().positive(), maxConcurrentRequests: z.number().int().positive(), requestsPerMinute: z.number().int().positive(), enabled: z.boolean(), monthlyPoints: z.number().int().min(0).optional(), rolloverPolicy: z.enum(['NONE', 'UNLIMITED']).optional() });
 const modelData = z.object({ providerId: z.uuid(), providerModelId: z.string().min(1), publicId: z.string().min(1), displayName: z.string().min(1), enabled: z.boolean(), supportsTools: z.boolean(), supportsVision: z.boolean(), supportsReasoning: z.boolean(), supportsStreaming: z.boolean(), contextWindow: z.number().int().positive().nullable(), maxOutputTokens: z.number().int().positive().nullable(), usageWeight: z.number().positive(), sortOrder: z.number().int() });
@@ -417,17 +418,20 @@ export async function registerAdmin(app: FastifyInstance) {
   app.get('/api/v1/admin/releases', async req => { await admin(req); return { data: await db.select().from(releases).orderBy(desc(releases.createdAt)) }; });
   app.post('/api/v1/admin/releases', async (req, reply) => {
     const a = await admin(req);
-    const data = z.object({ version: z.string().min(1), channel: z.enum(['stable', 'beta']), platform: z.string().min(1), arch: z.string().min(1), downloadUrl: z.url(), sha256: z.string().regex(/^[a-fA-F0-9]{64}$/), releaseNotes: z.string().default(''), published: z.boolean().default(false) }).parse(req.body);
+    const data = z.object({ version: z.string().regex(/^\d+\.\d+\.\d+$/), channel: z.enum(['stable', 'beta']), platform: z.string().min(1), arch: z.string().min(1), downloadUrl: z.url(), sha256: z.string().regex(/^[a-fA-F0-9]{64}$/), releaseNotes: z.string().default(''), published: z.boolean().default(false) }).parse(req.body);
     const [release] = await db.insert(releases).values(data).returning();
     await audit(a.user.id, 'RELEASE_CREATED', 'RELEASE', release.id);
+    if(release.published)await retainLatestPublishedRelease(release.id,a.user.id);
     return reply.code(201).send(release);
   });
   app.patch('/api/v1/admin/releases/:id', async req => {
     const a = await admin(req); const id = idParam(req.params);
     const data = z.object({ published: z.boolean(), releaseNotes: z.string().optional() }).parse(req.body);
+    if(data.published){const [entry]=await db.select().from(releases).where(eq(releases.id,id)).limit(1);if(!entry)throw new ApiError(404,'NOT_FOUND');z.string().regex(/^\d+\.\d+\.\d+$/).parse(entry.version);}
     const [release] = await db.update(releases).set(data).where(eq(releases.id, id)).returning();
     if (!release) throw new ApiError(404, 'NOT_FOUND');
     await audit(a.user.id, 'RELEASE_UPDATED', 'RELEASE', id);
+    if(release.published)await retainLatestPublishedRelease(release.id,a.user.id);
     return release;
   });
   app.get('/api/v1/admin/audit', async req => { await admin(req); return { data: await db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt)).limit(200) }; });

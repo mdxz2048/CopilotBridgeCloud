@@ -17,7 +17,7 @@ export const ErrorCodeSchema = z.enum([
   'UNAUTHORIZED', 'TOKEN_EXPIRED', 'DEVICE_NOT_REGISTERED', 'DEVICE_REVOKED', 'DEVICE_LIMIT_REACHED', 'ACCOUNT_DISABLED',
   'SUBSCRIPTION_REQUIRED', 'SUBSCRIPTION_EXPIRED', 'MODEL_NOT_ALLOWED', 'MONTHLY_QUOTA_EXCEEDED', 'RATE_LIMITED',
   'PROVIDER_UNAVAILABLE', 'MODEL_UNAVAILABLE', 'GATEWAY_TIMEOUT', 'CLIENT_THREAD_ID_REQUIRED', 'VALIDATION_ERROR', 'INTERNAL_ERROR',
-  'UNSUPPORTED_CAPABILITY','UNSUPPORTED_PROTOCOL','PROTOCOL_INVALID','PROVIDER_RATE_LIMITED','PROVIDER_BALANCE_EXHAUSTED','PROVIDER_AUTH_REQUIRED','PROVIDER_USAGE_UNAVAILABLE','CONVERSATION_NOT_FOUND','CONVERSATION_MODE_CHANGED',
+  'UNSUPPORTED_CAPABILITY','UNSUPPORTED_PROTOCOL','PROTOCOL_INVALID','PROVIDER_RATE_LIMITED','PROVIDER_BALANCE_EXHAUSTED','PROVIDER_AUTH_REQUIRED','PROVIDER_USAGE_UNAVAILABLE','CONVERSATION_NOT_FOUND','CONVERSATION_MODE_CHANGED','CLIENT_UPGRADE_REQUIRED',
 ]);
 export const ErrorResponseSchema = z.object({ error: z.object({ code: ErrorCodeSchema, message: z.string(), requestId: z.string() }) });
 export const PlanSchema = z.object({ id: z.uuid(), code: z.enum(['STANDARD', 'PRO']), name: z.string(), description: z.string(), monthlyPrice: z.string(), currency: z.string(), maxDevices: z.number().int(), monthlyTokenLimit: z.number().int(), monthlyUsageCreditLimit: z.string(), maxConcurrentRequests: z.number().int(), requestsPerMinute: z.number().int(), enabled: z.boolean() });
