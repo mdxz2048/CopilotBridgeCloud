@@ -13,7 +13,7 @@ describe('native Responses protocol',()=>{
     vi.stubGlobal('fetch',vi.fn(async(_url,init)=>{const wire=JSON.parse(init.body);expect(wire.tools).toEqual(request.tools);expect(wire.instructions).toBeUndefined();expect(wire.reasoning).toEqual({effort:'medium'});expect(wire.metadata).toEqual({keep:true});return Response.json({...terminal,output:[terminal.output[1],{...terminal.output[1],id:'fc_2',call_id:'call_2'}]});}));
     const result=await executeNativeResponses('https://api.openai.com/v1','fixture',request,'gpt-fixture',new AbortController().signal,undefined,{responsesProfile:'openai',canThink:true});expect(result.status).toBe('completed');expect(result.toolCalls).toBe(2);
   });
-  it('streams reasoning before the first tool while holding its ordered suffix without another POST',async()=>{
+  it('streams reasoning, tools and later text immediately without another POST',async()=>{
     let controller!:ReadableStreamDefaultController;const received:string[]=[];
     const push=(event:unknown)=>controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`));
     const fetch=vi.fn(async()=>new Response(new ReadableStream({start(c){controller=c;}})));vi.stubGlobal('fetch',fetch);
@@ -21,9 +21,9 @@ describe('native Responses protocol',()=>{
     await vi.waitFor(()=>expect(controller).toBeDefined());
     push({type:'response.reasoning_text.delta',delta:'private fixture'});await vi.waitFor(()=>expect(received).toEqual(['response.reasoning_text.delta']));
     push({type:'response.output_item.added',output_index:1,item:terminal.output[1]});push({type:'response.output_text.delta',delta:'later fixture'});
-    await new Promise(resolve=>setTimeout(resolve,10));expect(received).toEqual(['response.reasoning_text.delta']);
+    await vi.waitFor(()=>expect(received).toEqual(['response.reasoning_text.delta','response.output_item.added','response.output_text.delta']));
     push({type:'response.completed',response:terminal});controller.close();
-    const result=await pending;expect(received).toEqual(['response.reasoning_text.delta','response.output_item.added','response.output_text.delta']);expect(fetch).toHaveBeenCalledTimes(1);expect(result).toMatchObject({nativeMetrics:{upstreamAttemptCount:1,eventCount:4,serialHeldEventCount:2}});
+    const result=await pending;expect(received).toEqual(['response.reasoning_text.delta','response.output_item.added','response.output_text.delta']);expect(fetch).toHaveBeenCalledTimes(1);expect(result).toMatchObject({nativeMetrics:{upstreamAttemptCount:1,eventCount:4}});
   });
   it('does not add serial instructions for advertised nonexecutable tools',async()=>{
     vi.stubGlobal('fetch',vi.fn(async(_url,init)=>{expect(JSON.parse(init.body).instructions).toBeUndefined();return Response.json(terminal);}));
@@ -87,14 +87,15 @@ describe('native Responses protocol',()=>{
     expect(()=>validateNativeRequest({model:'x',input:'fixture',reasoning:{mode:'normal'},tool_choice:{type:'function',name:'probe'}})).not.toThrow();
     expect(()=>validateNativeRequest({model:'x',input:'fixture',reasoning:{mode:'thinking'},tool_choice:'auto'})).not.toThrow();
   });
-  it('withholds all tool events on a serial violation while retaining actual billable usage',async()=>{
+  it('preserves multiple native tools despite the upstream ignored parallel flag and retains billable usage',async()=>{
     const multi={...terminal,output:[terminal.output[1],{...terminal.output[1],id:'fc_2',call_id:'call_2'}]};
     const wire=[{type:'response.created',response:{id:'upstream'}},{type:'response.output_item.added',item:multi.output[0]},{type:'response.output_item.added',item:multi.output[1]},{type:'response.completed',response:multi}].map(e=>`data: ${JSON.stringify(e)}\n\n`).join('');
-    vi.stubGlobal('fetch',vi.fn(async(_url,init)=>{const body=JSON.parse(init.body);expect(body.parallel_tool_calls).toBe(false);expect(body.instructions).toContain('at most one');return new Response(wire);}));
+    vi.stubGlobal('fetch',vi.fn(async(_url,init)=>{const body=JSON.parse(init.body);expect(body.parallel_tool_calls).toBe(false);expect(body.instructions).toBeUndefined();return new Response(wire);}));
     const events:string[]=[];const result=await executeNativeResponses('https://api.deepseek.com','fixture',{model:'x',input:'fixture',tools:[{type:'function',name:'probe'}],parallel_tool_calls:false,stream:true},'deepseek-flash',new AbortController().signal,async type=>{events.push(type);});
-    expect(events).toEqual(['response.created']);expect(result.status).toBe('failed');expect(result.output).toEqual([]);expect(result.inputTokens).toBe(20);expect(result.outputTokens).toBe(8);expect(result.toolCalls).toBe(2);expect(result.nativeResponse?.error).toMatchObject({code:'UNSUPPORTED_CAPABILITY'});
+    expect(events).toEqual(['response.created','response.output_item.added','response.output_item.added']);expect(result.status).toBe('completed');expect(result.output).toEqual(multi.output);expect(result.inputTokens).toBe(20);expect(result.outputTokens).toBe(8);expect(result.toolCalls).toBe(2);expect(result.nativeResponse?.error).toBeUndefined();
     vi.stubGlobal('fetch',vi.fn(async()=>Response.json(multi)));
-    const json=await executeNativeResponses('https://api.deepseek.com','fixture',{model:'x',input:'fixture',tools:[{type:'function',name:'probe'}],parallel_tool_calls:false},'deepseek-flash',new AbortController().signal);expect(json.status).toBe('failed');expect(json.output).toEqual([]);
+    const json=await executeNativeResponses('https://api.deepseek.com','fixture',{model:'x',input:'fixture',tools:[{type:'function',name:'probe'}],parallel_tool_calls:false},'deepseek-flash',new AbortController().signal);expect(json.status).toBe('completed');expect(json.output).toEqual(multi.output);
+    expect(validateNativeRequest({model:'x',input:'fixture',instructions:'original',parallel_tool_calls:false})).toMatchObject({ignoredFields:['parallel_tool_calls']});
   });
   it('releases a single-call serial stream only after validated completion',async()=>{
     const events=[{type:'response.created',response:{id:'upstream'}},{type:'response.output_item.added',item:terminal.output[1]},{type:'response.completed',response:terminal}];

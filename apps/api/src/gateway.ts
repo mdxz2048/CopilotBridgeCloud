@@ -20,7 +20,7 @@ import { ensureMoneyRate,upstreamBalance } from './money-policy.js';
 import { currentUsage } from './core.js';
 import { requestContext,requestCounts,requestMilestone,requestNativeMetrics } from './request-log.js';
 import { nextContinuationState, pendingContinuation } from './tool-continuation.js';
-import { chooseInstance,logicalCapabilities,responsesProfile } from './instance-router.js';
+import { chooseInstance,logicalCapabilities,responsesProfile,instanceHealthAfterResult,instanceHealthAfterFailure } from './instance-router.js';
 import { nativeReasoning, validateNativeRequest } from './native-responses.js';
 import { once } from 'node:events';
 import { encryptSecret, decryptSecret } from './security.js';
@@ -225,7 +225,8 @@ export async function registerGateway(app: FastifyInstance) {
       observedResult = result;
       requestNativeMetrics(req,(result as CanonicalResult&{nativeMetrics?:Record<string,number>}).nativeMetrics);
       requestContext(req,{terminalStatus:result.status??'completed'});
-      await db.update(modelInstances).set({healthStatus:result.status==='failed'?'DEGRADED':'READY',healthCheckedAt:new Date(),cooldownUntil:result.status==='failed'?new Date(Date.now()+60000):null}).where(eq(modelInstances.id,selected.instance.id));
+      const healthUpdate=instanceHealthAfterResult(result);
+      if(healthUpdate)await db.update(modelInstances).set(healthUpdate).where(eq(modelInstances.id,selected.instance.id));
       if (!native) result.output = result.output.map((item, index) => ({ ...item,
         id: item.type === 'message' ? `msg_${responseId}` : `fc_${responseId}_${index}`, status: 'completed' }));
       const total = result.inputTokens + result.outputTokens;
@@ -318,9 +319,8 @@ export async function registerGateway(app: FastifyInstance) {
       const failure = error instanceof CopilotFailure || error instanceof ApiError ? error : controller.signal.aborted
         ? new CopilotFailure(504, 'GATEWAY_TIMEOUT') : new CopilotFailure(503, 'PROVIDER_UNAVAILABLE');
       requestContext(req,{terminalStatus:clientDisconnected?'client_disconnected':'failed',errorCode:failure.code});
-      if (['PROVIDER_AUTH_REQUIRED','PROVIDER_UNAVAILABLE','PROVIDER_RATE_LIMITED','GATEWAY_TIMEOUT'].includes(failure.code)) {
-        await db.update(modelInstances).set({healthStatus:failure.code==='PROVIDER_AUTH_REQUIRED'?'UNAVAILABLE':'DEGRADED',healthCheckedAt:new Date(),cooldownUntil:new Date(Date.now()+60000)}).where(eq(modelInstances.id,selected.instance.id));
-      }
+      const failedHealth=upstreamAttempted&&!clientDisconnected&&!observedResult?instanceHealthAfterFailure(failure.code):null;
+      if(failedHealth)await db.update(modelInstances).set(failedHealth).where(eq(modelInstances.id,selected.instance.id));
       await db.update(usageRecords).set({ status: controller.signal.aborted ? 'ABORTED' : 'FAILED', totalTokens: 0, usageCredit: '0',
         errorCode: failure.code, durationMs: Date.now() - started, completedAt: new Date() }).where(eq(usageRecords.id, record.id));
       if (copilotStreamOpened) {

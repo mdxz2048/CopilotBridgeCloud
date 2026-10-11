@@ -1,0 +1,236 @@
+{
+  "at": "2026-10-11T15:41:22.477Z",
+  "passed": true,
+  "appVersion": "0.3.4",
+  "publicHealth": 200,
+  "unitTests": 107,
+  "typecheck": true,
+  "isolatedDatabaseTests": 21,
+  "realModes": [
+    {
+      "mode": "normal",
+      "postCount": 4,
+      "totalRmb": 0.0014,
+      "toolCalls": 2,
+      "callIdsMatched": true,
+      "sameConversation": true,
+      "immediateNewConversation": true,
+      "testDeviceRevoked": true
+    },
+    {
+      "mode": "thinking",
+      "postCount": 4,
+      "totalRmb": 0.0016000000000000003,
+      "toolCalls": 2,
+      "callIdsMatched": true,
+      "sameConversation": true,
+      "immediateNewConversation": true,
+      "testDeviceRevoked": true
+    }
+  ],
+  "production": {
+    "sourceHashesMatch": true,
+    "image": "sha256:f73f5a902c61b60a6bb096e05811a321819e1137cec7bcafea3f4b2ff9e085e3",
+    "matchedRequests": 8,
+    "nativeOneAttempt": true,
+    "entries": [
+      {
+        "traceId": "8486318e-4568-4759-a980-d06ffdf2b2cd",
+        "statusCode": 200,
+        "terminalStatus": "completed",
+        "protocolMode": "native",
+        "responsesProfile": "deepseek",
+        "nativeMetrics": {
+          "requestBytes": 827,
+          "responseBytes": 9476,
+          "eventCount": 23,
+          "upstreamAttemptCount": 1,
+          "upstreamHeadersMs": 192,
+          "upstreamFirstEventMs": 311,
+          "upstreamFirstTextMs": 715,
+          "upstreamFirstToolMs": 877,
+          "upstreamToolArgumentsDoneMs": 910,
+          "upstreamTerminalMs": 945
+        },
+        "counts": {
+          "requestBytes": 836,
+          "inputItemCount": 1,
+          "toolCount": 2,
+          "toolResultBytes": 0,
+          "upstreamAttemptCount": 1
+        }
+      },
+      {
+        "traceId": "b7487146-8811-4ccb-8cae-788fa86d2a9b",
+        "statusCode": 200,
+        "terminalStatus": "completed",
+        "protocolMode": "native",
+        "responsesProfile": "deepseek",
+        "nativeMetrics": {
+          "requestBytes": 1677,
+          "responseBytes": 15481,
+          "eventCount": 52,
+          "upstreamAttemptCount": 1,
+          "upstreamHeadersMs": 208,
+          "upstreamFirstEventMs": 212,
+          "upstreamFirstTextMs": 743,
+          "upstreamTerminalMs": 1008
+        },
+        "counts": {
+          "requestBytes": 1686,
+          "inputItemCount": 6,
+          "toolCount": 2,
+          "toolResultBytes": 96,
+          "upstreamAttemptCount": 1
+        }
+      },
+      {
+        "traceId": "a4ca6739-11d3-4f11-bd77-bf1eca6648eb",
+        "statusCode": 200,
+        "terminalStatus": "completed",
+        "protocolMode": "native",
+        "responsesProfile": "deepseek",
+        "nativeMetrics": {
+          "requestBytes": 189,
+          "responseBytes": 4525,
+          "eventCount": 9,
+          "upstreamAttemptCount": 1,
+          "upstreamHeadersMs": 288,
+          "upstreamFirstEventMs": 315,
+          "upstreamFirstTextMs": 862,
+          "upstreamTerminalMs": 985
+        },
+        "counts": {
+          "requestBytes": 198,
+          "inputItemCount": 1,
+          "toolCount": 0,
+          "toolResultBytes": 0,
+          "upstreamAttemptCount": 1
+        }
+      },
+      {
+        "traceId": "071ec521-b0e9-42e4-a985-c568d53ea122",
+        "statusCode": 200,
+        "terminalStatus": "completed",
+        "protocolMode": "native",
+        "responsesProfile": "deepseek",
+        "nativeMetrics": {
+          "requestBytes": 2121,
+          "responseBytes": 6395,
+          "eventCount": 12,
+          "upstreamAttemptCount": 1,
+          "upstreamHeadersMs": 203,
+          "upstreamFirstEventMs": 207,
+          "upstreamFirstTextMs": 751,
+          "upstreamTerminalMs": 840
+        },
+        "counts": {
+          "requestBytes": 2130,
+          "inputItemCount": 8,
+          "toolCount": 2,
+          "toolResultBytes": 96,
+          "upstreamAttemptCount": 1
+        }
+      },
+      {
+        "traceId": "e2f8d1ac-99a7-4b26-ac11-8c3da44b2604",
+        "statusCode": 200,
+        "terminalStatus": "completed",
+        "protocolMode": "native",
+        "responsesProfile": "deepseek",
+        "nativeMetrics": {
+          "requestBytes": 828,
+          "responseBytes": 15648,
+          "eventCount": 51,
+          "upstreamAttemptCount": 1,
+          "upstreamHeadersMs": 187,
+          "upstreamFirstEventMs": 219,
+          "upstreamFirstTextMs": 787,
+          "upstreamFirstToolMs": 1030,
+          "upstreamToolArgumentsDoneMs": 1061,
+          "upstreamTerminalMs": 1096
+        },
+        "counts": {
+          "requestBytes": 839,
+          "inputItemCount": 1,
+          "toolCount": 2,
+          "toolResultBytes": 0,
+          "upstreamAttemptCount": 1
+        }
+      },
+      {
+        "traceId": "da35ae36-7698-430d-985e-a0f39a41288c",
+        "statusCode": 200,
+        "terminalStatus": "completed",
+        "protocolMode": "native",
+        "responsesProfile": "deepseek",
+        "nativeMetrics": {
+          "requestBytes": 1808,
+          "responseBytes": 15455,
+          "eventCount": 51,
+          "upstreamAttemptCount": 1,
+          "upstreamHeadersMs": 213,
+          "upstreamFirstEventMs": 217,
+          "upstreamFirstTextMs": 821,
+          "upstreamTerminalMs": 1078
+        },
+        "counts": {
+          "requestBytes": 1819,
+          "inputItemCount": 6,
+          "toolCount": 2,
+          "toolResultBytes": 96,
+          "upstreamAttemptCount": 1
+        }
+      },
+      {
+        "traceId": "d36ade8d-9ce5-4d80-ab83-252dfde45007",
+        "statusCode": 200,
+        "terminalStatus": "completed",
+        "protocolMode": "native",
+        "responsesProfile": "deepseek",
+        "nativeMetrics": {
+          "requestBytes": 190,
+          "responseBytes": 11366,
+          "eventCount": 38,
+          "upstreamAttemptCount": 1,
+          "upstreamHeadersMs": 195,
+          "upstreamFirstEventMs": 214,
+          "upstreamFirstTextMs": 852,
+          "upstreamTerminalMs": 1097
+        },
+        "counts": {
+          "requestBytes": 201,
+          "inputItemCount": 1,
+          "toolCount": 0,
+          "toolResultBytes": 0,
+          "upstreamAttemptCount": 1
+        }
+      },
+      {
+        "traceId": "2a6db18d-22e2-47c7-9aec-eefb6232a76c",
+        "statusCode": 200,
+        "terminalStatus": "completed",
+        "protocolMode": "native",
+        "responsesProfile": "deepseek",
+        "nativeMetrics": {
+          "requestBytes": 2418,
+          "responseBytes": 6383,
+          "eventCount": 12,
+          "upstreamAttemptCount": 1,
+          "upstreamHeadersMs": 207,
+          "upstreamFirstEventMs": 207,
+          "upstreamFirstTextMs": 1078,
+          "upstreamTerminalMs": 1096
+        },
+        "counts": {
+          "requestBytes": 2429,
+          "inputItemCount": 9,
+          "toolCount": 2,
+          "toolResultBytes": 96,
+          "upstreamAttemptCount": 1
+        }
+      }
+    ]
+  },
+  "appCommit": "236fa1eace6f1c19cdbc63a0ae162d21c503a05f"
+}

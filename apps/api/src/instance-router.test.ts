@@ -1,9 +1,26 @@
 import { afterEach,describe,expect,it,vi } from 'vitest';
-import {chooseInstance,logicalCapabilities,type Candidate} from './instance-router.js';
+import {chooseInstance,logicalCapabilities,instanceHealthAfterResult,instanceHealthAfterFailure,type Candidate} from './instance-router.js';
 afterEach(()=>vi.unstubAllEnvs());
 const candidate=(id:string,patch:Partial<Candidate['instance']>={}):Candidate=>({instance:{id,modelId:'logical',providerId:id,providerModelId:'deepseek-flash',enabled:true,priority:0,weight:1,nativeProtocols:['responses'],capabilities:{tools:true,streaming:true},healthStatus:'READY',healthCheckedAt:new Date(),cooldownUntil:null,createdAt:new Date(),...patch},provider:{id,code:'DEEPSEEK',name:id,enabled:true,baseUrl:'https://api.deepseek.com',timeoutMs:60000,config:{}}});
 const request={model:'logical',input:'fixture'};
 describe('logical instance routing',()=>{
+  it('distinguishes capability errors, transient cooldown and permanently unavailable pins',()=>{
+    const normal=candidate('normal');
+    try{chooseInstance([normal],{...request,reasoning:{mode:'thinking'}});throw new Error('accepted');}catch(error){expect(error).toMatchObject({status:422,code:'UNSUPPORTED_CAPABILITY'});}
+    try{chooseInstance([normal],{...request,input:[{role:'user',content:[{type:'input_image',image_url:'fixture'}]}]},'normal');throw new Error('accepted');}catch(error){expect(error).toMatchObject({status:422,code:'UNSUPPORTED_CAPABILITY'});}
+    expect(chooseInstance([normal],{...request,input:[{role:'user',content:'literal "input_image" is text'}]}).instance.id).toBe('normal');
+    try{chooseInstance([candidate('cool',{cooldownUntil:new Date(Date.now()+60000)}),candidate('other')],request,'cool');throw new Error('accepted');}catch(error){expect(error).toMatchObject({status:503,code:'MODEL_UNAVAILABLE'});}
+    try{chooseInstance([candidate('disabled',{enabled:false}),candidate('other')],request,'disabled');throw new Error('accepted');}catch(error){expect(error).toMatchObject({status:409,code:'MODEL_UNAVAILABLE'});}
+  });
+  it('does not poison resource health for compatibility or user errors',()=>{
+    const result={status:'failed' as const,output:[],inputTokens:0,outputTokens:0,costKind:'UNKNOWN' as const};
+    for(const code of ['UNSUPPORTED_CAPABILITY','invalid_request_error','PROTOCOL_INVALID','content_filter'])expect(instanceHealthAfterResult({...result,nativeResponse:{error:{code}}})).toBeNull();
+    expect(instanceHealthAfterResult(result)).toBeNull();
+    expect(instanceHealthAfterResult({...result,nativeResponse:{error:{code:'server_error'}}},1000)).toMatchObject({healthStatus:'DEGRADED',cooldownUntil:new Date(61000)});
+    expect(instanceHealthAfterFailure('PROVIDER_RATE_LIMITED')).toMatchObject({healthStatus:'DEGRADED'});
+    expect(instanceHealthAfterFailure('PROVIDER_AUTH_REQUIRED')).toMatchObject({healthStatus:'UNAVAILABLE'});
+    expect(instanceHealthAfterResult({...result,status:'completed'})).toMatchObject({healthStatus:'READY',cooldownUntil:null});
+  });
   it('fails closed for disabled native, unrecognized adapters and mixed profiles',()=>{
     const unsupported=candidate('unsupported');unsupported.provider.code='UNIMPLEMENTED';
     expect(()=>chooseInstance([unsupported],request)).toThrow();
