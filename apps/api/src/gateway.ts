@@ -21,7 +21,8 @@ import { currentUsage } from './core.js';
 import { requestContext,requestCounts,requestMilestone,requestNativeMetrics } from './request-log.js';
 import { nextContinuationState, pendingContinuation } from './tool-continuation.js';
 import { chooseInstance,logicalCapabilities,responsesProfile,instanceHealthAfterResult,instanceHealthAfterFailure } from './instance-router.js';
-import { nativeReasoning, validateNativeRequest } from './native-responses.js';
+import { nativeReasoning, validateNativeRequest,nativeFailedEvent } from './native-responses.js';
+import { NativeTimeoutError } from './native-timeouts.js';
 import { once } from 'node:events';
 import { encryptSecret, decryptSecret } from './security.js';
 
@@ -167,7 +168,7 @@ export async function registerGateway(app: FastifyInstance) {
     const started = Date.now();
     if (v2RequestId) reply.header('X-Bridge-AI-Request-Id', v2RequestId);
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), ent.provider.timeoutMs);
+    const timeout = native?undefined:setTimeout(() => controller.abort(), ent.provider.timeoutMs);
     let ended = false;
     let clientDisconnected = false;
     let observedResult: CanonicalResult | undefined;
@@ -203,7 +204,7 @@ export async function registerGateway(app: FastifyInstance) {
           writeEvent(reply.raw, 'response.output_text.delta', { item_id: `msg_${responseId}`, response_id: responseId, output_index: 0, content_index: 0, delta });
         }
       } : undefined;
-      const onNativeEvent = async (type:string, event:Record<string,unknown>) => {
+      const onNativeEvent = async (type:string, event:Record<string,unknown>,eventSignal?:AbortSignal) => {
         requestMilestone(req,'relayFirstEvent');
         if(type==='response.output_text.delta'||type==='response.reasoning_text.delta')requestMilestone(req,'relayFirstText');
         if(type==='response.function_call_arguments.done'||type==='response.custom_tool_call_input.done')requestMilestone(req,'relayToolArgumentsDone');
@@ -212,7 +213,7 @@ export async function registerGateway(app: FastifyInstance) {
           ...(event.response && typeof event.response==='object' ? {response:{...event.response as Record<string,unknown>, id:responseId, model:body.model}}:{}) };
         if (!reply.raw.destroyed && !reply.raw.writableEnded) {
           const ok = reply.raw.write(`event: ${type}\ndata: ${JSON.stringify(rewritten)}\n\n`);
-          if (!ok) await once(reply.raw,'drain',{signal:controller.signal});
+          if (!ok) await once(reply.raw,'drain',{signal:eventSignal??controller.signal});
         }
       };
       upstreamAttempted = true;
@@ -313,20 +314,19 @@ export async function registerGateway(app: FastifyInstance) {
             providerReportedUsage: observedResult.providerReportedUsage,
           } : { usageUnavailable: interruptedStreamUsageUnavailable(observedTextDelta, Boolean(observedResult))
             || (error instanceof ApiError && error.code==='PROVIDER_USAGE_UNAVAILABLE')
-            || (upstreamAttempted && (controller.signal.aborted || (error instanceof ApiError && error.code==='PROTOCOL_INVALID' && error.status>=500) || (!(error instanceof ApiError) && !(error instanceof CopilotFailure)))) }, settlementMode!);
+            || (upstreamAttempted && (controller.signal.aborted || (error instanceof ApiError && (error.code==='GATEWAY_TIMEOUT'||(error.code==='PROTOCOL_INVALID' && error.status>=500))) || (!(error instanceof ApiError) && !(error instanceof CopilotFailure)))) }, settlementMode!);
         } catch (settlementError) { req.log.error({ settlementErrorType: settlementError instanceof Error ? settlementError.name : 'UnknownError', requestId: v2RequestId }, 'V2 settlement failed'); }
       }
       const failure = error instanceof CopilotFailure || error instanceof ApiError ? error : controller.signal.aborted
         ? new CopilotFailure(504, 'GATEWAY_TIMEOUT') : new CopilotFailure(503, 'PROVIDER_UNAVAILABLE');
-      requestContext(req,{terminalStatus:clientDisconnected?'client_disconnected':'failed',errorCode:failure.code});
-      const failedHealth=upstreamAttempted&&!clientDisconnected&&!observedResult?instanceHealthAfterFailure(failure.code):null;
+      requestContext(req,{terminalStatus:clientDisconnected?'client_disconnected':'failed',errorCode:failure.code,...(failure instanceof NativeTimeoutError?{timeoutPhase:failure.phase}:{})});
+      const failedHealth=upstreamAttempted&&!clientDisconnected&&!observedResult&&!(failure instanceof NativeTimeoutError&&failure.phase==='total')?instanceHealthAfterFailure(failure.code):null;
       if(failedHealth)await db.update(modelInstances).set(failedHealth).where(eq(modelInstances.id,selected.instance.id));
       await db.update(usageRecords).set({ status: controller.signal.aborted ? 'ABORTED' : 'FAILED', totalTokens: 0, usageCredit: '0',
         errorCode: failure.code, durationMs: Date.now() - started, completedAt: new Date() }).where(eq(usageRecords.id, record.id));
       if (copilotStreamOpened) {
         if (!reply.raw.destroyed && !reply.raw.writableEnded) {
-          writeEvent(reply.raw, 'response.failed', { response: { id: responseId, status: 'failed' },
-            error: { code: failure.code, message: failure.message, request_id: v2RequestId ?? req.id } });
+          writeEvent(reply.raw, 'response.failed',nativeFailedEvent(responseId,body.model,failure,v2RequestId??req.id));
           reply.raw.write('data: [DONE]\n\n');
           ended = true;
           reply.raw.end();

@@ -1,6 +1,7 @@
 import { ApiError } from './errors.js';
 import type { CanonicalRequest, CanonicalResult } from './provider.js';
 import type { ResponsesProfile } from './instance-router.js';
+import { nativeDeadline,nativeEventProgress } from './native-timeouts.js';
 
 export function validateNativeRequest(request: CanonicalRequest,profile:ResponsesProfile='deepseek') {
   if(request.background===true||request.conversation)throw new ApiError(422,'UNSUPPORTED_CAPABILITY','平台同步计费暂不支持后台响应或上游服务器会话引用。');
@@ -69,7 +70,7 @@ export function nativeResult(response: Record<string, unknown>, terminal?: strin
     providerReportedUsage: usage as Record<string, unknown>, costKind:'UNKNOWN', nativeResponse: response, nativeTerminalEvent: terminal, status: response.status as CanonicalResult['status'] };
 }
 export async function executeNativeResponses(baseUrl: string, key: string, request: CanonicalRequest, modelId: string, signal: AbortSignal,
-  onEvent?: (type: string, event: Record<string, unknown>) => Promise<void>,options:{responsesProfile?:ResponsesProfile;canThink?:boolean}={}): Promise<CanonicalResult> {
+  onEvent?: (type: string, event: Record<string, unknown>,signal?:AbortSignal) => Promise<void>,options:{responsesProfile?:ResponsesProfile;canThink?:boolean;timeoutMs?:number}={}): Promise<CanonicalResult> {
   const profile=options.responsesProfile??'deepseek';validateNativeRequest(request,profile);
   const { maxOutputTokens, reasoning:_wireReasoning, ...wire } = request;
   const reasoning=nativeReasoning(request,options.canThink??true,profile);
@@ -78,7 +79,10 @@ export async function executeNativeResponses(baseUrl: string, key: string, reque
   const started=performance.now();const encodedBody=JSON.stringify(body);
   const metrics:Record<string,number>={requestBytes:Buffer.byteLength(encodedBody),responseBytes:0,eventCount:0,upstreamAttemptCount:1};
   const elapsed=()=>Math.max(0,Math.round(performance.now()-started));
-  const response = await fetch(`${baseUrl.replace(/\/$/,'')}/responses`, { method:'POST', headers:{ Authorization:`Bearer ${key}`, 'Content-Type':'application/json' }, body:encodedBody, signal });
+  const deadline=nativeDeadline(signal,options.timeoutMs);
+  try {
+  const response = await fetch(`${baseUrl.replace(/\/$/,'')}/responses`, { method:'POST', headers:{ Authorization:`Bearer ${key}`, 'Content-Type':'application/json' }, body:encodedBody, signal:deadline.signal });
+  deadline.headersReceived();
   metrics.upstreamHeadersMs=elapsed();
   if (!response.ok) { await response.body?.cancel(); throw providerHttpFailure(response.status); }
   if (!request.stream) {const json=await response.text();metrics.responseBytes=Buffer.byteLength(json);metrics.upstreamTerminalMs=elapsed();return Object.assign(nativeResult(JSON.parse(json) as Record<string,unknown>),{nativeMetrics:metrics});}
@@ -92,6 +96,7 @@ export async function executeNativeResponses(baseUrl: string, key: string, reque
     try { event = JSON.parse(data); } catch { throw new ApiError(502,'PROTOCOL_INVALID','上游流格式无效。'); }
     const type = typeof event.type === 'string' ? event.type : lines.find(l => l.startsWith('event:'))?.slice(6).trim();
     if (!type) throw new ApiError(502,'PROTOCOL_INVALID');
+    if(nativeEventProgress(type,event))deadline.progress();
     metrics.eventCount++;metrics.upstreamFirstEventMs??=elapsed();
     if(type==='response.output_text.delta'||type==='response.reasoning_text.delta')metrics.upstreamFirstTextMs??=elapsed();
     const item=event.item as Record<string,unknown>|undefined;
@@ -103,7 +108,7 @@ export async function executeNativeResponses(baseUrl: string, key: string, reque
       terminal = nativeResult(event.response as Record<string, unknown>, type); terminal.nativeTerminalData=event;
       metrics.upstreamTerminalMs=elapsed();
       // Withhold the terminal until the existing billing transaction settles.
-    } else if (onEvent) await onEvent(type,event);
+    } else if (onEvent) await onEvent(type,event,deadline.signal);
   };
   try {
     while (true) {
@@ -117,4 +122,10 @@ export async function executeNativeResponses(baseUrl: string, key: string, reque
     if (!terminal) throw new ApiError(502,'PROTOCOL_INVALID','上游流未正常终止。');
     return Object.assign(terminal,{nativeMetrics:metrics});
   } finally { await reader.cancel().catch(() => {}); reader.releaseLock(); }
+  }catch(error){if(deadline.signal.aborted&&deadline.signal.reason instanceof ApiError)throw deadline.signal.reason;throw error;}
+  finally{deadline.dispose();}
+}
+export function nativeFailedEvent(id:string,model:string,failure:{code:string;message:string;phase?:'connect'|'idle'|'total'},requestId:string){
+  const error={code:failure.code,message:failure.message,request_id:requestId,...(failure.phase?{timeout_phase:failure.phase}:{})};
+  return {response:{id,object:'response',status:'failed',model,output:[],error},error};
 }

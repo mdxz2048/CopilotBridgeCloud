@@ -1,0 +1,377 @@
+{
+  "at": "2026-10-11T16:23:06.833Z",
+  "passed": true,
+  "appVersion": "0.3.5",
+  "publicHealth": 200,
+  "unitTests": 111,
+  "typecheck": true,
+  "isolatedDatabaseTests": 21,
+  "realModes": [
+    {
+      "mode": "normal",
+      "postCount": 6,
+      "totalRmb": 0.0031000000000000003,
+      "artifacts": [
+        {
+          "format": "docx",
+          "created": true,
+          "reopened": true,
+          "size": 36644,
+          "sha256": "847c108d220d5785a499e4ed132cd47be6eee0df3857a82c978173566795c95d"
+        },
+        {
+          "format": "xlsx",
+          "created": true,
+          "reopened": true,
+          "size": 4859,
+          "sha256": "a0bb2a3c333bfb9bc87454eb3cc011daa17899a13442bece0291431e1467caf4"
+        },
+        {
+          "format": "pptx",
+          "created": true,
+          "reopened": true,
+          "size": 28269,
+          "sha256": "741992f40348d46821cf10b976e2efd3a13eda12df7d32e7a072af8ed938530d"
+        }
+      ],
+      "testDeviceRevoked": true
+    },
+    {
+      "mode": "thinking",
+      "postCount": 6,
+      "totalRmb": 0.0037,
+      "artifacts": [
+        {
+          "format": "docx",
+          "created": true,
+          "reopened": true,
+          "size": 36665,
+          "sha256": "27cbbb5d96c88a944f25791d1502406849a14aa30d9048adb5325e964ef7b388"
+        },
+        {
+          "format": "xlsx",
+          "created": true,
+          "reopened": true,
+          "size": 4858,
+          "sha256": "522fe762bcf051d215d131beb246645006f97399afeea98f5621cbcbea9f4232"
+        },
+        {
+          "format": "pptx",
+          "created": true,
+          "reopened": true,
+          "size": 28296,
+          "sha256": "df75d7cfe32a3c39d0ffb6185442869ec8182dc123dc397286790b3ec3632e89"
+        }
+      ],
+      "testDeviceRevoked": true
+    }
+  ],
+  "production": {
+    "sourceHashesMatch": true,
+    "image": "sha256:94ff69a4b66862c8fcd0747d67028dcb3c437275215a657b9b5d75961ce61472",
+    "matchedRequests": 12,
+    "nativeOneAttempt": true,
+    "entries": [
+      {
+        "traceId": "dfaf1818-b0a9-4149-80ea-641558fc47da",
+        "statusCode": 200,
+        "terminalStatus": "completed",
+        "protocolMode": "native",
+        "responsesProfile": "deepseek",
+        "nativeMetrics": {
+          "requestBytes": 741,
+          "responseBytes": 15714,
+          "eventCount": 55,
+          "upstreamAttemptCount": 1,
+          "upstreamHeadersMs": 224,
+          "upstreamFirstEventMs": 229,
+          "upstreamFirstTextMs": 373,
+          "upstreamFirstToolMs": 513,
+          "upstreamToolArgumentsDoneMs": 645,
+          "upstreamTerminalMs": 646
+        },
+        "counts": {
+          "requestBytes": 750,
+          "inputItemCount": 1,
+          "toolCount": 1,
+          "toolResultBytes": 0,
+          "upstreamAttemptCount": 1
+        }
+      },
+      {
+        "traceId": "d657a919-6ad0-416e-8602-d7aaf11d72fc",
+        "statusCode": 200,
+        "terminalStatus": "completed",
+        "protocolMode": "native",
+        "responsesProfile": "deepseek",
+        "nativeMetrics": {
+          "requestBytes": 1372,
+          "responseBytes": 13133,
+          "eventCount": 43,
+          "upstreamAttemptCount": 1,
+          "upstreamHeadersMs": 194,
+          "upstreamFirstEventMs": 194,
+          "upstreamFirstTextMs": 322,
+          "upstreamTerminalMs": 590
+        },
+        "counts": {
+          "requestBytes": 1381,
+          "inputItemCount": 4,
+          "toolCount": 1,
+          "toolResultBytes": 59,
+          "upstreamAttemptCount": 1
+        }
+      },
+      {
+        "traceId": "1c284e45-a7fc-412e-97d7-e8c342ef018a",
+        "statusCode": 200,
+        "terminalStatus": "completed",
+        "protocolMode": "native",
+        "responsesProfile": "deepseek",
+        "nativeMetrics": {
+          "requestBytes": 741,
+          "responseBytes": 11045,
+          "eventCount": 36,
+          "upstreamAttemptCount": 1,
+          "upstreamHeadersMs": 221,
+          "upstreamFirstEventMs": 221,
+          "upstreamFirstToolMs": 596,
+          "upstreamToolArgumentsDoneMs": 730,
+          "upstreamTerminalMs": 731
+        },
+        "counts": {
+          "requestBytes": 750,
+          "inputItemCount": 1,
+          "toolCount": 1,
+          "toolResultBytes": 0,
+          "upstreamAttemptCount": 1
+        }
+      },
+      {
+        "traceId": "59ca4196-6a78-453e-a8c7-965a4f9b9aba",
+        "statusCode": 200,
+        "terminalStatus": "completed",
+        "protocolMode": "native",
+        "responsesProfile": "deepseek",
+        "nativeMetrics": {
+          "requestBytes": 1120,
+          "responseBytes": 15368,
+          "eventCount": 53,
+          "upstreamAttemptCount": 1,
+          "upstreamHeadersMs": 200,
+          "upstreamFirstEventMs": 201,
+          "upstreamFirstTextMs": 611,
+          "upstreamTerminalMs": 837
+        },
+        "counts": {
+          "requestBytes": 1129,
+          "inputItemCount": 3,
+          "toolCount": 1,
+          "toolResultBytes": 59,
+          "upstreamAttemptCount": 1
+        }
+      },
+      {
+        "traceId": "b512e1c4-ee93-4db4-aed7-758af6df8dbc",
+        "statusCode": 200,
+        "terminalStatus": "completed",
+        "protocolMode": "native",
+        "responsesProfile": "deepseek",
+        "nativeMetrics": {
+          "requestBytes": 741,
+          "responseBytes": 15492,
+          "eventCount": 54,
+          "upstreamAttemptCount": 1,
+          "upstreamHeadersMs": 193,
+          "upstreamFirstEventMs": 195,
+          "upstreamFirstTextMs": 527,
+          "upstreamFirstToolMs": 656,
+          "upstreamToolArgumentsDoneMs": 805,
+          "upstreamTerminalMs": 806
+        },
+        "counts": {
+          "requestBytes": 750,
+          "inputItemCount": 1,
+          "toolCount": 1,
+          "toolResultBytes": 0,
+          "upstreamAttemptCount": 1
+        }
+      },
+      {
+        "traceId": "5db2d13e-0cc3-45c4-b254-a2e35beaf54f",
+        "statusCode": 200,
+        "terminalStatus": "completed",
+        "protocolMode": "native",
+        "responsesProfile": "deepseek",
+        "nativeMetrics": {
+          "requestBytes": 1369,
+          "responseBytes": 13128,
+          "eventCount": 43,
+          "upstreamAttemptCount": 1,
+          "upstreamHeadersMs": 193,
+          "upstreamFirstEventMs": 194,
+          "upstreamFirstTextMs": 268,
+          "upstreamTerminalMs": 478
+        },
+        "counts": {
+          "requestBytes": 1378,
+          "inputItemCount": 4,
+          "toolCount": 1,
+          "toolResultBytes": 59,
+          "upstreamAttemptCount": 1
+        }
+      },
+      {
+        "traceId": "44b2dba0-4274-4589-9c21-9f31495a31dc",
+        "statusCode": 200,
+        "terminalStatus": "completed",
+        "protocolMode": "native",
+        "responsesProfile": "deepseek",
+        "nativeMetrics": {
+          "requestBytes": 741,
+          "responseBytes": 20431,
+          "eventCount": 77,
+          "upstreamAttemptCount": 1,
+          "upstreamHeadersMs": 185,
+          "upstreamFirstEventMs": 189,
+          "upstreamFirstTextMs": 514,
+          "upstreamFirstToolMs": 705,
+          "upstreamToolArgumentsDoneMs": 896,
+          "upstreamTerminalMs": 898
+        },
+        "counts": {
+          "requestBytes": 752,
+          "inputItemCount": 1,
+          "toolCount": 1,
+          "toolResultBytes": 0,
+          "upstreamAttemptCount": 1
+        }
+      },
+      {
+        "traceId": "b289f6d5-a812-4168-b80f-57c245d8a816",
+        "statusCode": 200,
+        "terminalStatus": "completed",
+        "protocolMode": "native",
+        "responsesProfile": "deepseek",
+        "nativeMetrics": {
+          "requestBytes": 1470,
+          "responseBytes": 13380,
+          "eventCount": 44,
+          "upstreamAttemptCount": 1,
+          "upstreamHeadersMs": 203,
+          "upstreamFirstEventMs": 203,
+          "upstreamFirstTextMs": 409,
+          "upstreamTerminalMs": 543
+        },
+        "counts": {
+          "requestBytes": 1481,
+          "inputItemCount": 4,
+          "toolCount": 1,
+          "toolResultBytes": 59,
+          "upstreamAttemptCount": 1
+        }
+      },
+      {
+        "traceId": "f9f69e59-816f-49fd-9c7c-635acc813a05",
+        "statusCode": 200,
+        "terminalStatus": "completed",
+        "protocolMode": "native",
+        "responsesProfile": "deepseek",
+        "nativeMetrics": {
+          "requestBytes": 741,
+          "responseBytes": 22951,
+          "eventCount": 86,
+          "upstreamAttemptCount": 1,
+          "upstreamHeadersMs": 252,
+          "upstreamFirstEventMs": 263,
+          "upstreamFirstTextMs": 609,
+          "upstreamFirstToolMs": 899,
+          "upstreamToolArgumentsDoneMs": 1111,
+          "upstreamTerminalMs": 1111
+        },
+        "counts": {
+          "requestBytes": 752,
+          "inputItemCount": 1,
+          "toolCount": 1,
+          "toolResultBytes": 0,
+          "upstreamAttemptCount": 1
+        }
+      },
+      {
+        "traceId": "4eb28fb9-3733-4715-bfad-d70ee8e9fb37",
+        "statusCode": 200,
+        "terminalStatus": "completed",
+        "protocolMode": "native",
+        "responsesProfile": "deepseek",
+        "nativeMetrics": {
+          "requestBytes": 1685,
+          "responseBytes": 17800,
+          "eventCount": 62,
+          "upstreamAttemptCount": 1,
+          "upstreamHeadersMs": 182,
+          "upstreamFirstEventMs": 182,
+          "upstreamFirstTextMs": 319,
+          "upstreamTerminalMs": 605
+        },
+        "counts": {
+          "requestBytes": 1696,
+          "inputItemCount": 5,
+          "toolCount": 1,
+          "toolResultBytes": 59,
+          "upstreamAttemptCount": 1
+        }
+      },
+      {
+        "traceId": "111ca7d2-1822-49fc-8c8c-2008990b929a",
+        "statusCode": 200,
+        "terminalStatus": "completed",
+        "protocolMode": "native",
+        "responsesProfile": "deepseek",
+        "nativeMetrics": {
+          "requestBytes": 741,
+          "responseBytes": 19957,
+          "eventCount": 75,
+          "upstreamAttemptCount": 1,
+          "upstreamHeadersMs": 200,
+          "upstreamFirstEventMs": 200,
+          "upstreamFirstTextMs": 506,
+          "upstreamFirstToolMs": 680,
+          "upstreamToolArgumentsDoneMs": 871,
+          "upstreamTerminalMs": 873
+        },
+        "counts": {
+          "requestBytes": 752,
+          "inputItemCount": 1,
+          "toolCount": 1,
+          "toolResultBytes": 0,
+          "upstreamAttemptCount": 1
+        }
+      },
+      {
+        "traceId": "004ba551-5ed4-4290-a06f-df6b5bd75e94",
+        "statusCode": 200,
+        "terminalStatus": "completed",
+        "protocolMode": "native",
+        "responsesProfile": "deepseek",
+        "nativeMetrics": {
+          "requestBytes": 1459,
+          "responseBytes": 17144,
+          "eventCount": 60,
+          "upstreamAttemptCount": 1,
+          "upstreamHeadersMs": 200,
+          "upstreamFirstEventMs": 201,
+          "upstreamFirstTextMs": 841,
+          "upstreamTerminalMs": 1061
+        },
+        "counts": {
+          "requestBytes": 1470,
+          "inputItemCount": 4,
+          "toolCount": 1,
+          "toolResultBytes": 59,
+          "upstreamAttemptCount": 1
+        }
+      }
+    ]
+  },
+  "appCommit": "236fa1eace6f1c19cdbc63a0ae162d21c503a05f"
+}

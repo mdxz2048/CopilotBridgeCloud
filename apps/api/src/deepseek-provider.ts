@@ -35,8 +35,8 @@ export function deepSeekMessages(input: ResponseInput): Message[] {
 
 export class DeepSeekProvider implements ProviderAdapter {
   readonly nativeProtocols = ['responses','chat_completions'] as const;
-  executeNative(request: CanonicalRequest, modelId: string, signal: AbortSignal, onEvent?: (type: string, event: Record<string, unknown>) => Promise<void>) {
-    return executeNativeResponses(this.baseUrl, this.key, request, modelId, signal, onEvent);
+  executeNative(request: CanonicalRequest, modelId: string, signal: AbortSignal, onEvent?: (type: string, event: Record<string, unknown>,signal?:AbortSignal) => Promise<void>) {
+    return executeNativeResponses(this.baseUrl, this.key, request, modelId, signal, onEvent,{timeoutMs:this.timeoutMs});
   }
   constructor(private readonly baseUrl: string, private readonly key: string, private readonly timeoutMs: number) {}
   private url(path: string) { return `${this.baseUrl.replace(/\/$/, '')}/${path}`; }

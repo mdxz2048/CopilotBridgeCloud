@@ -1,0 +1,202 @@
+{
+  "appVersion": "0.3.4",
+  "mode": "normal",
+  "paidEnabled": true,
+  "maxRmb": 0.04,
+  "requests": [
+    {
+      "traceId": "dfaf1818-b0a9-4149-80ea-641558fc47da",
+      "requestHash": "5694a89a4b7604f22b6430338472da2b2f8f8f1492f36b67f8210e47a4523d50",
+      "requestBytes": 750,
+      "budgetUpperRmb": 0.0055,
+      "actualPostCount": 1,
+      "httpStatus": 200,
+      "requestId": "09d9de0b-2852-4786-9d9f-04a16e6e788f",
+      "responseId": "resp_326b9c77e8664f2485dffe941a7f930b",
+      "nativeTerminal": "response.completed",
+      "eventTypes": [
+        "response.created",
+        "response.in_progress",
+        "response.output_item.added",
+        "response.content_part.added",
+        "response.output_text.delta",
+        "response.output_text.done",
+        "response.content_part.done",
+        "response.output_item.done",
+        "response.function_call_arguments.delta",
+        "response.function_call_arguments.done",
+        "response.completed"
+      ],
+      "responseHash": "b80a77f44ebe4fa21851b5f936d8e74119b07b733102cc4e01bd3312257f4bea",
+      "billingStatus": "SETTLED",
+      "pointsCharged": 7,
+      "settlementHash": "ac1126159d473846f8ec5fd80e824aadf1861e446a1fbb20e5f6a90db1126c52"
+    },
+    {
+      "traceId": "d657a919-6ad0-416e-8602-d7aaf11d72fc",
+      "requestHash": "09cd404c1c532bce63242af7afe50a8096e3ebd223b5518eeb99fb61804542ed",
+      "requestBytes": 1381,
+      "budgetUpperRmb": 0.0031,
+      "actualPostCount": 1,
+      "httpStatus": 200,
+      "requestId": "ded343b8-d3a6-451b-9eb5-ba7d736675a4",
+      "responseId": "resp_e2da7f3b31964b11bcdafa2dde6bb0d4",
+      "nativeTerminal": "response.completed",
+      "eventTypes": [
+        "response.created",
+        "response.in_progress",
+        "response.output_item.added",
+        "response.content_part.added",
+        "response.output_text.delta",
+        "response.output_text.done",
+        "response.content_part.done",
+        "response.output_item.done",
+        "response.completed"
+      ],
+      "responseHash": "b987317bc366a64d8058afc3bae6f85010ca28111183f9298a75365fb59ee352",
+      "billingStatus": "SETTLED",
+      "pointsCharged": 4,
+      "settlementHash": "f3cc325499a80ea0d130b316ac9abbf289e634a762f3051dff8781853eedef95"
+    },
+    {
+      "traceId": "1c284e45-a7fc-412e-97d7-e8c342ef018a",
+      "requestHash": "adc2c189270a79d799d9829167e4af8c9e8b1a05168990f7478e8652aa3022f3",
+      "requestBytes": 750,
+      "budgetUpperRmb": 0.0055,
+      "actualPostCount": 1,
+      "httpStatus": 200,
+      "requestId": "6c1afef4-6005-4ba0-b568-a5f372b015a5",
+      "responseId": "resp_2cf59478c8244e39a2ef62f84dbcabb1",
+      "nativeTerminal": "response.completed",
+      "eventTypes": [
+        "response.created",
+        "response.in_progress",
+        "response.output_item.added",
+        "response.function_call_arguments.delta",
+        "response.function_call_arguments.done",
+        "response.output_item.done",
+        "response.completed"
+      ],
+      "responseHash": "2eb87dfcc1e817741aa4e0cbb9f567d523af5e5bae6f3b35a2b0b3f438f2fc8d",
+      "billingStatus": "SETTLED",
+      "pointsCharged": 6,
+      "settlementHash": "a73a7adeabb972e9ae2f82bf7a4e07bfd78b1d3fff4192cfc53e91336043711a"
+    },
+    {
+      "traceId": "59ca4196-6a78-453e-a8c7-965a4f9b9aba",
+      "requestHash": "b5d02bc4fa9dc6c6f8239a76f0b30f14d68abd2ec6f7b04393c406f0bd4b19b0",
+      "requestBytes": 1129,
+      "budgetUpperRmb": 0.0028,
+      "actualPostCount": 1,
+      "httpStatus": 200,
+      "requestId": "2bc1b05b-7d94-46db-adfa-66b38a5a54bc",
+      "responseId": "resp_bdf60c25d1134e18a63cb6e51c7639ab",
+      "nativeTerminal": "response.completed",
+      "eventTypes": [
+        "response.created",
+        "response.in_progress",
+        "response.output_item.added",
+        "response.content_part.added",
+        "response.output_text.delta",
+        "response.output_text.done",
+        "response.content_part.done",
+        "response.output_item.done",
+        "response.completed"
+      ],
+      "responseHash": "1a9302f301738b0ae43dd68a666ecd0eddb1db3af14187c2262002e14027c3e9",
+      "billingStatus": "SETTLED",
+      "pointsCharged": 4,
+      "settlementHash": "15920b87b01621f6b132dc4b9e1a9a08c6b82294176257ead6f967e5d91d039f"
+    },
+    {
+      "traceId": "b512e1c4-ee93-4db4-aed7-758af6df8dbc",
+      "requestHash": "ba9482da1782f41ecda5543815a13ed88e5bc9f0b58e013079d7cee97886ace5",
+      "requestBytes": 750,
+      "budgetUpperRmb": 0.0055,
+      "actualPostCount": 1,
+      "httpStatus": 200,
+      "requestId": "9b98e88d-d60a-44a5-a785-0b615ae1b307",
+      "responseId": "resp_9068b794e5544817a2d081ce40ecff08",
+      "nativeTerminal": "response.completed",
+      "eventTypes": [
+        "response.created",
+        "response.in_progress",
+        "response.output_item.added",
+        "response.content_part.added",
+        "response.output_text.delta",
+        "response.output_text.done",
+        "response.content_part.done",
+        "response.output_item.done",
+        "response.function_call_arguments.delta",
+        "response.function_call_arguments.done",
+        "response.completed"
+      ],
+      "responseHash": "853efdbd781ffcc9813d55402dcb3bface75685ee7049d41d00b8cf59722f2bc",
+      "billingStatus": "SETTLED",
+      "pointsCharged": 6,
+      "settlementHash": "417dbba4c61c4d584051e32aa8a46de2b0c61ff0091537c9fd0c0400566f581d"
+    },
+    {
+      "traceId": "5db2d13e-0cc3-45c4-b254-a2e35beaf54f",
+      "requestHash": "053eacd070f8bb132f19796950489ceeeda7e96f62f06632241d42d2293957a2",
+      "requestBytes": 1378,
+      "budgetUpperRmb": 0.0031,
+      "actualPostCount": 1,
+      "httpStatus": 200,
+      "requestId": "c96d51ec-2205-4fe2-a503-a478f660aa8e",
+      "responseId": "resp_2bb9f6a08c4549b7a125ebe91489dfa3",
+      "nativeTerminal": "response.completed",
+      "eventTypes": [
+        "response.created",
+        "response.in_progress",
+        "response.output_item.added",
+        "response.content_part.added",
+        "response.output_text.delta",
+        "response.output_text.done",
+        "response.content_part.done",
+        "response.output_item.done",
+        "response.completed"
+      ],
+      "responseHash": "6d1ba672f3c60b530f9e2883bb96891934d5e1b8635c62fd56e4d8674bb43271",
+      "billingStatus": "SETTLED",
+      "pointsCharged": 4,
+      "settlementHash": "5d9b8bbc90f90acbbbb82634fc5236f8ae86c88c616a4b51c219dcdd6e3dc9af"
+    }
+  ],
+  "actualPostCount": 6,
+  "totalRmb": 0.0031000000000000003,
+  "scope": "FIXED_SYNTHETIC_TOOL_HARNESS_THROUGH_REAL_LOCAL_BRIDGE",
+  "noDesktopActions": true,
+  "effectiveRate": {
+    "input": 1,
+    "output": 4,
+    "reasoning": 4,
+    "toolRmb": 0,
+    "minimumRmb": 0
+  },
+  "artifacts": [
+    {
+      "format": "docx",
+      "created": true,
+      "reopened": true,
+      "size": 36644,
+      "sha256": "847c108d220d5785a499e4ed132cd47be6eee0df3857a82c978173566795c95d"
+    },
+    {
+      "format": "xlsx",
+      "created": true,
+      "reopened": true,
+      "size": 4859,
+      "sha256": "a0bb2a3c333bfb9bc87454eb3cc011daa17899a13442bece0291431e1467caf4"
+    },
+    {
+      "format": "pptx",
+      "created": true,
+      "reopened": true,
+      "size": 28269,
+      "sha256": "741992f40348d46821cf10b976e2efd3a13eda12df7d32e7a072af8ed938530d"
+    }
+  ],
+  "status": "PASS",
+  "testDeviceRevoked": true
+}

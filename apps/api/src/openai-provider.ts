@@ -6,7 +6,7 @@ export class OpenAIProvider implements ProviderAdapter {
   readonly nativeProtocols = ['responses'] as const;
   constructor(private readonly baseUrl: string, private readonly key: string, private readonly timeoutMs: number, private readonly reasoningModels: string[] = []) {}
   executeNative(request: CanonicalRequest, modelId: string, signal: AbortSignal, onEvent?: Parameters<typeof executeNativeResponses>[5]) {
-    return executeNativeResponses(this.baseUrl, this.key, request, modelId, signal, onEvent, { responsesProfile: 'openai', canThink: this.reasoningModels.includes(modelId) });
+    return executeNativeResponses(this.baseUrl, this.key, request, modelId, signal, onEvent, { responsesProfile: 'openai', canThink: this.reasoningModels.includes(modelId),timeoutMs:this.timeoutMs });
   }
   async listModels() {
     const response = await fetch(`${this.baseUrl.replace(/\/$/, '')}/models`, {

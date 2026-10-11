@@ -637,7 +637,8 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
     vi.stubGlobal('fetch',vi.fn(async(url,init)=>{
       if(String(url).endsWith('/user/balance'))return Response.json({is_available:true,balance_infos:[{currency:'CNY',total_balance:'100',granted_balance:'0',topped_up_balance:'100'}]});
       expect(String(url)).toBe('https://api.deepseek.com/responses');const request=JSON.parse(init.body);expect(request.max_output_tokens).toBeLessThanOrEqual(64);expect(request.reasoning.effort).toBe('low');
-      executions++;if(executions===2)expect(request.input.find((item:{type:string})=>item.type==='reasoning')).toMatchObject({id:'rs_native',content:[{type:'reasoning_text',text:'private fixture reasoning'}],summary:[],encrypted_content:'opaque-fixture',internal_chat_message_metadata_passthrough:{fixture:true}});
+      executions++;if(executions===3)throw new (await import('./native-timeouts.js')).NativeTimeoutError('total');
+      if(executions===2)expect(request.input.find((item:{type:string})=>item.type==='reasoning')).toMatchObject({id:'rs_native',content:[{type:'reasoning_text',text:'private fixture reasoning'}],summary:[],encrypted_content:'opaque-fixture',internal_chat_message_metadata_passthrough:{fixture:true}});
       if(executions===2)expect(request.input.filter((item:{type:string})=>item.type==='function_call_output').map((item:{call_id:string})=>item.call_id)).toEqual(['call_native','call_native_2']);
       const output=executions===1?[{id:'rs_native',type:'reasoning',status:'completed',content:[{type:'reasoning_text',text:'private fixture reasoning'}],summary:[],encrypted_content:'opaque-fixture'},{id:'fc_native',type:'function_call',call_id:'call_native',name:'probe',arguments:'{}'},{id:'fc_native_2',type:'function_call',call_id:'call_native_2',name:'probe',arguments:'{}'}]:[{id:'msg_native',type:'message',role:'assistant',content:[{type:'output_text',text:'done'}]}];
       return Response.json({id:`upstream_${executions}`,object:'response',status:'completed',model:'deepseek-flash',output,usage:{input_tokens:20,input_tokens_details:{cached_tokens:4},output_tokens:8,output_tokens_details:{reasoning_tokens:3},total_tokens:28}});
@@ -645,9 +646,9 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
     const app=await(await import('./server.js')).createServer();
     try {
       const token=await security.issueAccess(user.id,device.id);const otherToken=await security.issueAccess(user.id,otherDevice.id);const thread=randomUUID();
-      const send=async(input:unknown,previous_response_id?:string,useOtherDevice=false)=>{
+      const send=async(input:unknown,previous_response_id?:string,useOtherDevice=false,stream=false)=>{
         const activeDevice=useOtherDevice?otherDevice:device;const activeToken=useOtherDevice?otherToken:token;
-        const payload={model:model.publicId,input,previous_response_id,parallel_tool_calls:false,tools:[{type:'function',name:'probe',parameters:{}}],reasoning:{mode:'thinking',effort:'low'},max_output_tokens:64};
+        const payload={model:model.publicId,input,previous_response_id,stream,parallel_tool_calls:false,tools:[{type:'function',name:'probe',parameters:{}}],reasoning:{mode:'thinking',effort:'low'},max_output_tokens:64};
         return app.inject({method:'POST',url:'/v1/responses',headers:{...await signedHeaders(privateKey,'POST','/v1/responses',payload,activeToken),authorization:`Bearer ${activeToken}`,'x-device-id':activeDevice.deviceId,'x-client-thread-id':useOtherDevice?randomUUID():thread},payload});
       };
       const before=(await walletModule.walletSummary(user.id)).balance;
@@ -665,7 +666,13 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
       const events=await db.select().from(usageEvents).where(eq(usageEvents.userId,user.id));expect(events).toHaveLength(2);expect(events.every(e=>e.cachedInputTokens===4&&e.reasoningTokens===3&&e.billingStatus==='SETTLED')).toBe(true);
       expect(before-(await walletModule.walletSummary(user.id)).balance).toBe(events.reduce((sum,e)=>sum+e.pointsCharged,0));
       const records=await db.select().from(usageRecords).where(eq(usageRecords.userId,user.id));expect(records.map(r=>r.rateCounted)).toEqual([true,false]);
-      await db.update(modelInstances).set({enabled:false}).where(eq(modelInstances.id,instance.id));const disabled=await send('new turn',second.json().id);expect(disabled.statusCode).toBe(409);expect(disabled.json().error.code).toBe('MODEL_UNAVAILABLE');expect(executions).toBe(2);
+      await db.update(systemSettings).set({value:{accountRpm:120,deviceRpm:60,publicIpRpm:120,authIpRpm:120}}).where(eq(systemSettings.key,'rate_policy'));
+      const timedOut=await send('fixed slow document-writing fixture',second.json().id,false,true);expect(timedOut.statusCode,timedOut.body).toBe(200);
+      const failed=timedOut.body.split(/\n\n/).filter(block=>block.includes('event: response.failed')).map(block=>JSON.parse(block.split('\n').find(line=>line.startsWith('data: '))!.slice(6)))[0];
+      expect(failed.response.error).toMatchObject({code:'GATEWAY_TIMEOUT',request_id:expect.any(String),timeout_phase:'total'});expect(failed.error).toEqual(failed.response.error);
+      const [timeoutEvent]=await db.select().from(usageEvents).where(eq(usageEvents.requestId,failed.response.error.request_id));expect(timeoutEvent.billingStatus).toBe('METERING_ERROR');expect(timeoutEvent.providerCost).toBeNull();
+      const [afterPlatformLimit]=await db.select().from(modelInstances).where(eq(modelInstances.id,instance.id));expect(afterPlatformLimit).toMatchObject({healthStatus:'READY',cooldownUntil:null});
+      await db.update(modelInstances).set({enabled:false}).where(eq(modelInstances.id,instance.id));const disabled=await send('new turn',second.json().id);expect(disabled.statusCode).toBe(409);expect(disabled.json().error.code).toBe('MODEL_UNAVAILABLE');expect(executions).toBe(3);
     } finally {await app.close();vi.unstubAllGlobals();}
   });
 

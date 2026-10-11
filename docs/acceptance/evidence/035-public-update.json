@@ -1,0 +1,11 @@
+{
+  "publicLatest": true,
+  "automaticDownload": true,
+  "sha256Verified": true,
+  "version": "0.3.5",
+  "installerFilename": "CopilotBridge-0.3.5.exe",
+  "size": 342844761,
+  "sha256": "6cca11c5436932a384074d545a1ae65e231ebba6f1ad74d4855b34a1209eec76",
+  "configLatestVersion": "0.3.5",
+  "passed": true
+}

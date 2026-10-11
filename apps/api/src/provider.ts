@@ -35,7 +35,7 @@ export type CanonicalResult = {
 };
 export interface ProviderAdapter {
   readonly nativeProtocols?: readonly string[];
-  executeNative?(request: CanonicalRequest, modelId: string, signal: AbortSignal, onEvent?: (type: string, event: Record<string, unknown>) => Promise<void>): Promise<CanonicalResult>;
+  executeNative?(request: CanonicalRequest, modelId: string, signal: AbortSignal, onEvent?: (type: string, event: Record<string, unknown>,signal?:AbortSignal) => Promise<void>): Promise<CanonicalResult>;
   health(): Promise<{ ready: boolean; reason?: string }>;
   listModels(): Promise<string[]>;
   validateCredential?(): Promise<{ valid: boolean; reason?: string }>;
