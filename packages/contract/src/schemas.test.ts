@@ -24,6 +24,12 @@ describe('Desktop V1 contract', () => {
   it('accepts tool continuation', () => {
     expect(ResponseRequestSchema.safeParse({ model: 'mock/mock-chat', input: [{ type: 'function_call_output', call_id: 'call_1', output: 'done' }] }).success).toBe(true);
   });
+  it('preserves native fields but validates known call shapes before an unknown-type fallback',()=>{
+    expect(ResponseRequestSchema.safeParse({model:'deepseek/deepseek-flash',input:[{type:'function_call'}]}).success).toBe(false);
+    expect(ResponseRequestSchema.safeParse({model:'deepseek/deepseek-flash',input:[{type:'custom_tool_call_output',output:'done'}]}).success).toBe(false);
+    const request=ResponseRequestSchema.parse({model:'deepseek/deepseek-flash',input:[{type:'reasoning',content:[{type:'reasoning_text',text:'fixture'}]}],instructions:'fixture',future_field:{preserved:true}});
+    expect(request.future_field).toEqual({preserved:true});expect(request.input).toEqual([{type:'reasoning',content:[{type:'reasoning_text',text:'fixture'}]}]);
+  });
   it('freezes nullable latest release responses', () => {
     expect(LatestReleaseResponseSchema.safeParse({ release: null }).success).toBe(true);
     expect(LatestReleaseResponseSchema.safeParse({ release: {

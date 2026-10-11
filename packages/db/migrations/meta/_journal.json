@@ -71,6 +71,13 @@
       "when": 1790761417749,
       "tag": "0009_good_morgan_stark",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791673949687,
+      "tag": "0010_sudden_morlocks",
+      "breakpoints": true
     }
   ]
 }

@@ -4,6 +4,7 @@ import { ApiError } from './core.js';
 import { normalizeUsage, ratePoints, type BillingPolicy, type NormalizedUsage, type PointRates } from './rating.js';
 import { applyWalletChange, walletSummary } from './wallet.js';
 import type { BillingMode } from './billing-mode.js';
+import { unresolvedBillingReview } from './billing-review.js';
 
 export type RequestState = 'COMPLETED' | 'CLIENT_DISCONNECTED' | 'PROVIDER_ERROR';
 export type MeteredResult = {
@@ -53,7 +54,7 @@ export async function preflightPoints(userId: string, providerId: string, modelI
     rate.imageInputRate, rate.imageOutputRate, rate.toolRate].some(value => Number(value) > 0);
   const [unpaid] = await db.select({ id: usageEvents.id }).from(usageEvents).where(and(eq(usageEvents.userId, userId), eq(usageEvents.billingStatus, 'UNPAID'))).limit(1);
   if (unpaid) throw new ApiError(402, 'INSUFFICIENT_POINTS');
-  const [review] = await db.select({ id: usageEvents.id }).from(usageEvents).where(and(eq(usageEvents.userId, userId), or(eq(usageEvents.billingStatus, 'METERING_ERROR'), eq(usageEvents.billingStatus, 'UNRATED')))).limit(1);
+  const [review] = await db.select({ id: usageEvents.id }).from(usageEvents).where(and(eq(usageEvents.userId, userId), or(eq(usageEvents.billingStatus, 'METERING_ERROR'), eq(usageEvents.billingStatus, 'UNRATED')),unresolvedBillingReview)).limit(1);
   if (review) throw new ApiError(409, 'BILLING_REVIEW_REQUIRED');
   if (requiresBalance && (await walletSummary(userId)).balance <= 0) throw new ApiError(402, 'INSUFFICIENT_POINTS');
   return { rate };

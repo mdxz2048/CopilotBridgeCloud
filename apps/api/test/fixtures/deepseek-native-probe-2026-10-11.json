@@ -1,0 +1,17 @@
+{
+  "observedAt": "2026-10-10T23:19:00.170Z",
+  "timezone": "Asia/Shanghai",
+  "environment": "real DeepSeek managed connection, server-side in-memory credential use",
+  "privacy": "Synthetic prompts only. No credentials, prompts, reasoning text, tool parameters, user identifiers or raw response bodies retained.",
+  "catalog": [
+    { "id": "deepseek-flash", "context_window": 1048576, "max_output_tokens": 393216, "input_modalities": ["text", "image"], "effort": {"supported_levels": ["low", "high", "max"], "default_level": "high"} },
+    { "id": "deepseek-v4-pro", "context_window": 1048576, "max_output_tokens": 393216, "input_modalities": ["text"], "effort": {"supported_levels": ["low", "high", "max"], "default_level": "high"} }
+  ],
+  "probes": [
+    { "scenario": "Flash normal JSON", "status": 200, "responseStatus": "completed", "outputTypes": ["message"], "usage": {"input_tokens": 7, "output_tokens": 2, "cached_tokens": 0, "reasoning_tokens": 0} },
+    { "scenario": "Flash thinking function SSE", "status": 200, "responseStatus": "completed", "outputTypes": ["reasoning", "function_call"], "usage": {"input_tokens": 291, "output_tokens": 53, "cached_tokens": 0, "reasoning_tokens": 14}, "terminalEvent": "response.completed", "terminalSequence": 31, "hasDoneSentinel": false, "observedEventTypes": ["response.created", "response.in_progress", "response.output_item.added", "response.content_part.added", "response.reasoning_text.delta", "response.reasoning_text.done", "response.content_part.done", "response.output_item.done", "response.function_call_arguments.delta", "response.function_call_arguments.done", "response.completed"] },
+    { "scenario": "Flash complete reasoning history and function output continuation", "status": 200, "responseStatus": "completed", "outputTypes": ["reasoning", "message"], "usage": {"input_tokens": 357, "output_tokens": 39, "cached_tokens": 128, "reasoning_tokens": 17}, "terminalEvent": "response.completed", "terminalSequence": 50, "hasDoneSentinel": false }
+  ],
+  "notVerifiedByThisProbe": ["Pro generation", "official ChatGPT Desktop end-to-end", "native custom apply_patch", "image understanding", "Office document understanding", "artifact UI"],
+  "officialReferences": ["https://api-docs.deepseek.com/guides/responses_api/", "https://api-docs.deepseek.com/api/create-response/", "https://api-docs.deepseek.com/guides/thinking_mode/", "https://api-docs.deepseek.com/zh-cn/quick_start/pricing/"]
+}

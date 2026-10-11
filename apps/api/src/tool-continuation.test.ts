@@ -12,6 +12,16 @@ const answer = (ids: string[]) => ({
 const initial = { model: 'mock/mock-chat', tools, input: 'Read and write' };
 
 describe('bounded tool continuation', () => {
+  it('recognizes native reasoning and custom tool transcript as the same metered conversation', () => {
+    const now=Date.now();
+    const output=[{id:'rs_1',type:'reasoning',content:[{type:'reasoning_text',text:'fixture'}]},
+      {id:'custom_1',type:'custom_tool_call',call_id:'patch_1',name:'apply_patch',input:'fixture patch'}];
+    const result={...call('unused'),output,nativeResponse:{output}};
+    const state=nextContinuationState(initial,result,null,now);
+    const follow={...initial,input:[{role:'user',content:initial.input},...output,{type:'custom_tool_call_output',call_id:'patch_1',output:'done'}]};
+    expect(pendingContinuation(state,follow,now+1000)?.satisfiedCallIds).toEqual(['patch_1']);
+    expect(pendingContinuation(state,{...follow,input:follow.input.map(i=>i.type==='reasoning'?{...i,content:[]}:i)},now+1000)).toBeNull();
+  });
   it('allows a pending same-thread tool result and bounds the chain and lifetime', () => {
     const now = Date.now();
     const first = nextContinuationState(initial, call('call-1'), null, now);
@@ -26,6 +36,17 @@ describe('bounded tool continuation', () => {
       current = pendingContinuation(state, answer([`call-${count + 1}`]), now + count * 1000);
     }
     expect(current).toBeNull();
+  });
+  it('recognizes official reasoning transport changes while rejecting altered private execution history',()=>{
+    const now=Date.now();
+    const reasoning={type:'reasoning',id:'rs_official',status:'completed',content:[{type:'reasoning_text',text:'fixture'}],summary:[],encrypted_content:'opaque-fixture'};
+    const output=[reasoning,...call('call-official').output];
+    const state=nextContinuationState(initial,{...call('unused'),output,nativeResponse:{output}},null,now);
+    const {status:_status,...replay}=reasoning;
+    const follow={...initial,input:[{role:'user',content:initial.input},{...replay,internal_chat_message_metadata_passthrough:{fixture:true}},output[1],{type:'function_call_output',call_id:'call-official',output:'done'}]};
+    expect(pendingContinuation(state,follow,now+1)?.satisfiedCallIds).toEqual(['call-official']);
+    for(const changed of [{content:[{type:'reasoning_text',text:'tampered'}]},{encrypted_content:'tampered'},{summary:[{type:'summary_text',text:'tampered'}]}]) expect(pendingContinuation(state,{...follow,input:follow.input.map(i=>i.type==='reasoning'?{...i,...changed}:i)},now+1)).toBeNull();
+    expect(pendingContinuation(state,{...follow,input:[...follow.input,{role:'user',content:'new prompt'}]},now+1)).toBeNull();
   });
 
   it('does not accept ordinary prompts or forged outputs as a continuation', () => {
@@ -48,6 +69,7 @@ describe('bounded tool continuation', () => {
     const firstOutput = { type: 'function_call_output', call_id: 'call-1', output: 'file content' };
     const followUp = { model: 'mock/mock-chat', tools, input: [...history, firstOutput] };
     expect(pendingContinuation(first, followUp, now + 1000)).not.toBeNull();
+    expect(pendingContinuation(first,{...followUp,input:followUp.input.map(item=>item.type==='function_call'?{...item,id:'transport-item',status:'completed'}:item)},now+1000)).not.toBeNull();
     const second = nextContinuationState(followUp, call('call-2'), pendingContinuation(first, followUp, now + 1000), now + 1000);
     const secondOutput = { type: 'function_call_output', call_id: 'call-2', output: 'write completed' };
     expect(pendingContinuation(second, { model: 'mock/mock-chat', tools,

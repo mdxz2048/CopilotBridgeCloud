@@ -1,11 +1,16 @@
 {
-  "version": "2.4.0",
+  "version": "2.5.0",
   "openapiFile": "openapi.v2.json",
-  "openapiSha256": "9b6ebcb1c30bdd854a10067b281e7ca5bf6259e19af0709d903cb0eb99417b6a",
-  "frozenAt": "2026-09-24",
+  "openapiSha256": "20269272a7f5e429d73036f96b0fad3dc4e89f126e4bb02f10e40bdc9a8ee6a8",
+  "frozenAt": "2026-10-11",
   "gatewayV1": {
     "version": "1.0.0",
     "openapiFile": "openapi.v1.json",
     "openapiSha256": "4c72178606ecd71ec047c9618e89eff6581e489f53d80ff54f4035d7152a2d85"
+  },
+  "gatewayCurrent": {
+    "version": "1.1.0",
+    "openapiFile": "openapi.gateway1.1.json",
+    "openapiSha256": "706ee93f9223bb676c0b38cf3736d6c8a52306e09a085c2168901c8e95cb3619"
   }
 }

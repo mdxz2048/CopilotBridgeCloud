@@ -8,6 +8,7 @@ import { currentRatePolicy } from './rate-policy.js';
 import { walletSummary } from './wallet.js';
 import { encryptSecret } from './security.js';
 import { DeepSeekProvider, isDeepSeekProvider } from './provider.js';
+import { logicalCapabilities } from './instance-router.js';
 
 const uuidParam = (params: unknown) => z.uuid().parse((params as { id: string }).id);
 async function usageSummary(req: Parameters<typeof actor>[0]) {
@@ -66,8 +67,8 @@ export async function registerV2Routes(app: FastifyInstance) {
   app.get('/api/v1/providers/:id/models', async req => {
     const a = await actor(req); const id = uuidParam(req.params); const active = await currentSubscription(a.user.id);
     const allowed = active ? await allowedModels(a.user.id, active.plan.id) : [];
-    return { data: allowed.filter(({ provider }) => provider.id === id).map(({ model }) => ({ id: model.id, publicId: model.publicId, displayName: model.displayName,
-      capabilities: { tools: model.supportsTools, vision: model.supportsVision, reasoning: model.supportsReasoning, streaming: model.supportsStreaming } })) };
+    return { data: allowed.filter(({ provider, candidates }) => provider.id === id || candidates.some(c=>c.provider.id===id)).map(({ model,candidates }) => ({ id: model.id, publicId: model.publicId, displayName: model.displayName,
+      capabilities:logicalCapabilities(candidates) })) };
   });
   app.get('/api/v1/me/provider-connections', async req => {
     const a = await actor(req);

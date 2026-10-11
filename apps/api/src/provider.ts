@@ -9,7 +9,7 @@ import { CopilotFailure, CopilotProvider } from './copilot-provider.js';
 export { MockProvider } from './mock-provider.js';
 
 export type ResponseInput = string | Array<Record<string, unknown>>;
-export type CanonicalRequest = { model: string; input: ResponseInput; tools?: Array<Record<string, unknown>>; reasoning?: Record<string, unknown>; stream?: boolean; maxOutputTokens?: number };
+export type CanonicalRequest = { model: string; input: ResponseInput; tools?: Array<Record<string, unknown>>; reasoning?: Record<string, unknown>; stream?: boolean; maxOutputTokens?: number; instructions?: string | null; [key: string]: unknown };
 export type CanonicalResult = {
   output: Array<Record<string, unknown>>;
   inputTokens: number;
@@ -24,8 +24,15 @@ export type CanonicalResult = {
   imageOutput?: number;
   toolCalls?: number;
   providerReportedUsage?: Record<string, unknown>;
+  nativeResponse?: Record<string, unknown>;
+  nativeTerminalEvent?: string;
+  nativeTerminalData?: Record<string, unknown>;
+  usageUnavailable?: boolean;
+  status?: 'completed' | 'incomplete' | 'failed';
 };
 export interface ProviderAdapter {
+  readonly nativeProtocols?: readonly string[];
+  executeNative?(request: CanonicalRequest, modelId: string, signal: AbortSignal, onEvent?: (type: string, event: Record<string, unknown>) => Promise<void>): Promise<CanonicalResult>;
   health(): Promise<{ ready: boolean; reason?: string }>;
   listModels(): Promise<string[]>;
   validateCredential?(): Promise<{ valid: boolean; reason?: string }>;

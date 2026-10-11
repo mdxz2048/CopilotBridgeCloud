@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { db, auditLogs, billingOrders, devices, models, planModelAccess, plans, providerCredentials, providers, refreshTokens, releases, subscriptions, systemSettings, usageRecords, userModelAccess, users, webSessions, rateCards, rateCardVersions } from '@bridge/db';
+import { db, auditLogs, billingOrders, devices, models, modelInstances, planModelAccess, plans, providerCredentials, providers, refreshTokens, releases, subscriptions, systemSettings, usageRecords, userModelAccess, users, webSessions, rateCards, rateCardVersions } from '@bridge/db';
 import { and, desc, eq, ilike, sql, ne } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
@@ -12,6 +12,8 @@ import { encryptSecret, hashPassword } from './security.js';
 import { grantSubscriptionPoints } from './wallet.js';
 import { qualifyReferralFromPaidOrder } from './referral.js';
 import { publicWebsiteSettings, saveWebsiteSettings, websiteSettingsInput } from './website-settings.js';
+import { currentDeepSeekModel, ensureLegacyInstance } from './instance-router.js';
+import { registerBillingReview } from './billing-review.js';
 
 const planData = z.object({ name: z.string().min(1), description: z.string(), monthlyPrice: z.number().nonnegative(), currency: z.string().length(3), maxDevices: z.number().int().positive(), monthlyTokenLimit: z.number().int().positive(), monthlyUsageCreditLimit: z.number().positive(), maxConcurrentRequests: z.number().int().positive(), requestsPerMinute: z.number().int().positive(), enabled: z.boolean(), monthlyPoints: z.number().int().min(0).optional(), rolloverPolicy: z.enum(['NONE', 'UNLIMITED']).optional() });
 const modelData = z.object({ providerId: z.uuid(), providerModelId: z.string().min(1), publicId: z.string().min(1), displayName: z.string().min(1), enabled: z.boolean(), supportsTools: z.boolean(), supportsVision: z.boolean(), supportsReasoning: z.boolean(), supportsStreaming: z.boolean(), contextWindow: z.number().int().positive().nullable(), maxOutputTokens: z.number().int().positive().nullable(), usageWeight: z.number().positive(), sortOrder: z.number().int() });
@@ -45,6 +47,51 @@ async function grant(userId: string, planId: string, days?: number) {
   });
 }
 export async function registerAdmin(app: FastifyInstance) {
+  await registerBillingReview(app);
+  app.get('/api/v1/admin/model-instances', async req => { await admin(req); return {data:await db.select().from(modelInstances).orderBy(modelInstances.createdAt)}; });
+  app.post('/api/v1/admin/model-instances', async (req,reply) => {
+    const a = await admin(req);
+    const data = z.object({modelId:z.uuid(),providerId:z.uuid(),providerModelId:z.string().min(1).max(120),priority:z.number().int().min(-100000).max(100000).default(0),weight:z.number().int().min(0).max(100000).default(1)}).parse(req.body);
+    const [model] = await db.select().from(models).where(eq(models.id,data.modelId)).limit(1);
+    const [provider] = await db.select().from(providers).where(eq(providers.id,data.providerId)).limit(1);
+    if (!model || !provider || !isDeepSeekProvider(provider.code)) throw new ApiError(400,'MODEL_PROVIDER_MISMATCH');
+    // The existing rate-card identity is provider/logical model; prohibit ambiguous upstream costs.
+    if (model.providerModelId !== data.providerModelId) throw new ApiError(409,'RATE_CARD_IDENTITY_MISMATCH','同一逻辑模型仅绑定相同上游型号，避免费率混用。');
+    const [instance] = await db.insert(modelInstances).values({...data,enabled:false,healthStatus:'UNKNOWN'}).onConflictDoNothing().returning();
+    if (!instance) throw new ApiError(409,'INSTANCE_ALREADY_EXISTS');
+    await audit(a.user.id,'MODEL_INSTANCE_CREATED','MODEL_INSTANCE',instance.id,{modelId:data.modelId,providerId:data.providerId});
+    return reply.code(201).send(instance);
+  });
+  app.patch('/api/v1/admin/model-instances/:id', async req => {
+    const a = await admin(req); const id = idParam(req.params);
+    const data = z.object({enabled:z.boolean().optional(),priority:z.number().int().min(-100000).max(100000).optional(),weight:z.number().int().min(0).max(100000).optional()}).strict().parse(req.body);
+    const [instance] = await db.select().from(modelInstances).where(eq(modelInstances.id,id)).limit(1);
+    if (!instance) throw new ApiError(404,'NOT_FOUND');
+    if (data.enabled && instance.healthStatus !== 'READY') throw new ApiError(409,'PROVIDER_NOT_READY','请先检查资源连接，再启用。');
+    const [updated] = await db.update(modelInstances).set(data).where(eq(modelInstances.id,id)).returning();
+    await audit(a.user.id,'MODEL_INSTANCE_UPDATED','MODEL_INSTANCE',id,data); return updated;
+  });
+  app.post('/api/v1/admin/model-instances/:id/check', async req => {
+    const a = await admin(req); const id=idParam(req.params);
+    const [instance] = await db.select().from(modelInstances).where(eq(modelInstances.id,id)).limit(1);
+    if (!instance) throw new ApiError(404,'NOT_FOUND');
+    const [provider] = await db.select().from(providers).where(eq(providers.id,instance.providerId)).limit(1);
+    if (!provider || !isDeepSeekProvider(provider.code) || !currentDeepSeekModel(instance.providerModelId)) throw new ApiError(422,'UNSUPPORTED_CAPABILITY','此型号尚无原生 Responses 兼容证据。');
+    const adapter = await providerFor(provider.id,provider.code);
+    if (!adapter.executeNative) throw new ApiError(422,'UNSUPPORTED_PROTOCOL');
+    try {
+      const normal = await adapter.executeNative({model:instance.providerModelId,input:'Reply OK.',stream:false,reasoning:{mode:'normal'},maxOutputTokens:32},instance.providerModelId,AbortSignal.timeout(20000));
+      if (!normal.output.length) throw new ApiError(502,'PROTOCOL_INVALID');
+      let sawTerminal = false;
+      const thinking = await adapter.executeNative({model:instance.providerModelId,input:'Call bridge_probe with value 1.',stream:true,reasoning:{mode:'thinking',effort:'low'},tools:[{type:'function',name:'bridge_probe',parameters:{type:'object',properties:{value:{type:'integer'}},required:['value']}}],maxOutputTokens:512},instance.providerModelId,AbortSignal.timeout(45000),async()=>{sawTerminal=true;});
+      if (!sawTerminal || !thinking.output.some(i=>i.type==='function_call') || !thinking.output.some(i=>i.type==='reasoning')) throw new ApiError(502,'PROTOCOL_INVALID','思考工具兼容探测未通过。');
+      const [updated] = await db.update(modelInstances).set({healthStatus:'READY',healthCheckedAt:new Date(),cooldownUntil:null,nativeProtocols:['responses','chat_completions'],capabilities:{tools:true,vision:instance.providerModelId==='deepseek-flash',reasoning:true,streaming:true,reasoningModes:['normal','thinking','auto'],defaultReasoningMode:'auto',evidence:'deepseek-responses-probe'}}).where(eq(modelInstances.id,id)).returning();
+      await audit(a.user.id,'MODEL_INSTANCE_CHECKED','MODEL_INSTANCE',id,{ready:true,inputTokens:normal.inputTokens+thinking.inputTokens,outputTokens:normal.outputTokens+thinking.outputTokens}); return updated;
+    } catch (error) {
+      await db.update(modelInstances).set({healthStatus:'UNAVAILABLE',healthCheckedAt:new Date()}).where(eq(modelInstances.id,id));
+      throw error;
+    }
+  });
   app.get('/api/v1/admin/website-settings', async req => {
     await admin(req);
     return publicWebsiteSettings();

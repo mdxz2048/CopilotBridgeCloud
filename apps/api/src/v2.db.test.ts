@@ -330,6 +330,25 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
     expect(await db.select().from(usageEvents).where(eq(usageEvents.requestId, request.id))).toHaveLength(1);
     await expect(meterModule.preflightPoints(user.id, ids.provider, ids.model, 'MANAGED_USAGE'))
       .rejects.toMatchObject({ code: 'BILLING_REVIEW_REQUIRED' });
+    const app=await(await import('./server.js')).createServer();
+    try {
+      const adminHeaders=await testCookieHeaders(dbModule,ids.admin);const userHeaders=await testCookieHeaders(dbModule,user.id);
+      const path=`/api/v1/admin/usage-events/${event.id}/review`;const payload={resolution:'platform_waived',reason:'Internal cancellation test; platform assumes unknown supplier cost.'};
+      expect((await app.inject({method:'POST',url:path,headers:userHeaders,payload})).statusCode).toBe(403);
+      expect((await app.inject({method:'POST',url:path,headers:{...adminHeaders,origin:'https://forged.example'},payload})).statusCode).toBe(403);
+      expect((await app.inject({method:'POST',url:path,headers:adminHeaders,payload:{...payload,reason:' '}})).statusCode).toBe(400);
+      expect((await app.inject({method:'POST',url:`/api/v1/admin/usage-events/${randomUUID()}/review`,headers:adminHeaders,payload})).statusCode).toBe(404);
+      expect((await app.inject({method:'GET',url:'/api/v1/admin/usage-events/review',headers:adminHeaders})).json().data.some((item:{id:string})=>item.id===event.id)).toBe(true);
+      const reviewed=await app.inject({method:'POST',url:path,headers:adminHeaders,payload});expect(reviewed.statusCode).toBe(200);expect(reviewed.json()).toMatchObject({alreadyReviewed:false,review:{resolution:'platform_waived',supplierCostKnown:false,actorId:ids.admin}});
+      expect((await app.inject({method:'POST',url:path,headers:adminHeaders,payload})).json().alreadyReviewed).toBe(true);
+      await expect(meterModule.preflightPoints(user.id,ids.provider,ids.model,'MANAGED_USAGE')).resolves.toBeTruthy();
+      const after=await db.select().from(usageEvents).where(eq(usageEvents.id,event.id));expect(after[0]).toEqual(event);
+      expect(await db.select().from(walletTransactions).where(eq(walletTransactions.referenceId,request.id))).toHaveLength(0);expect((await walletModule.walletSummary(user.id)).balance).toBe(100);
+      expect((await db.select().from(dbModule.auditLogs).where(eq(dbModule.auditLogs.targetId,event.id))).filter(log=>log.action==='USAGE_BILLING_REVIEWED')).toHaveLength(1);
+      const [next]=await db.insert(aiRequests).values({responseId:`resp_${randomUUID()}`,userId:user.id,deviceId:device.id,providerId:ids.provider,modelId:ids.model,billingPolicy:'MANAGED_USAGE',rateCardVersionId:ids.rateVersion,status:'STARTED'}).returning();
+      await meterModule.settleAiRequest(next.id,'CLIENT_DISCONNECTED',{usageUnavailable:true},'SHADOW');
+      await expect(meterModule.preflightPoints(user.id,ids.provider,ids.model,'MANAGED_USAGE')).rejects.toMatchObject({code:'BILLING_REVIEW_REQUIRED'});
+    }finally{await app.close();}
   });
 
   it('persists only verified Copilot credentials and audit without enabling the provider', async () => {
@@ -557,6 +576,55 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
     expect((await meterModule.settleAiRequest(request.id, 'COMPLETED', {}, 'SHADOW')).id).toBe(event.id);
   });
 
+  it('pins native instances, bills actual cached/reasoning usage once, and scopes encrypted previous responses', async () => {
+    const {db,users,devices,providers,providerCredentials,models,modelInstances,plans,planModelAccess,subscriptions,systemSettings,aiRequests,usageEvents,modelSessions,usageRecords}=dbModule;
+    const {eq}=await import('drizzle-orm');const security=await import('./security.js');
+    const [user]=await db.insert(users).values({email:`native-${randomUUID()}@example.test`,passwordHash:'fixture'}).returning();
+    const {privateKey,publicKey}=proofKey();const jwk=publicKey.export({format:'jwk'});
+    const deviceData={userId:user.id,deviceName:'Native Fixture',platform:'Windows',appVersion:'0.3.0',publicKeyJwk:{kty:'EC' as const,crv:'P-256' as const,x:jwk.x!,y:jwk.y!}};
+    const [device]=await db.insert(devices).values({...deviceData,deviceId:randomUUID()}).returning();
+    const [otherDevice]=await db.insert(devices).values({...deviceData,deviceId:randomUUID()}).returning();
+    const [provider]=await db.insert(providers).values({code:`DEEPSEEK_${randomUUID().replaceAll('-','').slice(0,12).toUpperCase()}`,name:'Native Fixture',enabled:true,baseUrl:'https://api.deepseek.com'}).returning();
+    const [alternate]=await db.insert(providers).values({code:`DEEPSEEK_${randomUUID().replaceAll('-','').slice(0,12).toUpperCase()}`,name:'Native Alternate',enabled:true,baseUrl:'https://api.deepseek.com'}).returning();
+    await db.insert(providerCredentials).values([{providerId:provider.id,...security.encryptSecret('fixture-key')},{providerId:alternate.id,...security.encryptSecret('fixture-key')}]);
+    const [model]=await db.insert(models).values({providerId:provider.id,providerModelId:'deepseek-flash',publicId:`deepseek/native-${randomUUID()}`,displayName:'Native Fixture',enabled:true,supportsTools:true,supportsReasoning:true,contextWindow:1000000,maxOutputTokens:512}).returning();
+    const instanceData={modelId:model.id,providerModelId:'deepseek-flash',enabled:true,healthStatus:'READY',nativeProtocols:['responses'],capabilities:{tools:true,reasoning:true,streaming:true}};
+    const [instance]=await db.insert(modelInstances).values({...instanceData,providerId:provider.id,priority:10}).returning();
+    await db.insert(modelInstances).values({...instanceData,providerId:alternate.id,priority:0});
+    const [plan]=await db.insert(plans).values({code:`NATIVE_${randomUUID().slice(0,8)}`,name:'Native Fixture',monthlyPrice:'1',maxDevices:2,monthlyTokenLimit:1000000,monthlyUsageCreditLimit:'1000000',maxConcurrentRequests:3,requestsPerMinute:60,enabled:true}).returning();
+    const now=new Date();await db.insert(subscriptions).values({userId:user.id,planId:plan.id,status:'ACTIVE',startedAt:now,currentPeriodStart:now,currentPeriodEnd:new Date(Date.now()+86400000)});
+    await db.insert(planModelAccess).values({modelId:model.id,planId:plan.id});
+    await db.transaction(tx=>walletModule.applyWalletChange(tx,{userId:user.id,points:200000,type:'PURCHASE',referenceType:'TEST',referenceId:'native-quota',idempotencyKey:`native-quota-${user.id}`}));
+    await db.insert(systemSettings).values({key:'rate_policy',value:{accountRpm:2,deviceRpm:1,publicIpRpm:120,authIpRpm:120}}).onConflictDoUpdate({target:systemSettings.key,set:{value:{accountRpm:2,deviceRpm:1,publicIpRpm:120,authIpRpm:120}}});
+    let executions=0;
+    vi.stubGlobal('fetch',vi.fn(async(url,init)=>{
+      if(String(url).endsWith('/user/balance'))return Response.json({is_available:true,balance_infos:[{currency:'CNY',total_balance:'100',granted_balance:'0',topped_up_balance:'100'}]});
+      expect(String(url)).toBe('https://api.deepseek.com/responses');const request=JSON.parse(init.body);expect(request.max_output_tokens).toBeLessThanOrEqual(64);expect(request.reasoning.effort).toBe('low');
+      executions++;if(executions===2)expect(request.input.find((item:{type:string})=>item.type==='reasoning')).toMatchObject({id:'rs_native',content:[{type:'reasoning_text',text:'private fixture reasoning'}],summary:[],encrypted_content:'opaque-fixture',internal_chat_message_metadata_passthrough:{fixture:true}});
+      const output=executions===1?[{id:'rs_native',type:'reasoning',status:'completed',content:[{type:'reasoning_text',text:'private fixture reasoning'}],summary:[],encrypted_content:'opaque-fixture'},{id:'fc_native',type:'function_call',call_id:'call_native',name:'probe',arguments:'{}'}]:[{id:'msg_native',type:'message',role:'assistant',content:[{type:'output_text',text:'done'}]}];
+      return Response.json({id:`upstream_${executions}`,object:'response',status:'completed',model:'deepseek-flash',output,usage:{input_tokens:20,input_tokens_details:{cached_tokens:4},output_tokens:8,output_tokens_details:{reasoning_tokens:3},total_tokens:28}});
+    }));
+    const app=await(await import('./server.js')).createServer();
+    try {
+      const token=await security.issueAccess(user.id,device.id);const otherToken=await security.issueAccess(user.id,otherDevice.id);const thread=randomUUID();
+      const send=async(input:unknown,previous_response_id?:string,useOtherDevice=false)=>{
+        const activeDevice=useOtherDevice?otherDevice:device;const activeToken=useOtherDevice?otherToken:token;
+        const payload={model:model.publicId,input,previous_response_id,tools:[{type:'function',name:'probe',parameters:{}}],reasoning:{mode:'thinking',effort:'low'},max_output_tokens:64};
+        return app.inject({method:'POST',url:'/v1/responses',headers:{...await signedHeaders(privateKey,'POST','/v1/responses',payload,activeToken),authorization:`Bearer ${activeToken}`,'x-device-id':activeDevice.deviceId,'x-client-thread-id':useOtherDevice?randomUUID():thread},payload});
+      };
+      const before=(await walletModule.walletSummary(user.id)).balance;const first=await send('private fixture prompt');expect(first.statusCode).toBe(200);expect(first.json().output[1].id).toBe('fc_native');
+      const [session]=await db.select().from(modelSessions).where(eq(modelSessions.userId,user.id));expect(JSON.stringify(session.state)).not.toContain('private fixture');expect(session.state.encryptedHistory).toBeTruthy();expect(session.instanceId).toBe(instance.id);
+      const foreign=await send([{type:'function_call_output',call_id:'call_native',output:'done'}],first.json().id,true);expect(foreign.statusCode).toBe(409);expect(foreign.json().error.code).toBe('CONVERSATION_NOT_FOUND');
+      const replayOutput=first.json().output.map((item:Record<string,unknown>)=>{if(item.type!=='reasoning')return item;const {status:_status,...rest}=item;return {...rest,internal_chat_message_metadata_passthrough:{fixture:true}};});
+      const second=await send([{role:'user',content:'private fixture prompt'},...replayOutput,{type:'function_call_output',call_id:'call_native',output:'done'}]);expect(second.statusCode).toBe(200);
+      const requests=await db.select().from(aiRequests).where(eq(aiRequests.userId,user.id));expect(requests).toHaveLength(2);expect(requests.every(r=>r.instanceId===instance.id&&r.protocolMode==='native')).toBe(true);expect(requests.map(r=>r.responseId)).toContain(first.json().id);
+      const events=await db.select().from(usageEvents).where(eq(usageEvents.userId,user.id));expect(events).toHaveLength(2);expect(events.every(e=>e.cachedInputTokens===4&&e.reasoningTokens===3&&e.billingStatus==='SETTLED')).toBe(true);
+      expect(before-(await walletModule.walletSummary(user.id)).balance).toBe(events.reduce((sum,e)=>sum+e.pointsCharged,0));
+      const records=await db.select().from(usageRecords).where(eq(usageRecords.userId,user.id));expect(records.map(r=>r.rateCounted)).toEqual([true,false]);
+      await db.update(modelInstances).set({enabled:false}).where(eq(modelInstances.id,instance.id));const disabled=await send('new turn',second.json().id);expect(disabled.statusCode).toBe(409);expect(disabled.json().error.code).toBe('MODEL_UNAVAILABLE');expect(executions).toBe(2);
+    } finally {await app.close();vi.unstubAllGlobals();}
+  });
+
   it('admits bounded tool continuations without allowing another user turn at one device request per minute', async () => {
     const { db, devices, models, planModelAccess, plans, providers, subscriptions, systemSettings, usageRecords, users } = dbModule;
     const { eq } = await import('drizzle-orm');
@@ -583,6 +651,9 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
     process.env.INTEGRATION_MOCK_ENABLED = 'true';
     process.env.INTEGRATION_MOCK_TEST_EMAIL = user.email;
     process.env.V2_BILLING_MODE = 'OFF';
+    // This is a rate/continuation test, not an empty-wallet rejection test.
+    // The production money policy can enforce billing even when the legacy mode is OFF.
+    await db.transaction(tx=>walletModule.applyWalletChange(tx,{userId:user.id,points:10000,type:'PURCHASE',referenceType:'TEST',referenceId:'tool-quota',idempotencyKey:`tool-quota-${user.id}`}));
     const app = await (await import('./server.js')).createServer();
     try {
       const token = await (await import('./security.js')).issueAccess(user.id, device.id);

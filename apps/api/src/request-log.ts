@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 
-type Context = { userId?: string; deviceId?: string; model?: string; providerId?: string };
+type Context = { userId?: string; deviceId?: string; model?: string; providerId?: string; instanceId?: string; inputProtocol?: string; outboundProtocol?: string; protocolMode?: string; reasoningMode?: string; stream?: boolean; ignoredFields?: string[]; ignoredToolTypes?: string[]; traceId?:string; responseId?:string; terminalStatus?:string; errorCode?:string };
 const contexts = new WeakMap<FastifyRequest, Context>();
 export function requestContext(req: FastifyRequest, context: Context) {
   contexts.set(req, { ...contexts.get(req), ...context });

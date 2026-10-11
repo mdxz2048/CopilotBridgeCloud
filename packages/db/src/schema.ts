@@ -62,6 +62,17 @@ export const models = pgTable('models', {
   supportsReasoning: boolean('supports_reasoning').notNull().default(false), supportsStreaming: boolean('supports_streaming').notNull().default(true), contextWindow: integer('context_window'), maxOutputTokens: integer('max_output_tokens'),
   usageWeight: numeric('usage_weight', { precision: 12, scale: 4 }).notNull().default('1'), sortOrder: integer('sort_order').notNull().default(0),
 });
+// Connection credentials remain on providers; this table only binds resources to logical models.
+export const modelInstances = pgTable('model_instances', {
+  id: id(), modelId: uuid('model_id').notNull().references(() => models.id),
+  providerId: uuid('provider_id').notNull().references(() => providers.id), providerModelId: text('provider_model_id').notNull(),
+  enabled: boolean('enabled').notNull().default(false), priority: integer('priority').notNull().default(0), weight: integer('weight').notNull().default(1),
+  nativeProtocols: jsonb('native_protocols').$type<string[]>().notNull().default(['chat_completions']),
+  capabilities: jsonb('capabilities').$type<Record<string, unknown>>().notNull().default({}),
+  healthStatus: varchar('health_status', { length: 16 }).notNull().default('UNKNOWN'),
+  healthCheckedAt: timestamp('health_checked_at', { withTimezone: true }), cooldownUntil: timestamp('cooldown_until', { withTimezone: true }),
+  createdAt: created(),
+}, t => [uniqueIndex('model_instances_binding_unique').on(t.modelId, t.providerId, t.providerModelId), index('model_instances_model_idx').on(t.modelId)]);
 export const planModelAccess = pgTable('plan_model_access', {
   id: id(), planId: uuid('plan_id').notNull().references(() => plans.id), modelId: uuid('model_id').notNull().references(() => models.id),
 }, t => [uniqueIndex('plan_model_unique').on(t.planId, t.modelId)]);
@@ -71,6 +82,7 @@ export const userModelAccess = pgTable('user_model_access', {
 export const modelSessions = pgTable('model_sessions', {
   id: id(), userId: uuid('user_id').notNull().references(() => users.id), deviceId: uuid('device_id').notNull().references(() => devices.id), clientThreadId: text('client_thread_id').notNull(),
   providerId: uuid('provider_id').notNull().references(() => providers.id), modelId: uuid('model_id').notNull().references(() => models.id), providerSessionId: text('provider_session_id'),
+  instanceId: uuid('instance_id').references(() => modelInstances.id),
   state: jsonb('state').$type<Record<string, unknown>>().notNull().default({}), createdAt: created(), lastActiveAt: timestamp('last_active_at', { withTimezone: true }).notNull().defaultNow(), expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
 }, t => [uniqueIndex('model_session_scope').on(t.userId, t.deviceId, t.clientThreadId)]);
 export const usageRecords = pgTable('usage_records', {
@@ -147,6 +159,7 @@ export const providerAccountCredentials = pgTable('provider_account_credentials'
 export const aiRequests = pgTable('ai_requests', {
   id: id(), responseId: text('response_id').notNull().unique(), userId: uuid('user_id').notNull().references(() => users.id), deviceId: uuid('device_id').notNull().references(() => devices.id),
   providerId: uuid('provider_id').notNull().references(() => providers.id), modelId: uuid('model_id').notNull().references(() => models.id),
+  instanceId: uuid('instance_id').references(() => modelInstances.id), protocolMode: varchar('protocol_mode', { length: 16 }),
   providerAccountId: uuid('provider_account_id').references(() => providerAccounts.id), rateCardVersionId: uuid('rate_card_version_id').references(() => rateCardVersions.id), billingPolicy: varchar('billing_policy', { length: 24 }).notNull(),
   status: varchar('status', { length: 24 }).notNull().default('CREATED'), errorCode: text('error_code'), legacyUsageRecordId: uuid('legacy_usage_record_id').references(() => usageRecords.id),
   startedAt: timestamp('started_at', { withTimezone: true }), completedAt: timestamp('completed_at', { withTimezone: true }), createdAt: created(),

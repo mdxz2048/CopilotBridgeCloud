@@ -1,5 +1,26 @@
 # PRODUCTION_INTEGRATION_MANIFEST
 
+## 2026-10-11 0.3.0 / Domain 2.5.0 deployed release
+
+This section supersedes the historical deployment assumptions below. Source includes DeepSeek native Responses, logical model instances, encrypted stateless history recovery and capability/error diagnostics. API/Web and migration0010 are deployed; real normal/thinking tool loops, audited billing review, Admin UI and public automatic update download passed.
+
+```text
+PENDING_CONTRACT_VERSION: 2.5.0
+PENDING_OPENAPI_HASH: sha256:20269272a7f5e429d73036f96b0fad3dc4e89f126e4bb02f10e40bdc9a8ee6a8
+PENDING_GATEWAY_V1_OPENAPI_HASH: sha256:4c72178606ecd71ec047c9618e89eff6581e489f53d80ff54f4035d7152a2d85
+GATEWAY_CURRENT_REVISION: 1.1.0
+GATEWAY_CURRENT_OPENAPI_HASH: sha256:706ee93f9223bb676c0b38cf3736d6c8a52306e09a085c2168901c8e95cb3619
+APP_RELEASE: 0.3.0 published; 96c4ab92-b904-48d3-9a11-4015cbb3c422
+PRODUCTION_STATUS: RELEASED (core production acceptance and automatic download READY; final Git commit/image record by Root)
+```
+
+App 75 focused tests/typecheck passed. An isolated real official bundled app-server 2e5e00daee91c61d executed exec_command and returned a tool result through Local Bridge with a synthetic upstream: REAL_APP_SERVER + MOCK_PROVIDER, not production Cloud E2E or Desktop UI evidence. Cloud Agent reports real Flash native normal/thinking/tool SSE and complete reasoning/tool continuation with cached usage PASS. Normal and thinking each completed two real official-runtime tool rounds; production audited review and real Admin browser passed. Public UpdateManager download/hash READY. Full evidence in [0.3.0 release gate](../acceptance/RELEASE_0_3_0_GATE.md).
+
+User authorized replacing the server directly without new backups and dropped old-client compatibility as a release gate. Historical accounts, device ownership, immutable financial records and existing release volumes remain protected. Official attachment drag/drop, download cards and preview UI are UNKNOWN, not release claims.
+
+## Historical deployment records
+
+
 This is the **only App/Desktop production integration handoff**. Server/Contract ownership remains with the Server Agent. [api-v2.md](../api-v2.md), generated [openapi.v2.json](openapi.v2.json), and shared Zod schemas describe deployed V2 `2.4.0`, with staged registration explicitly disabled. The frozen Gateway V1 `1.0.0` artifacts remain unchanged as historical evidence, but its unsigned device requests no longer work on the V2.3+ production API. This internal-test breaking cutover was explicitly accepted; do not claim that an installation key proves the official executable. No password or provider secret is stored in this repository.
 
 ## Staged V2.4 API/Web production release (2026-09-30)

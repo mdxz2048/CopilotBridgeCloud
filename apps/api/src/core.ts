@@ -10,6 +10,7 @@ import { ApiError } from './errors.js';
 import { moneyPolicy } from './money-policy.js';
 import { walletSummary } from './wallet.js';
 import { requestContext } from './request-log.js';
+import { modelCandidates, eligible, ensureLegacyInstance } from './instance-router.js';
 
 export { ApiError };
 export type Actor = { user: typeof users.$inferSelect; device?: typeof devices.$inferSelect; web: boolean };
@@ -112,22 +113,30 @@ export async function currentUsage(userId: string, subscription: typeof subscrip
   const creditState = moneyEnabled ? moneyState : usageState(credit, creditLimit);
   return { moneyEnabled, rmbLimit, rmbUsed: pointsUsed/10000, remainingRmb: remainingPoints/10000, remainingPoints, balanceRmb: (wallet?.balance??0)/10000, pointsUsed, pointsPerRmb: 10000, tokens, credit, requests: Number(row?.requests ?? 0), tokenLimit, creditLimit, percent: Math.max(tokenState.percent, creditState.percent), threshold: Math.max(tokenState.threshold, creditState.threshold) };
 }
-export async function allowedModels(userId: string, planId: string) {
+export async function allowedModels(userId: string, planId: string, includeUnavailable = false) {
   const [account] = await db.select({ email: users.email }).from(users).where(eq(users.id, userId)).limit(1);
   if (!account) return [];
-  const all = await db.select({ model: models, provider: providers }).from(models).innerJoin(providers, eq(models.providerId, providers.id)).where(and(eq(models.enabled, true), eq(providers.enabled, true))).orderBy(models.sortOrder);
+  const all = await db.select({ model: models, provider: providers }).from(models).innerJoin(providers, eq(models.providerId, providers.id)).where(eq(models.enabled, true)).orderBy(models.sortOrder);
   const planRows = await db.select().from(planModelAccess).where(eq(planModelAccess.planId, planId));
   const overrides = await db.select().from(userModelAccess).where(eq(userModelAccess.userId, userId));
   const planSet = new Set(planRows.map(row => row.modelId));
   const overrideMap = new Map(overrides.map(row => [row.modelId, row.access]));
-  return all.filter(({ model, provider }) => integrationMockAllowed(provider.code, account.email, process.env.INTEGRATION_MOCK_ENABLED === 'true', process.env.INTEGRATION_MOCK_TEST_EMAIL)
+  const permitted = all.filter(({ model, provider }) => integrationMockAllowed(provider.code, account.email, process.env.INTEGRATION_MOCK_ENABLED === 'true', process.env.INTEGRATION_MOCK_TEST_EMAIL)
     && modelAllowed(model.enabled, planSet.has(model.id), overrideMap.get(model.id)));
+  const resolved = await Promise.all(permitted.map(async row => {
+    let resources = await modelCandidates(row.model.id);
+    if (!resources.length) { await ensureLegacyInstance(row.model); resources = await modelCandidates(row.model.id); }
+    const candidates = resources.filter(c => eligible(c));
+    // Keep old provider/model identity solely as an additive rollback default.
+    return candidates.length || includeUnavailable ? { ...row, provider: candidates[0]?.provider ?? row.provider, candidates:includeUnavailable?resources:candidates } : null;
+  }));
+  return resolved.filter((row): row is NonNullable<typeof row> => row !== null);
 }
 export async function requireEntitlement(userId: string, deviceId: string, publicModelId: string) {
   const active = await currentSubscription(userId);
   if (!active) throw await subscriptionError(userId);
   const { subscription, plan } = active;
-  const allowed = await allowedModels(userId, plan.id);
+  const allowed = await allowedModels(userId, plan.id, true);
   const found = allowed.find(({ model }) => model.publicId === publicModelId);
   if (!found) throw new ApiError(403, 'MODEL_NOT_ALLOWED');
   const usage = await currentUsage(userId, subscription, plan);

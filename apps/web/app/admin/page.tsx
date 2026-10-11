@@ -7,6 +7,7 @@ import { V2AdminPanel } from '../../components/v2-admin-panels';
 import { CopilotAuthCard } from '../../components/copilot-auth-card';
 import { WebsiteSettings } from '../../components/website-settings';
 import { DeepSeekConnectionCard } from '../../components/deepseek-connection-card';
+import { ModelInstanceManager } from '../../components/model-instance-manager';
 import { MoneyPlanManager } from '../../components/money-plan-manager';
 import { AdminUserDialog, CreateUserDialog } from '../../components/admin-user-dialog';
 import { ReleaseUpload } from '../../components/release-upload';
@@ -137,7 +138,7 @@ export default function AdminPage() {
     {message && <div className="notice" role="status">{message}</div>}{error && <div className="error-text" role="alert">{error} <button className="mini-button" onClick={load}>重试</button></div>}
     {loading && <div className="loading-skeleton"/>}
     {active === 'money-plans' && <MoneyPlanManager/>}
-    {active === 'models' && <DeepSeekConnectionCard onReady={() => void load()}/> }
+    {active === 'models' && <><DeepSeekConnectionCard onReady={() => void load()}/><ModelInstanceManager refreshKey={providers.map(p=>`${p.id}:${p.enabled}`).join(',')+models.map(m=>m.id).join(',')}/></> }
     {!loading && active === 'website-settings' && <WebsiteSettings/>}
     {!loading && active.startsWith('v2-') && <V2AdminPanel section={active as 'v2-wallets' | 'v2-rates' | 'v2-referrals' | 'v2-costs'}/>}
     {!loading && active === 'dashboard' && <AdminInsights totals={dashboard}/>}

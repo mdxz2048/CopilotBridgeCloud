@@ -1,5 +1,6 @@
 import type { CanonicalRequest, CanonicalResult, ProviderAdapter, ResponseInput } from './provider.js';
 import { ApiError } from './errors.js';
+import { executeNativeResponses, nativeReasoning, providerHttpFailure } from './native-responses.js';
 
 type Call = { id: string; type: 'function'; function: { name: string; arguments: string } };
 type Message = { role: 'system' | 'user' | 'assistant' | 'tool'; content: string | unknown[] | null; tool_call_id?: string; tool_calls?: Call[] };
@@ -11,6 +12,7 @@ export function deepSeekMessages(input: ResponseInput): Message[] {
   const messages: Message[] = [];
   for (const item of input) {
     if (item.type === 'function_call_output') {
+      if (typeof item.output !== 'string') throw new ApiError(422,'UNSUPPORTED_CAPABILITY','此转换资源只接收文本工具结果。');
       messages.push({ role: 'tool', content: String(item.output ?? ''), tool_call_id: String(item.call_id ?? '') });
     } else if (item.type === 'function_call') {
       const call: Call = { id: String(item.call_id ?? ''), type: 'function', function: { name: String(item.name ?? ''), arguments: String(item.arguments ?? '{}') } };
@@ -23,7 +25,7 @@ export function deepSeekMessages(input: ResponseInput): Message[] {
       const content = !parts ? String(item.content ?? '') : parts.map(part => {
         if (part.type === 'input_text' || part.type === 'output_text' || part.type === 'text') return { type: 'text', text: String(part.text ?? '') };
         if (part.type === 'input_image' && typeof part.image_url === 'string') return { type: 'image_url', image_url: { url: part.image_url } };
-        throw new Error('UNSUPPORTED_DEEPSEEK_INPUT_PART');
+        throw new ApiError(422,'UNSUPPORTED_CAPABILITY','此资源不支持该输入内容类型。');
       });
       messages.push({ role, content: role === 'user' || typeof content === 'string' ? content : content.map(part => 'text' in part ? part.text : '').join('\n') });
     }
@@ -32,6 +34,10 @@ export function deepSeekMessages(input: ResponseInput): Message[] {
 }
 
 export class DeepSeekProvider implements ProviderAdapter {
+  readonly nativeProtocols = ['responses','chat_completions'] as const;
+  executeNative(request: CanonicalRequest, modelId: string, signal: AbortSignal, onEvent?: (type: string, event: Record<string, unknown>) => Promise<void>) {
+    return executeNativeResponses(this.baseUrl, this.key, request, modelId, signal, onEvent);
+  }
   constructor(private readonly baseUrl: string, private readonly key: string, private readonly timeoutMs: number) {}
   private url(path: string) { return `${this.baseUrl.replace(/\/$/, '')}/${path}`; }
   async health() {
@@ -53,16 +59,20 @@ export class DeepSeekProvider implements ProviderAdapter {
   }
   async validateCredential() { const state = await this.health(); return { valid: state.ready, reason: state.reason }; }
   async createResponse(request: CanonicalRequest, modelId: string, signal: AbortSignal, onTextDelta?: (delta: string) => void): Promise<CanonicalResult> {
+    const known = new Set(['model','input','stream','tools','reasoning','instructions','tool_choice','parallel_tool_calls','text','max_output_tokens','maxOutputTokens']);
+    if (Object.keys(request).some(k => !known.has(k)) || request.tools?.some(t => (t.type && t.type !== 'function') || typeof t.name !== 'string')) throw new ApiError(422,'UNSUPPORTED_PROTOCOL','此资源的转换协议不支持该字段或工具类型。');
+    // Legacy chat conversion is explicitly non-thinking; native Responses retains all reasoning items.
+    if (nativeReasoning(request).effort && nativeReasoning(request).effort !== 'none') throw new ApiError(422,'UNSUPPORTED_CAPABILITY','此旧连接暂未验证思考模式，请使用原生 Responses 资源。');
     const streaming = Boolean(request.stream && onTextDelta);
     const tools = request.tools?.map(tool => ({ type: 'function', function: { name: tool.name, description: tool.description, parameters: tool.parameters ?? {} } }));
     // Stateless replay must not fabricate missing reasoning_content. Start with non-thinking tools.
     const response = await fetch(this.url('chat/completions'), {
       method: 'POST', headers: { Authorization: `Bearer ${this.key}`, 'Content-Type': 'application/json' }, signal,
-      body: JSON.stringify({ model: modelId, messages: deepSeekMessages(request.input), tools: tools?.length ? tools : undefined,
+      body: JSON.stringify({ model: modelId, messages: [...(request.instructions ? [{role:'system',content:request.instructions}] : []), ...deepSeekMessages(request.input)], tools: tools?.length ? tools : undefined,
+        tool_choice: request.tool_choice, parallel_tool_calls:request.parallel_tool_calls, response_format: (request.text as {format?:unknown}|undefined)?.format,
         thinking: { type: 'disabled' }, ...(request.maxOutputTokens ? {max_tokens:request.maxOutputTokens}:{}), stream: streaming, ...(streaming ? { stream_options: { include_usage: true } } : {}) }),
     });
-    if (response.status === 402) throw new ApiError(503, 'PROVIDER_UNAVAILABLE', 'DeepSeek 上游账号余额不足，请管理员为该 API Key 所属账号充值。');
-    if (!response.ok) throw new Error(`HTTP_${response.status}`);
+    if (!response.ok) throw providerHttpFailure(response.status);
     let text = ''; let usage: Usage | undefined; const calls = new Map<number, Call>();
     if (!streaming) {
       const body = await response.json() as Chunk;

@@ -122,11 +122,19 @@ route('post', '/api/v1/admin/referrals/{id}/review', adminResponse,
   z.object({ decision: z.enum(['APPROVE', 'REJECT']), reason: z.string() }));
 route('get', '/api/v1/admin/cost-analytics', adminResponse);
 route('post', '/v1/responses', responseV2, ResponseRequestSchema);
+route('get','/api/v1/admin/insights',adminResponse);
+route('get','/api/v1/admin/users/{id}/activity',adminResponse);
+route('get','/api/v1/admin/usage-events/review',adminResponse);
+route('post','/api/v1/admin/usage-events/{id}/review',adminResponse,z.object({resolution:z.literal('platform_waived'),reason:z.string().trim().min(1).max(500)}));
+route('get','/api/v1/admin/model-instances',adminResponse);
+route('post','/api/v1/admin/model-instances',adminResponse,z.object({modelId:z.uuid(),providerId:z.uuid(),providerModelId:z.string(),priority:z.number().int().optional(),weight:z.number().int().min(0).optional()}));
+route('patch','/api/v1/admin/model-instances/{id}',adminResponse,z.object({enabled:z.boolean().optional(),priority:z.number().int().optional(),weight:z.number().int().min(0).optional()}));
+route('post','/api/v1/admin/model-instances/{id}/check',adminResponse);
 
 export function buildOpenApiV2(): Record<string, unknown> {
   const base = JSON.parse(readFileSync(new URL('../../../docs/protocol/openapi.v1.json', import.meta.url), 'utf8')) as Record<string, any>;
   const v2 = new OpenApiGeneratorV31(registry.definitions).generateDocument({ openapi: '3.1.0',
-    info: { title: 'Copilot Bridge Cloud App and Gateway API', version: '2.4.0' },
+    info: { title: 'Copilot Bridge Cloud App and Gateway API', version: '2.5.0' },
     servers: [{ url: 'https://ai.mddxz.top' }] });
   return { ...base, info: v2.info, servers: v2.servers,
     paths: { ...base.paths, ...v2.paths },

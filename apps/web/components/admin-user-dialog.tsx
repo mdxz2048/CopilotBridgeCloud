@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, del, patch, post, put, type Usage } from '../lib/api';
 import { AdminUserDetails } from './admin-user-details';
+import { AdminUsageReview } from './admin-usage-review';
 
 type Model = {id:string;displayName:string;publicId:string;enabled:boolean;providerId:string};
 type Provider = {id:string;name:string;enabled:boolean};
@@ -36,7 +37,8 @@ export function AdminUserDialog({userId,onClose,onChanged}:{userId:string;onClos
         <div className="field"><label htmlFor="user-money-plan">手工分配套餐</label><select id="user-money-plan" value={planCode} onChange={e=>setPlanCode(e.target.value)}><option value="PRO">原内部测试服务（30 天）</option>{moneyPlans.map(p=><option key={p.code} value={p.code}>{p.name}</option>)}</select></div><button className="mini-button" disabled={busy} onClick={()=>{if(window.confirm('人工开通套餐？季度套餐会赠送包含额度并设置 90 天周期，按量套餐需另加余额；此操作不代表已付款。'))void run(()=>post('/api/v1/admin/subscriptions/grant',{userId,planCode,days:planCode==='QUARTER'?90:30}),'套餐已分配');}}>分配套餐</button>
 
       </section>
-      <section className="panel"><h3>可使用模型（多选）</h3><p>连接名称区分不同 API Key。未选择的模型会被拒绝；仍需有效服务周期。</p><div className="model-choice-grid">{models.map(m=>{const p=providers.find(p=>p.id===m.providerId);return <label key={m.id} className="model-choice"><input type="checkbox" checked={selected.includes(m.id)} disabled={busy} onChange={e=>setSelected(ids=>e.target.checked?[...ids,m.id]:ids.filter(id=>id!==m.id))}/><span>{m.displayName}<br/><small>{p?.name} · {m.publicId}<br/>{!m.enabled||!p?.enabled?'连接或模型停用':effective.includes(m.id)?'当前可用':'当前未生效'}</small></span></label>;})}</div><button className="button button-small" disabled={busy} onClick={()=>void run(()=>put(`/api/v1/admin/users/${userId}/models`,{modelIds:selected}),'模型权限已保存')}>保存模型权限</button></section>
+      <section className="panel"><h3>可使用模型（多选）</h3><p>这里授予逻辑模型权限，服务端从该模型的可用实例中选路。未选择的模型会被拒绝；仍需有效服务周期。</p><div className="model-choice-grid">{models.map(m=><label key={m.id} className="model-choice"><input type="checkbox" checked={selected.includes(m.id)} disabled={busy} onChange={e=>setSelected(ids=>e.target.checked?[...ids,m.id]:ids.filter(id=>id!==m.id))}/><span>{m.displayName}<br/><small>{m.publicId}<br/>{!m.enabled?'逻辑模型停用':effective.includes(m.id)?'当前可用':'当前未生效，请检查权限、服务周期及可用实例'}</small></span></label>)}</div><button className="button button-small" disabled={busy} onClick={()=>void run(()=>put(`/api/v1/admin/users/${userId}/models`,{modelIds:selected}),'模型权限已保存')}>保存模型权限</button></section>
+      <AdminUsageReview userId={userId} onReviewed={()=>{setRevision(r=>r+1);onChanged();}}/>
       <AdminUserDetails key={`${userId}-${revision}`} userId={userId}/>
       <h3>最近用量记录</h3>{detail.recentUsage.length?<div className="table-wrap"><table className="data-table"><thead><tr><th>时间</th><th>状态</th><th>Token</th></tr></thead><tbody>{detail.recentUsage.map(r=><tr key={r.id}><td>{new Date(r.createdAt).toLocaleString('zh-CN')}</td><td>{r.status}</td><td>{r.totalTokens.toLocaleString()}</td></tr>)}</tbody></table></div>:<p>暂无请求记录。</p>}
     </>}
