@@ -1,0 +1,12 @@
+{
+  "id": "80525ec0-a8d4-4742-afe4-85f3ad0f1179",
+  "version": "0.3.8",
+  "channel": "stable",
+  "platform": "windows",
+  "arch": "x64",
+  "downloadUrl": "https://ai.mddxz.top/api/v1/releases/files/80525ec0-a8d4-4742-afe4-85f3ad0f1179",
+  "sha256": "1e095d6f6af035abd6e95f99adaf1e348d49b9ce10648135d80655e38a5bff50",
+  "releaseNotes": "简化为Cloud与自己的ChatGPT两种模式：开关确认目标，切换完成提示重启，移除服务选择框。",
+  "published": true,
+  "createdAt": "2026-10-12T03:13:42.844Z"
+}

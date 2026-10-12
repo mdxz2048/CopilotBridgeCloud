@@ -1,0 +1,27 @@
+{
+  "version": "0.3.8",
+  "passed": true,
+  "tests": {
+    "passed": 191,
+    "failed": 0
+  },
+  "ui": {
+    "level": "MOCK_BROWSER_ACTUAL_APP_RENDERER",
+    "screens": 40,
+    "pageErrors": 0,
+    "noNativeActions": true,
+    "noPaidRequests": true
+  },
+  "scenarios": [
+    "ON confirmation selects Cloud only",
+    "OFF restores Original without Cloud",
+    "cancel leaves config unchanged",
+    "login resumes confirmed ON only",
+    "preparation/profile failure retains switch and permits retry",
+    "onboarding save failure does not misreport successful switch",
+    "8 real filesystem ON/OFF cycles preserve config and sessions",
+    "filesystem access failure preserves snapshot and repair permits retry",
+    "restart failure retains pending and retry"
+  ],
+  "officialHostRestartTested": false
+}
