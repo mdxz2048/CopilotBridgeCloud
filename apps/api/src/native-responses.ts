@@ -57,7 +57,8 @@ export function nativeReasoning(request: CanonicalRequest, canThink = true,profi
   const { mode: _mode, ...rest } = value;
   return { ...rest, ...(resolved ? { effort: resolved } : {}) };
 }
-export function providerHttpFailure(status: number): ApiError {
+export function providerHttpFailure(status: number,code?:string): ApiError {
+  if(status===429&&['insufficient_quota','billing_hard_limit_reached'].includes(code??''))return new ApiError(503,'PROVIDER_BALANCE_EXHAUSTED','上游 API 额度不足，请管理员充值后重试。');
   if (status === 429) return new ApiError(503, 'PROVIDER_RATE_LIMITED', '上游模型并发繁忙，请稍后重试。');
   if (status === 401 || status === 403) return new ApiError(503, 'PROVIDER_AUTH_REQUIRED', '上游连接认证失效，请管理员检查。');
   if (status === 402) return new ApiError(503, 'PROVIDER_BALANCE_EXHAUSTED', '上游账号余额不足，请管理员充值。');
@@ -89,7 +90,11 @@ export async function executeNativeResponses(baseUrl: string, key: string, reque
   const response = await fetch(`${baseUrl.replace(/\/$/,'')}/responses`, { method:'POST', headers:{ Authorization:`Bearer ${key}`, 'Content-Type':'application/json' }, body:encodedBody, signal:deadline.signal });
   deadline.headersReceived();
   metrics.upstreamHeadersMs=elapsed();
-  if (!response.ok) { await response.body?.cancel(); throw providerHttpFailure(response.status); }
+  if (!response.ok) {
+    let code:string|undefined;
+    if(profile==='openai'&&response.status===429){try{const error=await response.json() as {error?:{code?:string}};code=error.error?.code;}catch{}}
+    if(!response.bodyUsed)await response.body?.cancel();throw providerHttpFailure(response.status,code);
+  }
   if (!request.stream) {const json=await response.text();metrics.responseBytes=Buffer.byteLength(json);metrics.upstreamTerminalMs=elapsed();return Object.assign(nativeResult(JSON.parse(json) as Record<string,unknown>),{nativeMetrics:metrics});}
   if (!response.body) throw new ApiError(502,'PROTOCOL_INVALID');
   const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = ''; let terminal: CanonicalResult | undefined;

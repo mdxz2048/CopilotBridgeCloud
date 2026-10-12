@@ -11,7 +11,7 @@ import { hashPassword, hashRefresh, issueAccess, newRefresh, verifyPassword } fr
 import { registerReferralInTransaction, validateReferralCode } from './referral.js';
 import { claimDeviceProof, verifyDeviceProof } from './device-proof.js';
 import { consumeEmailCode, registrationConfig, requestEmailCode, verifyTurnstile } from './registration.js';
-import { logicalCapabilities } from './instance-router.js';
+import { logicalCapabilities, catalogPresentation } from './instance-router.js';
 
 const deviceSchema = DeviceInfoV23Schema;
 const loginSchema = LoginRequestSchema.extend({ device: DeviceInfoV23Schema.optional(), turnstileToken: z.string().min(1).max(4096).optional() });
@@ -163,7 +163,7 @@ export async function registerRoutes(app: FastifyInstance) {
   app.get('/api/v1/models', async req => {
     const a = await actor(req);
     const active = await currentSubscription(a.user.id);
-    return { data: active ? (await allowedModels(a.user.id, active.plan.id)).map(({ model, candidates }) => ({ id: model.id, publicId: model.publicId, displayName: model.displayName, supportsTools:candidates.some(c=>c.instance.capabilities.tools===true), supportsVision:candidates.some(c=>c.instance.capabilities.vision===true), supportsReasoning:candidates.some(c=>c.instance.capabilities.reasoning===true), capabilities:logicalCapabilities(candidates) })) : [] };
+    return { data: active ? (await allowedModels(a.user.id, active.plan.id,true)).map(({ model, candidates }) => ({ id: model.id, publicId: model.publicId, displayName: model.displayName, supportsTools:candidates.some(c=>c.instance.capabilities.tools===true), supportsVision:candidates.some(c=>c.instance.capabilities.vision===true), supportsReasoning:candidates.some(c=>c.instance.capabilities.reasoning===true), ...catalogPresentation(candidates) })) : [] };
   });
   app.get('/api/v1/subscription', async req => {
     const a = await actor(req);

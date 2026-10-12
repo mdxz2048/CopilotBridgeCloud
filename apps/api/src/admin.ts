@@ -7,9 +7,10 @@ import { admin, allowedModels, ApiError, audit, changeDeviceStatus, currentDevic
 import { nextPeriod } from './logic.js';
 import { providerFor, DeepSeekProvider, isDeepSeekProvider, OpenAIProvider, isOpenAIProvider } from './provider.js';
 import { probeOpenAIResponses } from './native-provider-probe.js';
+import { declaredOpenAICapabilities, openAIModelPresets } from './openai-catalog.js';
 import { currentRatePolicy, UserLimitsSchema } from './rate-policy.js';
 import { currentBillingMode } from './billing-mode.js';
-import { encryptSecret, hashPassword } from './security.js';
+import { encryptSecret, decryptSecret, hashPassword } from './security.js';
 import { walletSummary, grantSubscriptionPoints } from './wallet.js';
 import { qualifyReferralFromPaidOrder } from './referral.js';
 import { publicWebsiteSettings, saveWebsiteSettings, websiteSettingsInput } from './website-settings.js';
@@ -84,7 +85,8 @@ export async function registerAdmin(app: FastifyInstance) {
     try {
       if(isOpenAIProvider(provider.code)) {
         const checked=await probeOpenAIResponses(adapter as OpenAIProvider,instance.providerModelId,instance.capabilities.reasoning===true);
-        const [updated]=await db.update(modelInstances).set({healthStatus:'READY',healthCheckedAt:new Date(),cooldownUntil:null,nativeProtocols:['responses'],capabilities:checked.capabilities}).where(eq(modelInstances.id,id)).returning();
+        const declaration=declaredOpenAICapabilities(instance.providerModelId,instance.capabilities.reasoning===true);
+        const [updated]=await db.update(modelInstances).set({healthStatus:'READY',healthCheckedAt:new Date(),cooldownUntil:null,nativeProtocols:['responses'],capabilities:{...checked.capabilities,reasoningModes:declaration.reasoningModes,generationVerified:true}}).where(eq(modelInstances.id,id)).returning();
         await audit(a.user.id,'MODEL_INSTANCE_CHECKED','MODEL_INSTANCE',id,{ready:true,inputTokens:checked.inputTokens,outputTokens:checked.outputTokens});return updated;
       }
       const normal = await adapter.executeNative({model:instance.providerModelId,input:'Reply OK.',stream:false,reasoning:{mode:'normal'},maxOutputTokens:32},instance.providerModelId,AbortSignal.timeout(20000));
@@ -340,28 +342,37 @@ export async function registerAdmin(app: FastifyInstance) {
   });
   app.post('/api/v1/admin/providers/:id/connect-openai', async req => {
     const a=await admin(req),id=idParam(req.params);
-    const {apiKey,modelId,reasoning}=z.object({apiKey:z.string().trim().min(10).max(512),modelId:z.string().trim().min(1).max(120),reasoning:z.boolean().default(false)}).parse(req.body);
+    const {apiKey,modelId,reasoning,verifyGeneration}=z.object({apiKey:z.string().trim().min(10).max(512).optional(),modelId:z.string().trim().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,119}$/),reasoning:z.boolean().default(false),verifyGeneration:z.boolean().default(false)}).parse(req.body);
     const [provider]=await db.select().from(providers).where(eq(providers.id,id)).limit(1);
     if(!provider||!isOpenAIProvider(provider.code))throw new ApiError(400,'MODEL_PROVIDER_MISMATCH');
-    const adapter=new OpenAIProvider('https://api.openai.com/v1',apiKey,15000,reasoning?[modelId]:[]);
-    let catalog:string[];
-    try{catalog=await adapter.listModels();}catch{throw new ApiError(400,'PROVIDER_AUTH_REQUIRED','OpenAI 连接检查失败，请核对独立 API Key、项目权限及 API 余额。');}
-    if(!catalog.includes(modelId))throw new ApiError(400,'MODEL_NOT_AVAILABLE','该 API Key 的模型目录中没有所选模型。');
-    const checked=await probeOpenAIResponses(adapter,modelId,reasoning);
+    const declaration=declaredOpenAICapabilities(modelId,reasoning);
+    const canThink=declaration.reasoning;
+    let catalog:string[]=openAIModelPresets.map(model=>model.id);
+    let checked:Awaited<ReturnType<typeof probeOpenAIResponses>>|undefined;
+    if(verifyGeneration){
+      const [saved]=apiKey?[]:await db.select().from(providerCredentials).where(eq(providerCredentials.providerId,id)).limit(1);
+      if(!apiKey&&!saved)throw new ApiError(400,'PROVIDER_AUTH_REQUIRED','请先添加 OpenAI API Key，再执行生成检查。');
+      const adapter=new OpenAIProvider('https://api.openai.com/v1',apiKey??decryptSecret(saved),15000,canThink?[modelId]:[]);
+      catalog=await adapter.listModels();
+      if(!catalog.includes(modelId))throw new ApiError(400,'MODEL_NOT_AVAILABLE','该 API Key 的模型目录中没有所选模型。');
+      checked=await probeOpenAIResponses(adapter,modelId,canThink);
+    }
     const model=await db.transaction(async tx=>{
       await tx.select().from(providers).where(eq(providers.id,id)).for('update');
-      const secret=encryptSecret(apiKey);
-      await tx.insert(providerCredentials).values({providerId:id,...secret}).onConflictDoUpdate({target:providerCredentials.providerId,set:{...secret,updatedAt:new Date()}});
-      const previous=Array.isArray(provider.config.nativeReasoningModels)?provider.config.nativeReasoningModels.filter(value=>typeof value==='string'&&value!==modelId):[];
-      await tx.update(providers).set({enabled:true,baseUrl:'https://api.openai.com/v1',config:{...provider.config,nativeReasoningModels:[...previous,...(reasoning?[modelId]:[])]}}).where(eq(providers.id,id));
+      const [locked]=await tx.select().from(providers).where(eq(providers.id,id)).limit(1);
+      if(apiKey){const secret=encryptSecret(apiKey);await tx.insert(providerCredentials).values({providerId:id,...secret}).onConflictDoUpdate({target:providerCredentials.providerId,set:{...secret,updatedAt:new Date()}});}
+      const previous=Array.isArray(locked.config.nativeReasoningModels)?locked.config.nativeReasoningModels.filter(value=>typeof value==='string'&&value!==modelId):[];
+      await tx.update(providers).set({...(checked?{enabled:true}:{}),baseUrl:'https://api.openai.com/v1',config:{...locked.config,catalogConfigured:true,nativeReasoningModels:[...previous,...(canThink?[modelId]:[])]}}).where(eq(providers.id,id));
       const publicId=`openai/${modelId}`;
-      await tx.insert(models).values({providerId:id,providerModelId:modelId,publicId,displayName:`OpenAI · ${modelId}`,enabled:false,supportsTools:true,supportsStreaming:true,supportsReasoning:reasoning,supportsVision:false,usageWeight:'1'}).onConflictDoNothing();
+      await tx.insert(models).values({providerId:id,providerModelId:modelId,publicId,displayName:openAIModelPresets.find(model=>model.id===modelId)?.name??`OpenAI · ${modelId}`,enabled:true,supportsTools:true,supportsStreaming:true,supportsReasoning:canThink,supportsVision:declaration.vision,usageWeight:'1',sortOrder:50}).onConflictDoNothing();
       const [logical]=await tx.select().from(models).where(eq(models.publicId,publicId)).limit(1);
-      await tx.insert(modelInstances).values({modelId:logical.id,providerId:id,providerModelId:modelId,enabled:false,nativeProtocols:['responses'],healthStatus:'READY',healthCheckedAt:new Date(),capabilities:checked.capabilities}).onConflictDoUpdate({target:[modelInstances.modelId,modelInstances.providerId,modelInstances.providerModelId],set:{nativeProtocols:['responses'],healthStatus:'READY',healthCheckedAt:new Date(),cooldownUntil:null,capabilities:checked.capabilities}});
-      await tx.insert(auditLogs).values({actorId:a.user.id,action:'OPENAI_CONNECTED',targetType:'PROVIDER',targetId:id,metadata:{modelId:logical.id,inputTokens:checked.inputTokens,outputTokens:checked.outputTokens,reasoning}});
+      const insert=tx.insert(modelInstances).values({modelId:logical.id,providerId:id,providerModelId:modelId,enabled:false,nativeProtocols:['responses'],healthStatus:checked?'READY':'UNKNOWN',healthCheckedAt:checked?new Date():null,capabilities:checked?{...checked.capabilities,reasoningModes:declaration.reasoningModes,generationVerified:true}:declaration});
+      if(checked)await insert.onConflictDoUpdate({target:[modelInstances.modelId,modelInstances.providerId,modelInstances.providerModelId],set:{nativeProtocols:['responses'],healthStatus:'READY',healthCheckedAt:new Date(),cooldownUntil:null,capabilities:{...checked.capabilities,reasoningModes:declaration.reasoningModes,generationVerified:true}}});
+      else await insert.onConflictDoNothing();
+      await tx.insert(auditLogs).values({actorId:a.user.id,action:checked?'OPENAI_CONNECTED':'OPENAI_CONFIGURED',targetType:'PROVIDER',targetId:id,metadata:{modelId:logical.id,inputTokens:checked?.inputTokens??0,outputTokens:checked?.outputTokens??0,reasoning:canThink,verifyGeneration}});
       return logical;
     });
-    return {ready:true,model,models:[model],catalog,billingMode:currentBillingMode(),requiresUserAccess:true,requiresRateCard:true};
+    return {ready:!!checked,configured:true,generationVerified:!!checked,model,models:[model],catalog,billingMode:currentBillingMode(),requiresUserAccess:true,requiresRateCard:true};
   });
   app.post('/api/v1/admin/providers/:id/connect-deepseek', async req => {
     const a = await admin(req); const id = idParam(req.params);

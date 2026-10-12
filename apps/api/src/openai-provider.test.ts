@@ -4,6 +4,12 @@ import {probeOpenAIResponses} from './native-provider-probe.js';
 afterEach(()=>vi.unstubAllGlobals());
 const output={id:'upstream',object:'response',status:'completed',output:[{type:'message',id:'m',role:'assistant',content:[{type:'output_text',text:'OK'}]}],usage:{input_tokens:4,output_tokens:2,total_tokens:6}};
 describe('OpenAI native Responses adapter',()=>{
+  it('reports unpaid API quota distinctly without affecting later requests',async()=>{
+    const fetchMock=vi.fn().mockResolvedValueOnce(Response.json({error:{code:'insufficient_quota',message:'private'}},{status:429})).mockResolvedValueOnce(Response.json(output));vi.stubGlobal('fetch',fetchMock);
+    const adapter=new OpenAIProvider('https://api.openai.com/v1','fixture',10000);
+    await expect(adapter.executeNative({model:'logical',input:'x'},'fixture',new AbortController().signal)).rejects.toMatchObject({code:'PROVIDER_BALANCE_EXHAUSTED'});
+    expect((await adapter.executeNative({model:'logical',input:'x'},'fixture',new AbortController().signal)).status).toBe('completed');
+  });
   it('keeps native tools, inputs, choices and extensions with one POST and no DeepSeek instruction',async()=>{
     const tools=[{type:'namespace',name:'functions',tools:[{type:'custom',name:'exec',format:{type:'grammar',syntax:'lark',definition:'start: /.+/'}}]}];
     const input=[{type:'custom_tool_call_output',call_id:'c',output:[{type:'input_image',image_url:'data:image/png;base64,fixture'}]}];

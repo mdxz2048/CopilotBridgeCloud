@@ -893,6 +893,17 @@
                     "model"
                   ]
                 },
+                "availability": {
+                  "type": "string",
+                  "enum": [
+                    "READY",
+                    "SETUP_REQUIRED",
+                    "UNAVAILABLE"
+                  ]
+                },
+                "statusMessage": {
+                  "type": "string"
+                },
                 "owned_by": {
                   "type": "string"
                 },
@@ -6272,6 +6283,17 @@
                             "enum": [
                               "model"
                             ]
+                          },
+                          "availability": {
+                            "type": "string",
+                            "enum": [
+                              "READY",
+                              "SETUP_REQUIRED",
+                              "UNAVAILABLE"
+                            ]
+                          },
+                          "statusMessage": {
+                            "type": "string"
                           },
                           "owned_by": {
                             "type": "string"

@@ -82,5 +82,17 @@ export function logicalCapabilities(candidates: Candidate[]) {
   return { tools:candidates.some(c=>c.instance.capabilities.tools===true), vision:candidates.some(c=>c.instance.capabilities.vision===true), reasoning,
     streaming:candidates.some(c=>c.instance.capabilities.streaming===true), nativeResponses:profiles.length===1,
     ...(profiles.length===1?{responsesProfile:profiles[0]}:{}),
-    reasoningModes:reasoning?['normal','thinking','auto']:['normal'], defaultReasoningMode:reasoning?'auto':'normal' };
+    reasoningModes:reasoning?[...new Set(candidates.flatMap(c=>Array.isArray(c.instance.capabilities.reasoningModes)?c.instance.capabilities.reasoningModes as string[]:['normal','thinking','auto']))]:['normal'], defaultReasoningMode:reasoning?'auto':'normal' };
+}
+
+/** Selection is separate from readiness: a configured GPT can be selected before payment. */
+export function catalogPresentation(candidates:Candidate[]) {
+  const ready=candidates.filter(c=>eligible(c));
+  if(ready.length)return {availability:'READY' as const,statusMessage:'可用',capabilities:logicalCapabilities(ready)};
+  const configured=candidates.filter(c=>responsesProfile(c.provider.code)==='openai'&&c.provider.config.catalogConfigured===true);
+  const declared=configured[0]?.instance.capabilities;
+  const pending=configured.some(c=>c.instance.capabilities.generationVerified!==true);
+  return {availability:pending?'SETUP_REQUIRED' as const:'UNAVAILABLE' as const,
+    statusMessage:pending?'已配置；需管理员完成 API 充值、连接验证和启用后使用。':'模型暂不可用，请联系管理员。',
+    capabilities:declared?{tools:declared.tools===true,vision:declared.vision===true,reasoning:declared.reasoning===true,streaming:declared.streaming===true,nativeResponses:true,responsesProfile:'openai' as const,reasoningModes:declared.reasoningModes as string[]??['normal'],defaultReasoningMode:declared.defaultReasoningMode as string??'normal'}:logicalCapabilities([])};
 }

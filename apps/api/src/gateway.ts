@@ -18,7 +18,7 @@ import { ensureMoneyRate,upstreamBalance } from './money-policy.js';
 import { currentUsage } from './core.js';
 import { requestContext,requestCounts,requestMilestone,requestNativeMetrics } from './request-log.js';
 import { nextContinuationState, pendingContinuation } from './tool-continuation.js';
-import { chooseInstance,logicalCapabilities,responsesProfile,instanceHealthAfterResult,instanceHealthAfterFailure } from './instance-router.js';
+import { chooseInstance,catalogPresentation,responsesProfile,instanceHealthAfterResult,instanceHealthAfterFailure } from './instance-router.js';
 import { nativeReasoning, validateNativeRequest,nativeFailedEvent } from './native-responses.js';
 import { NativeTimeoutError } from './native-timeouts.js';
 import { once } from 'node:events';
@@ -40,8 +40,8 @@ export async function registerGateway(app: FastifyInstance) {
     const a = await actor(req, true);
     const sub = await currentSubscription(a.user.id);
     if (!sub) throw await subscriptionError(a.user.id);
-    const allowed = await allowedModels(a.user.id, sub.plan.id);
-    return { object: 'list', data: allowed.map(({ model, candidates }) => ({ id: model.publicId, object: 'model', owned_by: model.publicId.split('/')[0], capabilities:logicalCapabilities(candidates) })) };
+    const allowed = await allowedModels(a.user.id, sub.plan.id,true);
+    return { object: 'list', data: allowed.map(({ model, candidates }) => ({ id: model.publicId, object: 'model', owned_by: model.publicId.split('/')[0], ...catalogPresentation(candidates) })) };
   });
   app.post('/v1/responses',{bodyLimit:64*1024*1024}, async (req, reply) => {
     const a = await actor(req, true);

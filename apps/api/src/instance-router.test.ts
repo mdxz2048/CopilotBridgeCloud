@@ -1,9 +1,18 @@
 import { afterEach,describe,expect,it,vi } from 'vitest';
-import {chooseInstance,logicalCapabilities,instanceHealthAfterResult,instanceHealthAfterFailure,type Candidate} from './instance-router.js';
+import {chooseInstance,logicalCapabilities,catalogPresentation,instanceHealthAfterResult,instanceHealthAfterFailure,type Candidate} from './instance-router.js';
+import {declaredOpenAICapabilities} from './openai-catalog.js';
 afterEach(()=>vi.unstubAllEnvs());
 const candidate=(id:string,patch:Partial<Candidate['instance']>={}):Candidate=>({instance:{id,modelId:'logical',providerId:id,providerModelId:'deepseek-flash',enabled:true,priority:0,weight:1,nativeProtocols:['responses'],capabilities:{tools:true,streaming:true},healthStatus:'READY',healthCheckedAt:new Date(),cooldownUntil:null,createdAt:new Date(),...patch},provider:{id,code:'DEEPSEEK',name:id,enabled:true,baseUrl:'https://api.deepseek.com',timeoutMs:60000,config:{}}});
 const request={model:'logical',input:'fixture'};
 describe('logical instance routing',()=>{
+  it('lists configured GPT separately from routable resources and retains model-specific modes',()=>{
+    const gpt=candidate('gpt',{enabled:false,healthStatus:'UNKNOWN',capabilities:declaredOpenAICapabilities('gpt-6.1-sol',false)});
+    gpt.provider={...gpt.provider,code:'OPENAI',enabled:false,config:{catalogConfigured:true}};
+    expect(catalogPresentation([gpt])).toMatchObject({availability:'SETUP_REQUIRED',capabilities:{responsesProfile:'openai',reasoningModes:['thinking','auto']}});
+    expect(()=>chooseInstance([gpt],request)).toThrow();
+    expect(catalogPresentation([candidate('ready')]).availability).toBe('READY');
+    expect(catalogPresentation([]).availability).toBe('UNAVAILABLE');
+  });
   it('distinguishes capability errors, transient cooldown and permanently unavailable pins',()=>{
     const normal=candidate('normal');
     try{chooseInstance([normal],{...request,reasoning:{mode:'thinking'}});throw new Error('accepted');}catch(error){expect(error).toMatchObject({status:422,code:'UNSUPPORTED_CAPABILITY'});}

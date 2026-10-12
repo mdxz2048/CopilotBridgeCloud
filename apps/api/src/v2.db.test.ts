@@ -63,6 +63,33 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
   });
   afterAll(async () => { await dbModule?.pool.end(); });
 
+  it('configures unpaid GPT without network calls, preserves secrets, and enforces catalog ACL',async()=>{
+    const {db,providers,providerCredentials,modelInstances,planModelAccess,userModelAccess,users,subscriptions}=dbModule;
+    const [provider]=await db.insert(providers).values({code:'OPENAI_CC0011223344',name:'Unpaid fixture'}).returning();
+    const [user]=await db.insert(users).values({email:`gpt-${randomUUID()}@example.test`,passwordHash:'test'}).returning();
+    const now=new Date();await db.insert(subscriptions).values({userId:user.id,planId:ids.plan,status:'ACTIVE',startedAt:now,currentPeriodStart:now,currentPeriodEnd:new Date(now.getTime()+86400000)});
+    const app=await(await import('./server.js')).createServer();
+    const fetcher=vi.fn(()=>{throw Error('UNEXPECTED_PAID_OR_METADATA_REQUEST');});vi.stubGlobal('fetch',fetcher);
+    try{
+      const headers=await testCookieHeaders(dbModule,ids.admin),userHeaders=await testCookieHeaders(dbModule,user.id);
+      const endpoint=`/api/v1/admin/providers/${provider.id}/connect-openai`,payload={modelId:'gpt-6.1-sol',apiKey:'synthetic-api-key-only'};
+      expect((await app.inject({method:'POST',url:endpoint,headers:userHeaders,payload})).statusCode).toBe(403);
+      const configured=await app.inject({method:'POST',url:endpoint,headers,payload});expect(configured.statusCode).toBe(200);
+      expect(configured.json()).toMatchObject({ready:false,configured:true,generationVerified:false});expect(configured.body).not.toContain(payload.apiKey);
+      const model=configured.json().model;const [credential]=await db.select().from(providerCredentials).where((await import('drizzle-orm')).eq(providerCredentials.providerId,provider.id));
+      expect((await import('./security.js')).decryptSecret(credential)).toBe(payload.apiKey);
+      expect((await app.inject({method:'POST',url:endpoint,headers,payload:{modelId:payload.modelId}})).statusCode).toBe(200);
+      const [instance]=await db.select().from(modelInstances).where((await import('drizzle-orm')).eq(modelInstances.modelId,model.id));expect(instance).toMatchObject({enabled:false,healthStatus:'UNKNOWN',capabilities:{generationVerified:false}});
+      const read=async()=>{const r=await app.inject({url:'/api/v1/models',headers:userHeaders});expect(r.statusCode).toBe(200);return r.json().data;};
+      expect(await read()).not.toContainEqual(expect.objectContaining({publicId:model.publicId}));
+      await db.insert(planModelAccess).values({planId:ids.plan,modelId:model.id});
+      expect(await read()).toContainEqual(expect.objectContaining({publicId:model.publicId,availability:'SETUP_REQUIRED',capabilities:expect.objectContaining({responsesProfile:'openai',reasoningModes:['thinking','auto']})}));
+      await db.insert(userModelAccess).values({userId:user.id,modelId:model.id,access:'DENY'});
+      expect(await read()).not.toContainEqual(expect.objectContaining({publicId:model.publicId}));
+      expect(fetcher).not.toHaveBeenCalled();
+    }finally{vi.unstubAllGlobals();await app.close();}
+  });
+
   it('serializes concurrent debit, prevents overdraft, and deduplicates retries', async () => {
     const { db, walletTransactions, wallets } = dbModule;
     await db.transaction(tx => walletModule.applyWalletChange(tx, { userId: ids.user, points: 10, type: 'PURCHASE', referenceType: 'TEST', referenceId: 'seed', idempotencyKey: 'seed-wallet' }));
