@@ -1,0 +1,14 @@
+{
+  "result": "PASS",
+  "level": "MOCK_BROWSER_REAL_COMPONENT",
+  "filterEncoding": true,
+  "pagination": true,
+  "delete": true,
+  "empty": true,
+  "errorRetry": true,
+  "xssExecuted": false,
+  "jsonSafeText": true,
+  "narrowOverflow": false,
+  "dialogBounds": true,
+  "realApiWrites": 0
+}

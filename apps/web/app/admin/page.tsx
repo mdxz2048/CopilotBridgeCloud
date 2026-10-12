@@ -12,6 +12,7 @@ import { MoneyPlanManager } from '../../components/money-plan-manager';
 import { AdminUserDialog, CreateUserDialog } from '../../components/admin-user-dialog';
 import { ReleaseUpload } from '../../components/release-upload';
 import { AdminInsights } from '../../components/admin-insights';
+import { FailureFeedback } from '../../components/failure-feedback';
 
 const items: NavItem[] = [
   {id:'models',label:'模型与连接',icon:'Boxes'},
@@ -19,6 +20,7 @@ const items: NavItem[] = [
   {id:'money-plans',label:'套餐与计费',icon:'Boxes'},
   {id:'v2-rates',label:'模型售价',icon:'Boxes'},
 
+  {id:'failures',label:'失败反馈',icon:'Activity'},
   {id:'audit',label:'操作记录',icon:'ScrollText'},
 ];
 type Row = Record<string, unknown> & { id?: string };
@@ -69,7 +71,7 @@ export default function AdminPage() {
       if (version !== loadVersion.current) return false;
       if (me.user.role !== 'ADMIN') { router.replace('/dashboard'); return false; }
       setEmail(me.user.email);
-      if (active.startsWith('v2-') || active === 'website-settings' || active === 'money-plans') return true;
+      if (active.startsWith('v2-') || active === 'website-settings' || active === 'money-plans' || active === 'failures') return true;
       if (active === 'dashboard') {
         const result = await api<Record<string, number>>('/api/v1/admin/dashboard');
         if (version !== loadVersion.current) return false;
@@ -139,6 +141,7 @@ export default function AdminPage() {
     {message && <div className="notice" role="status">{message}</div>}{error && <div className="error-text" role="alert">{error} <button className="mini-button" onClick={load}>重试</button></div>}
     {loading && <div className="loading-skeleton"/>}
     {active === 'money-plans' && <MoneyPlanManager/>}
+    {!loading && active === 'failures' && <FailureFeedback/>}
     {active === 'models' && <><DeepSeekConnectionCard onReady={() => void load()}/><ModelInstanceManager refreshKey={providers.map(p=>`${p.id}:${p.enabled}`).join(',')+models.map(m=>m.id).join(',')}/></> }
     {!loading && active === 'website-settings' && <WebsiteSettings/>}
     {!loading && active.startsWith('v2-') && <V2AdminPanel section={active as 'v2-wallets' | 'v2-rates' | 'v2-referrals' | 'v2-costs'}/>}

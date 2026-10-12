@@ -58,3 +58,11 @@ export const ClientConfigSchema = z.object({ minimumVersion: z.string(), latestV
 export type ResponseRequest = z.infer<typeof ResponseRequestSchema>;
 // Additive V2 product shapes; Gateway V1 schemas and generated OpenAPI remain frozen.
 export * from './v2-schemas.js';
+export const FailureDiagnosticSchema = z.object({
+  id:z.uuid(), ownerUserId:z.uuid(), occurredAt:z.iso.datetime(), appVersion:z.string().max(64), traceId:z.uuid(),
+  requestId:z.string().max(200).optional(),responseId:z.string().max(200).optional(),threadId:z.string().max(200).optional(),
+  stage:z.enum(['local_validation','cloud_http','cloud_transport','stream_failed','stream_incomplete','stream_disconnected']),
+  error:z.object({code:z.string().min(1).max(100),message:z.string().max(8192),httpStatus:z.number().int().min(400).max(599).optional()}).strict(),
+  request:z.object({desktop:z.unknown().optional(),forwarded:z.unknown().optional()}).strict(),
+  reply:z.object({http:z.unknown().optional(),events:z.array(z.unknown()).max(64).optional()}).strict(),truncated:z.boolean().optional(),
+}).strict();

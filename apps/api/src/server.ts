@@ -19,6 +19,7 @@ import { trustedProxy } from './trusted-proxy.js';
 import { registerRatePolicy } from './rate-policy.js';
 import { registerReleaseFiles } from './release-files.js';
 import { registerSiteVisits } from './site-visits.js';
+import { registerDiagnostics } from './diagnostics.js';
 
 export async function createServer() {
   currentBillingMode();
@@ -50,6 +51,7 @@ export async function createServer() {
   await registerGateway(app);
   await registerV2Routes(app);
   await registerV2Admin(app);
+  await registerDiagnostics(app);
   return app;
 }
 

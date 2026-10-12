@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
-import { PlanSchema, ResponseRequestSchema, ResponseSchema, SubscriptionSchema, UserSchema } from './schemas.js';
+import { FailureDiagnosticSchema,PlanSchema, ResponseRequestSchema, ResponseSchema, SubscriptionSchema, UserSchema } from './schemas.js';
 import {
   AccountSummaryV2Schema, BillingModeV2Schema, DeviceCredentialV2Schema, DeviceV2Schema, ErrorResponseV2Schema,
   ModelV2Schema, ProviderConnectionV2Schema, ProviderV2Schema, ReferralRecordV2Schema, ReferralSummaryV2Schema,
@@ -106,6 +106,11 @@ route('get', '/api/v1/referral', ReferralSummaryV2Schema);
 route('get', '/api/v1/referral/history', list(ReferralRecordV2Schema));
 
 const adminResponse = generic;
+registry.register('FailureDiagnostic',FailureDiagnosticSchema);
+route('post','/api/v1/diagnostics/failures',z.object({id:z.uuid(),received:z.literal(true),duplicate:z.boolean()}),FailureDiagnosticSchema);
+route('get','/api/v1/admin/diagnostics/failures',z.object({data:z.array(generic),total:z.number().int(),page:z.number().int(),pageSize:z.literal(25)}));
+route('get','/api/v1/admin/diagnostics/failures/{id}',z.object({report:generic}));
+route('delete','/api/v1/admin/diagnostics/failures/{id}',z.object({id:z.uuid(),deleted:z.literal(true)}));
 route('get', '/api/v1/admin/wallets', adminResponse);
 route('get', '/api/v1/admin/users/{id}/finance', adminResponse);
 route('post', '/api/v1/admin/users/{id}/wallet/adjust', adminResponse,
@@ -138,7 +143,7 @@ route('post','/api/v1/admin/providers/{id}/connect-openai',adminResponse,z.objec
 export function buildOpenApiV2(): Record<string, unknown> {
   const base = JSON.parse(readFileSync(new URL('../../../docs/protocol/openapi.v1.json', import.meta.url), 'utf8')) as Record<string, any>;
   const v2 = new OpenApiGeneratorV31(registry.definitions).generateDocument({ openapi: '3.1.0',
-    info: { title: 'Copilot Bridge Cloud App and Gateway API', version: '2.6.0' },
+    info: { title: 'Copilot Bridge Cloud App and Gateway API', version: '2.7.0' },
     servers: [{ url: 'https://ai.mddxz.top' }] });
   return { ...base, info: v2.info, servers: v2.servers,
     paths: { ...base.paths, ...v2.paths },

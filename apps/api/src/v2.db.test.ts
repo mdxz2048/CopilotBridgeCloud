@@ -593,6 +593,44 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
     expect((await meterModule.settleAiRequest(request.id, 'COMPLETED', {}, 'SHADOW')).id).toBe(event.id);
   });
 
+  it('stores only signed owned failure reports, bounds retention, and protects admin detail without altering billing',async()=>{
+    const {db,users,devices,failureDiagnostics,walletTransactions}=dbModule;const {eq,sql}=await import('drizzle-orm');const security=await import('./security.js');
+    const [user]=await db.insert(users).values({email:`diagnostic-${randomUUID()}@example.test`,passwordHash:'test'}).returning();
+    const {privateKey,publicKey}=proofKey();const jwk=publicKey.export({format:'jwk'});
+    const [device]=await db.insert(devices).values({userId:user.id,deviceId:randomUUID(),deviceName:'Diagnostic',platform:'Windows',appVersion:'0.0.1',publicKeyJwk:{kty:'EC',crv:'P-256',x:jwk.x!,y:jwk.y!}}).returning();
+    const token=await security.issueAccess(user.id,device.id);const app=await(await import('./server.js')).createServer();
+    const before=await db.select().from(walletTransactions);const path='/api/v1/diagnostics/failures';
+    const body={id:randomUUID(),ownerUserId:user.id,occurredAt:new Date().toISOString(),appVersion:'forged',traceId:randomUUID(),stage:'cloud_http',error:{code:'GATEWAY_TIMEOUT',message:'secret=hidden'},request:{forwarded:{model:'fixture',headers:{authorization:'Bearer hidden'},input:'合成私人文本'}},reply:{events:[{type:'response.failed'}]}};
+    const send=async(payload:Record<string,unknown>)=>app.inject({method:'POST',url:path,payload,headers:{...await signedHeaders(privateKey,'POST',path,payload,token),authorization:`Bearer ${token}`,'x-device-id':device.deviceId}});
+    try{
+      expect((await app.inject({method:'POST',url:path,payload:body})).statusCode).toBe(401);
+      expect((await app.inject({method:'POST',url:path,payload:body,headers:{authorization:`Bearer ${token}`,'x-device-id':device.deviceId}})).statusCode).toBe(401);
+      expect((await send({...body,ownerUserId:ids.user})).statusCode).toBe(403);
+      expect((await send({...body,email:'spoof@test'})).statusCode).toBe(400);
+      expect((await send({...body,request:{desktop:'字'.repeat(50000)}})).statusCode).toBe(413);
+      expect((await send(body)).json()).toMatchObject({id:body.id,received:true,duplicate:false});
+      expect((await send(body)).json()).toMatchObject({duplicate:true});
+      const [stored]=await db.select().from(failureDiagnostics).where(eq(failureDiagnostics.id,body.id));
+      expect(stored.userEmail).toBe(user.email);expect(stored.appVersion).toBe('0.0.1');expect(JSON.stringify(stored.payload)).not.toContain('合成私人文本');
+      const payload=JSON.parse(security.decryptSecret(stored.payload));expect(JSON.stringify(payload)).not.toContain('hidden');expect(payload.request.forwarded.input).toBe('合成私人文本');
+      const ordinary=await testCookieHeaders(dbModule,user.id),adminHeaders=await testCookieHeaders(dbModule,ids.admin);const detail=`/api/v1/admin/diagnostics/failures/${body.id}`;
+      expect((await app.inject({url:detail,headers:ordinary})).statusCode).toBe(403);
+      expect((await app.inject({url:detail,headers:adminHeaders})).json().report.userEmail).toBe(user.email);
+      expect((await app.inject({url:'/api/v1/admin/diagnostics/failures?email='+encodeURIComponent(user.email),headers:adminHeaders})).json().total).toBe(1);
+      for(let i=0;i<29;i++)expect((await send({...body,id:randomUUID()})).statusCode).toBe(200);
+      await db.insert(failureDiagnostics).values(Array.from({length:1001},()=>({...stored,id:randomUUID()})));
+      await db.update(failureDiagnostics).set({createdAt:new Date(Date.now()-15*86400000)}).where(eq(failureDiagnostics.id,body.id));
+      await(await import('./diagnostics.js')).cleanFailureDiagnostics();
+      expect(await db.select().from(failureDiagnostics).where(eq(failureDiagnostics.id,body.id))).toHaveLength(0);
+      expect(Number((await db.execute(sql`select count(*) as count from failure_diagnostics`)).rows[0].count)).toBe(1000);
+      expect((await send({...body,id:randomUUID()})).statusCode).toBe(429);
+      const [latest]=await db.select().from(failureDiagnostics).limit(1);const deletion=`/api/v1/admin/diagnostics/failures/${latest.id}`;
+      expect((await app.inject({method:'DELETE',url:deletion,headers:{cookie:adminHeaders.cookie}})).statusCode).toBe(403);
+      expect((await app.inject({method:'DELETE',url:deletion,headers:adminHeaders})).statusCode).toBe(200);
+      expect(await db.select().from(walletTransactions)).toEqual(before);
+    }finally{await db.delete(failureDiagnostics);await db.delete(dbModule.systemSettings).where(eq(dbModule.systemSettings.key,'diagnostic_rate:'+user.id));await app.close();}
+  });
+
   it('enforces the current desktop release and prunes obsolete installer records without touching money data',async()=>{
     const {db,releases,devices,walletTransactions}=dbModule;const {eq}=await import('drizzle-orm');const security=await import('./security.js');
     const {privateKey,publicKey}=proofKey();const jwk=publicKey.export({format:'jwk'});

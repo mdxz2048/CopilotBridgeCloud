@@ -1,0 +1,22 @@
+{
+  "at": "2026-10-11T23:57:28.188Z",
+  "scope": "REAL_CLOUD_HTTP_FAILURE_AND_FIXED_SSE_FAILURES_THROUGH_LOCAL_BRIDGE_TO_REAL_FEEDBACK_API",
+  "noPaidModels": true,
+  "noDesktopActions": true,
+  "passed": true,
+  "requestAndReplyVisible": true,
+  "stages": [
+    "local_validation",
+    "cloud_http",
+    "stream_failed",
+    "stream_disconnected"
+  ],
+  "actorEmailMatched": true,
+  "actorDeviceMatched": true,
+  "serverVersionAuthoritative": true,
+  "secretRedaction": true,
+  "atRestEncryption": true,
+  "idempotent": true,
+  "successfulUploads": 4,
+  "noAiRequestsOrBillingChanges": true
+}

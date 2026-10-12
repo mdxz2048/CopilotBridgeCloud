@@ -24,6 +24,14 @@ export const plans = pgTable('plans', {
   maxConcurrentRequests: integer('max_concurrent_requests').notNull(), requestsPerMinute: integer('requests_per_minute').notNull(), enabled: boolean('enabled').notNull().default(true),
   monthlyPoints: integer('monthly_points').notNull().default(0), rolloverPolicy: varchar('rollover_policy', { length: 16 }).notNull().default('NONE'),
 });
+export const failureDiagnostics = pgTable('failure_diagnostics', {
+  id:uuid('id').primaryKey(),userId:uuid('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),
+  deviceId:uuid('device_id').notNull().references(()=>devices.id,{onDelete:'cascade'}),
+  userEmail:text('user_email').notNull(),appVersion:varchar('app_version',{length:64}).notNull(),
+  traceId:uuid('trace_id').notNull(),stage:varchar('stage',{length:32}).notNull(),errorCode:varchar('error_code',{length:100}).notNull(),
+  occurredAt:timestamp('occurred_at',{withTimezone:true}).notNull(),createdAt:created(),
+  payload:jsonb('payload').$type<{ciphertext:string;iv:string;tag:string}>().notNull(),payloadBytes:integer('payload_bytes').notNull(),
+},t=>[index('failure_diagnostics_user_created_idx').on(t.userId,t.createdAt),index('failure_diagnostics_created_idx').on(t.createdAt)]);
 export const subscriptions = pgTable('subscriptions', {
   id: id(), userId: uuid('user_id').notNull().references(() => users.id), planId: uuid('plan_id').notNull().references(() => plans.id),
   status: varchar('status', { length: 16 }).notNull(), startedAt: timestamp('started_at', { withTimezone: true }).notNull(), currentPeriodStart: timestamp('current_period_start', { withTimezone: true }).notNull(),

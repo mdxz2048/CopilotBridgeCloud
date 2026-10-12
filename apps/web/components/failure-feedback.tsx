@@ -1,0 +1,39 @@
+'use client';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { api, del } from '../lib/api';
+
+export type FailureRow = { id:string; userEmail:string; deviceId:string; appVersion:string; traceId:string; stage:string; error:{code:string;message:string;httpStatus?:number}; model:string|null; requestId?:string; responseId?:string; threadId?:string; occurredAt:string; receivedAt:string; truncated:boolean; payloadBytes:number };
+type FailureDetail = FailureRow & { payload:unknown };
+type FailureList = {data:FailureRow[];total:number;page:number;pageSize:number};
+const stages:Record<string,string>={local_validation:'本地校验',cloud_http:'Cloud HTTP',cloud_transport:'Cloud 连接',stream_failed:'回复失败',stream_incomplete:'回复不完整',stream_disconnected:'回复连接中断'};
+function errorText(error:unknown) { const e=error as {message?:string;requestId?:string}; return `${e.message??'操作失败，请重试。'}${e.requestId?`（请求 ID：${e.requestId}）`:''}`; }
+function date(value:string) { return new Date(value).toLocaleString('zh-CN'); }
+export function failureListPath(email:string,code:string,page:number) { const query=new URLSearchParams({page:String(page)});if(email.trim())query.set('email',email.trim());if(code.trim())query.set('code',code.trim());return `/api/v1/admin/diagnostics/failures?${query}`; }
+
+export function FailureFeedback() {
+  const [email,setEmail]=useState(''),[code,setCode]=useState('');
+  const [filter,setFilter]=useState({email:'',code:''}),[page,setPage]=useState(1),[revision,setRevision]=useState(0);
+  const [result,setResult]=useState<FailureList|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[message,setMessage]=useState('');
+  const [selected,setSelected]=useState<string|null>(null),[deleting,setDeleting]=useState<string|null>(null);
+  useEffect(()=>{const controller=new AbortController();setLoading(true);setError('');setResult(null);
+    void api<FailureList>(failureListPath(filter.email,filter.code,page),{signal:controller.signal}).then(value=>{if(!controller.signal.aborted)setResult(value);}).catch(e=>{if(!controller.signal.aborted)setError(errorText(e));}).finally(()=>{if(!controller.signal.aborted)setLoading(false);});return()=>controller.abort();
+  },[filter,page,revision]);
+  async function remove(row:FailureRow) {if(deleting||!window.confirm(`删除 ${row.userEmail} 的这条失败反馈？删除后无法在这里恢复。`))return;setDeleting(row.id);setError('');setMessage('');try{await del(`/api/v1/admin/diagnostics/failures/${encodeURIComponent(row.id)}`);setMessage('失败反馈已删除。');if(result?.data.length===1&&page>1)setPage(page-1);else setRevision(v=>v+1);}catch(e){setError(errorText(e));}finally{setDeleting(null);}}
+  return <section className="panel failure-feedback"><h2>失败反馈</h2><p>自动收集失败请求与回复，按登录账号邮箱关联，仅管理员可查看。保留 14 天，最多 1,000 条；单条最多 128 KB，超出会截断。仅收集故障正文，不包含 API Key、登录凭据。</p>
+    <form className="failure-filters" onSubmit={e=>{e.preventDefault();setPage(1);setFilter({email:email.trim(),code:code.trim()});}}>
+      <div className="field"><label htmlFor="failure-email">邮箱（完整匹配）</label><input id="failure-email" type="text" value={email} onChange={e=>setEmail(e.target.value)} placeholder="user@example.com"/></div>
+      <div className="field"><label htmlFor="failure-code">错误代码（完整匹配）</label><input id="failure-code" value={code} onChange={e=>setCode(e.target.value)} placeholder="如 STREAM_FAILED"/></div>
+      <button className="button button-small" type="submit">筛选</button><button className="mini-button" type="button" onClick={()=>{setEmail('');setCode('');setFilter({email:'',code:''});setPage(1);}}>清除</button><button className="mini-button" type="button" disabled={loading} onClick={()=>setRevision(v=>v+1)}>刷新</button>
+    </form>
+    {message&&<p className="notice" role="status">{message}</p>}{error&&<p className="error-text" role="alert">{error} <button className="mini-button" onClick={()=>setRevision(v=>v+1)}>重试</button></p>}
+    {loading?<p role="status">正在读取失败反馈…</p>:result&&<>{result.data.length?<div className="table-wrap"><table className="data-table failure-table"><thead><tr><th>邮箱</th><th>故障时间 / 版本</th><th>模型</th><th>阶段 / 错误</th><th>操作</th></tr></thead><tbody>{result.data.map(row=><tr key={row.id}><td>{row.userEmail}</td><td>{date(row.occurredAt)}<br/><small>{row.appVersion}</small></td><td>{row.model??'未识别'}</td><td>{stages[row.stage]??row.stage}<br/><strong>{row.error.code}</strong>{row.error.httpStatus&&<span> · HTTP {row.error.httpStatus}</span>}{row.truncated&&<><br/><span className="badge muted">内容已截断</span></>}</td><td><div className="inline-actions"><button className="mini-button" onClick={()=>setSelected(row.id)}>查看</button><button className="mini-button danger" disabled={!!deleting} onClick={()=>void remove(row)}>{deleting===row.id?'删除中…':'删除'}</button></div></td></tr>)}</tbody></table></div>:<div className="empty"><strong>暂无失败反馈</strong>当前筛选没有匹配记录。</div>}
+    <div className="failure-pagination"><span>共 {result.total} 条 · 第 {result.page} / {Math.max(1,Math.ceil(result.total/result.pageSize))} 页</span><div className="inline-actions"><button className="mini-button" disabled={page<=1} onClick={()=>setPage(p=>p-1)}>上一页</button><button className="mini-button" disabled={page*result.pageSize>=result.total} onClick={()=>setPage(p=>p+1)}>下一页</button></div></div></>}
+    {selected&&<FailureDialog id={selected} onClose={()=>setSelected(null)}/>}</section>;
+}
+function FailureDialog({id,onClose}:{id:string;onClose:()=>void}) {
+  const dialog=useRef<HTMLDialogElement>(null);const [report,setReport]=useState<FailureDetail|null>(null),[error,setError]=useState(''),[message,setMessage]=useState(''),[revision,setRevision]=useState(0);
+  useEffect(()=>{dialog.current?.showModal();return()=>dialog.current?.close();},[]);
+  useEffect(()=>{const controller=new AbortController();setError('');setReport(null);void api<{report:FailureDetail}>(`/api/v1/admin/diagnostics/failures/${encodeURIComponent(id)}`,{signal:controller.signal}).then(value=>{if(!controller.signal.aborted)setReport(value.report);}).catch(e=>{if(!controller.signal.aborted)setError(errorText(e));});return()=>controller.abort();},[id,revision]);
+  const copy=useCallback(async()=>{try{await navigator.clipboard.writeText(id);setMessage('反馈 ID 已复制。');}catch{setMessage('复制失败，请手动选择反馈 ID。');}},[id]);
+  return <dialog ref={dialog} className="provider-dialog failure-dialog" aria-label="失败反馈详情" onCancel={e=>{e.preventDefault();onClose();}}><div className="provider-dialog-content"><div className="inline-actions"><h2>失败反馈详情</h2><button className="mini-button" onClick={onClose}>关闭</button></div><p className="failure-id">反馈 ID：{id} <button className="mini-button" onClick={()=>void copy()}>复制 ID</button></p>{message&&<p role="status">{message}</p>}{error?<p className="error-text" role="alert">{error} <button className="mini-button" onClick={()=>setRevision(v=>v+1)}>重试</button></p>:!report?<p role="status">正在读取故障详情…</p>:<><dl className="failure-meta"><dt>账号邮箱</dt><dd>{report.userEmail}</dd><dt>设备 / 版本</dt><dd>{report.deviceId} / {report.appVersion}</dd><dt>故障 / 接收时间</dt><dd>{date(report.occurredAt)} / {date(report.receivedAt)}</dd><dt>模型 / 阶段</dt><dd>{report.model??'未识别'} / {stages[report.stage]??report.stage}</dd><dt>错误</dt><dd>{report.error.code} {report.error.httpStatus?`HTTP ${report.error.httpStatus}`:''}<br/>{report.error.message}</dd><dt>追踪 ID</dt><dd>{report.traceId}</dd><dt>请求 / 回复 / 会话 ID</dt><dd>{report.requestId??'—'} / {report.responseId??'—'} / {report.threadId??'—'}</dd></dl>{report.truncated&&<p className="notice">内容超过限制，以下为截断后的诊断片段。</p>}<h3>请求与回复诊断 JSON</h3><p>包含故障上下文、工具调用及 SSE 片段。内容可能涉及用户文档，请仅用于排查。</p><pre className="failure-json">{JSON.stringify(report.payload,null,2)}</pre></>}</div></dialog>;
+}

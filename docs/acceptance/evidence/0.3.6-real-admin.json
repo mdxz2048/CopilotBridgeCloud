@@ -1,0 +1,15 @@
+{
+  "at": "2026-10-11T23:58:05.366Z",
+  "level": "REAL_PUBLIC_BROWSER_AND_API",
+  "passed": true,
+  "realEmailFilter": true,
+  "realDetail": true,
+  "requestAndReplyVisible": true,
+  "secretRedaction": true,
+  "narrowWidth": 390,
+  "overflow": false,
+  "realDelete": true,
+  "adminFailures": [],
+  "syntheticReportsRemoved": true,
+  "testDeviceRevoked": true
+}

@@ -78,6 +78,13 @@
       "when": 1791673949687,
       "tag": "0010_sudden_morlocks",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791761745575,
+      "tag": "0011_classy_true_believers",
+      "breakpoints": true
     }
   ]
 }
