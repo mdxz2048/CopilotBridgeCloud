@@ -1,20 +1,20 @@
 import type { FastifyInstance } from 'fastify';
-import { db, auditLogs, billingOrders, devices, models, modelInstances, planModelAccess, plans, providerCredentials, providers, refreshTokens, releases, subscriptions, systemSettings, usageRecords, userModelAccess, users, webSessions, rateCards, rateCardVersions } from '@bridge/db';
+import { db, auditLogs, billingOrders, devices, models, modelInstances, planModelAccess, plans, providerCredentials, providers, refreshTokens, releases, subscriptions, systemSettings, usageRecords, usageEvents, userModelAccess, users, webSessions, rateCards, rateCardVersions } from '@bridge/db';
 import { and, desc, eq, ilike, sql, ne } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { admin, allowedModels, ApiError, audit, changeDeviceStatus, currentSubscription, currentUsage } from './core.js';
+import { admin, allowedModels, ApiError, audit, changeDeviceStatus, currentDeviceLimit, currentSubscription, currentUsage } from './core.js';
 import { nextPeriod } from './logic.js';
 import { providerFor, DeepSeekProvider, isDeepSeekProvider, OpenAIProvider, isOpenAIProvider } from './provider.js';
 import { probeOpenAIResponses } from './native-provider-probe.js';
 import { currentRatePolicy, UserLimitsSchema } from './rate-policy.js';
 import { currentBillingMode } from './billing-mode.js';
 import { encryptSecret, hashPassword } from './security.js';
-import { grantSubscriptionPoints } from './wallet.js';
+import { walletSummary, grantSubscriptionPoints } from './wallet.js';
 import { qualifyReferralFromPaidOrder } from './referral.js';
 import { publicWebsiteSettings, saveWebsiteSettings, websiteSettingsInput } from './website-settings.js';
 import { currentDeepSeekModel, ensureLegacyInstance } from './instance-router.js';
-import { registerBillingReview } from './billing-review.js';
+import { unresolvedBillingReview, registerBillingReview } from './billing-review.js';
 import { retainLatestPublishedRelease } from './release-lifecycle.js';
 
 const planData = z.object({ name: z.string().min(1), description: z.string(), monthlyPrice: z.number().nonnegative(), currency: z.string().length(3), maxDevices: z.number().int().positive(), monthlyTokenLimit: z.number().int().positive(), monthlyUsageCreditLimit: z.number().positive(), maxConcurrentRequests: z.number().int().positive(), requestsPerMinute: z.number().int().positive(), enabled: z.boolean(), monthlyPoints: z.number().int().min(0).optional(), rolloverPolicy: z.enum(['NONE', 'UNLIMITED']).optional() });
@@ -138,10 +138,11 @@ export async function registerAdmin(app: FastifyInstance) {
     if (!user) throw new ApiError(404, 'NOT_FOUND');
     const active = await currentSubscription(id);
     const limits = await currentRatePolicy(id);
-    return { user, devices: await db.select().from(devices).where(eq(devices.userId, id)), subscriptions: await db.select().from(subscriptions).where(eq(subscriptions.userId, id)).orderBy(desc(subscriptions.createdAt)),
+    return { user, wallet:await walletSummary(id), plan:active?{code:active.plan.code,name:active.plan.name}:null, devices: await db.select().from(devices).where(eq(devices.userId, id)), subscriptions: await db.select().from(subscriptions).where(eq(subscriptions.userId, id)).orderBy(desc(subscriptions.createdAt)),
       usage: active ? await currentUsage(id, active.subscription, active.plan) : null,
+      billingRisks: (await db.select({ pendingReview: sql<number>`count(*) filter (where ${usageEvents.billingStatus} in ('METERING_ERROR','UNRATED') and ${unresolvedBillingReview})`, unpaidRequests: sql<number>`count(*) filter (where ${usageEvents.billingStatus} = 'UNPAID')`, unpaidPoints: sql<number>`coalesce(sum(${usageEvents.pointsRated} - ${usageEvents.pointsCharged}) filter (where ${usageEvents.billingStatus} = 'UNPAID'),0)` }).from(usageEvents).where(eq(usageEvents.userId,id)))[0],
       recentUsage: await db.select().from(usageRecords).where(eq(usageRecords.userId, id)).orderBy(desc(usageRecords.createdAt)).limit(50),
-      limits: { accountRpm: limits.accountRpm, deviceRpm: limits.deviceRpm, planRpm: active?.plan.requestsPerMinute ?? null, maxDevices: active?.plan.maxDevices ?? null, maxConcurrentRequests: active?.plan.maxConcurrentRequests ?? null } };
+      limits: { accountRpm: limits.accountRpm, deviceRpm: limits.deviceRpm, planRpm: 0, maxDevices: await currentDeviceLimit(id,active?.plan.maxDevices ?? 3), maxConcurrentRequests: null } };
   });
   app.patch('/api/v1/admin/users/:id', async req => {
     const a = await admin(req); const id = idParam(req.params);
@@ -151,6 +152,17 @@ export async function registerAdmin(app: FastifyInstance) {
     if (!user) throw new ApiError(404, 'NOT_FOUND');
     await audit(a.user.id, 'USER_STATUS_CHANGED', 'USER', id, data);
     return user;
+  });
+  app.put('/api/v1/admin/users/:id/devices-limit', async req => {
+    const a = await admin(req); const id = idParam(req.params);
+    const data = z.object({maxDevices:z.number().int().min(1).max(100)}).strict().parse(req.body);
+    return db.transaction(async tx => {
+      const [user] = await tx.select({id:users.id}).from(users).where(and(eq(users.id,id),ne(users.status,'DELETED'))).for('update').limit(1);
+      if (!user) throw new ApiError(404,'NOT_FOUND');
+      await tx.insert(systemSettings).values({key:`user_devices:${id}`,value:data}).onConflictDoUpdate({target:systemSettings.key,set:{value:data,updatedAt:new Date()}});
+      await tx.insert(auditLogs).values({actorId:a.user.id,action:'USER_DEVICE_LIMIT_UPDATED',targetType:'USER',targetId:id,metadata:data});
+      return data;
+    });
   });
   app.post('/api/v1/admin/users/:id/reset-password', async req => {
     const a = await admin(req); const id = idParam(req.params);

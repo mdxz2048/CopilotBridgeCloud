@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { aiRequests, db, deviceSessions, devices, modelSessions, modelInstances, providerAccounts, usageRecords, users } from '@bridge/db';
-import { and, eq, gte, lt, sql, sum } from 'drizzle-orm';
+import { and, eq, gte, lt, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { ResponseRequestSchema } from '@bridge/contract';
@@ -8,7 +8,6 @@ import { actor, allowedModels, ApiError, currentSubscription, requireEntitlement
 import { usageCredit } from './logic.js';
 import { providerFor, isDeepSeekProvider, type CanonicalRequest, type CanonicalResult } from './provider.js';
 import { activeRateVersion, hasObservedUpstreamTextDelta, interruptedStreamUsageUnavailable, preflightPoints, settleAiRequest } from './metering.js';
-import { ratePoints } from './rating.js';
 import { walletSummary } from './wallet.js';
 import { hashRiskSignal } from './referral.js';
 import type { BillingPolicy } from './rating.js';
@@ -103,8 +102,6 @@ export async function registerGateway(app: FastifyInstance) {
     if (settlementMode === 'SHADOW' && !v2Rate) throw new ApiError(503, 'RATE_CARD_UNAVAILABLE');
     const upstream = ent.usage.moneyEnabled && !connection && isDeepSeekProvider(ent.provider.code) ? await upstreamBalance(ent.provider.id,ent.provider.code) : null;
     if(upstream&&!upstream.isAvailable)throw new ApiError(503,'PROVIDER_UNAVAILABLE','DeepSeek 上游余额不足，请管理员充值。');
-    const upstreamCny=upstream?.balances.find(balance=>balance.currency==='CNY');
-    const upstreamPoints=upstreamCny?Math.floor(Number(upstreamCny.total)*10000):null;
     requestMilestone(req,'preflightDone');
     const weight = Number(ent.model.usageWeight);
     const reserveTokens = Math.min(1024, Math.max(1, ent.usage.tokenLimit));
@@ -115,18 +112,9 @@ export async function registerGateway(app: FastifyInstance) {
     const { record, v2RequestId, continuation, maxOutputTokens } = await db.transaction(async tx => {
       await tx.execute(sql`select id from users where id = ${a.user.id} for update`);
       let reserveMoneyPoints=0;let maxOutputTokens:number|undefined;
-      if(ent.usage.moneyEnabled && v2Rate && !connection && native) {
-        const fresh=await currentUsage(a.user.id,ent.subscription,ent.plan);
-        const serialized=JSON.stringify(body);
-        const estimatedInput=Math.min(ent.model.contextWindow??1000000,Buffer.byteLength(serialized)+256+(serialized.includes('input_image')?1000000:0));
-        const availablePoints=Math.min(fresh.remainingPoints,upstreamPoints??fresh.remainingPoints);
-        const inputPoints=estimatedInput*Number(v2Rate.inputRate)/1000;
-        const modelOutputCap=ent.model.maxOutputTokens??32768;
-        const maxOutput=Number(v2Rate.outputRate)>0?Math.floor((availablePoints-inputPoints)*1000/Number(v2Rate.outputRate)):modelOutputCap;
-        maxOutputTokens=Math.min(modelOutputCap,maxOutput, typeof body.max_output_tokens === 'number' ? body.max_output_tokens : modelOutputCap);
-        if(maxOutputTokens<1)throw new ApiError(402,'INSUFFICIENT_POINTS','可用人民币额度不足以完成这次请求，请充值或调整周期限额。');
-        reserveMoneyPoints=ratePoints('MANAGED_USAGE',{inputTokens:estimatedInput,outputTokens:maxOutputTokens},v2Rate);
-        if(reserveMoneyPoints>availablePoints)throw new ApiError(402,'INSUFFICIENT_POINTS');
+      if (native) {
+        const modelOutputCap = ent.model.maxOutputTokens ?? 32768;
+        maxOutputTokens = Math.min(modelOutputCap, typeof body.max_output_tokens === 'number' ? body.max_output_tokens : modelOutputCap);
       }
       const [session] = await tx.select().from(modelSessions).where(and(eq(modelSessions.userId, a.user.id),
         eq(modelSessions.deviceId, a.device!.id), eq(modelSessions.clientThreadId, threadId),
@@ -137,12 +125,6 @@ export async function registerGateway(app: FastifyInstance) {
         throw new ApiError(409,'CONVERSATION_MODE_CHANGED','当前会话的思考模式已改变，请新建会话。');
       const continuation = session?.modelId === ent.model.id && session.providerId === ent.provider.id
         ? pendingContinuation(session.state, body, Date.now()) : null;
-      const [totals] = await tx.select({ tokens: sum(usageRecords.totalTokens), credit: sum(usageRecords.usageCredit), running: sql<number>`count(*) filter (where ${usageRecords.status} = 'RUNNING')`, rpm: sql<number>`count(*) filter (where ${usageRecords.createdAt} >= now() - interval '1 minute')` }).from(usageRecords)
-        .where(and(eq(usageRecords.userId, a.user.id), gte(usageRecords.createdAt, ent.subscription.currentPeriodStart), lt(usageRecords.createdAt, ent.subscription.currentPeriodEnd)));
-      if (!ent.usage.moneyEnabled && (Number(totals.tokens ?? 0) + reserveTokens > ent.usage.tokenLimit || Number(totals.credit ?? 0) + reserveCredit > ent.usage.creditLimit)) throw new ApiError(429, 'MONTHLY_QUOTA_EXCEEDED');
-      const [activeRunning]=await tx.select({count:sql<number>`count(*)`}).from(usageRecords).where(and(eq(usageRecords.userId,a.user.id),eq(usageRecords.status,'RUNNING')));
-      if (Number(activeRunning.count) >= ent.plan.maxConcurrentRequests)
-        throw new ApiError(429, 'RATE_LIMITED', '同时进行的模型请求已达并发上限，请等待当前请求完成。');
       if (session) await tx.update(modelSessions).set({ expiresAt:new Date(Date.now()+7200000),lastActiveAt:new Date(),state: {responseId:session.state.responseId,resolvedMode:session.state.resolvedMode,encryptedHistory:session.state.encryptedHistory} }).where(eq(modelSessions.id, session.id));
       else await tx.insert(modelSessions).values({userId:a.user.id,deviceId:a.device!.id,clientThreadId:threadId,providerId:ent.provider.id,modelId:ent.model.id,instanceId:selected.instance.id,state:{resolvedMode},expiresAt:new Date(Date.now()+7200000)})
         .onConflictDoUpdate({target:[modelSessions.userId,modelSessions.deviceId,modelSessions.clientThreadId],set:{providerId:ent.provider.id,modelId:ent.model.id,instanceId:selected.instance.id,state:{resolvedMode},expiresAt:new Date(Date.now()+7200000),lastActiveAt:new Date()}});
@@ -235,7 +217,6 @@ export async function registerGateway(app: FastifyInstance) {
         providerCurrency: result.providerCurrency,
       }, settlementMode) : null;
       requestMilestone(req,'settlementDone');
-      if(event?.billingStatus==='UNPAID')throw new ApiError(402,'INSUFFICIENT_POINTS','本次用量超过可用余额，需要管理员核对补足。');
       await db.transaction(async tx => {
         await tx.update(usageRecords).set({ status:result.status==='failed'?'FAILED':'COMPLETED',errorCode:result.status==='failed'?'PROVIDER_UNAVAILABLE':null, inputTokens: result.inputTokens, outputTokens: result.outputTokens, totalTokens: total, usageCredit: String(credit), providerCost: result.providerCost === undefined ? null : String(result.providerCost), costKind: result.costKind, durationMs: Date.now() - started, completedAt: new Date() }).where(eq(usageRecords.id, record.id));
         const history = [...(typeof body.input==='string'?[{role:'user',content:body.input}]:body.input),...result.output];
@@ -253,7 +234,7 @@ export async function registerGateway(app: FastifyInstance) {
         ? { points: event.pointsCharged, points_rated: event.pointsRated, points_charged: event.pointsCharged,
           remaining_points: balance, request_id: v2RequestId, billing_mode: settlementMode! } : undefined);
       Object.assign(response.usage,{ points_per_rmb:10000, cost_rmb:(event?.pointsCharged??0)/10000, remaining_rmb:balance/10000,
-        billing_status:event?.billingStatus, ...(result.usageUnavailable?{usage_unavailable:true}:{}),
+        billing_status:event?.billingStatus, balance_warning:balance <= 0, settlement_pending:event?.billingStatus==='UNPAID', ...(result.usageUnavailable?{usage_unavailable:true}:{}),
         period_limit_rmb:latestUsage.rmbLimit, period_used_rmb:latestUsage.rmbUsed, money_enabled:latestUsage.moneyEnabled,
         limits:{account_rpm:0,device_rpm:0,plan_rpm:0} });
       if (!body.stream) { ended = true; return response; }
@@ -300,7 +281,7 @@ export async function registerGateway(app: FastifyInstance) {
       req.log.warn({ event: 'provider_failed', requestId: req.id, userId: a.user.id, deviceId: a.device!.id,
         model: ent.model.publicId, providerId: ent.provider.id, upstreamStatus: upstream ? Number(upstream[1]) : undefined,
         errorCode: error instanceof ApiError || error instanceof CopilotFailure ? error.code
-          : controller.signal.aborted ? 'GATEWAY_TIMEOUT' : 'PROVIDER_UNAVAILABLE' }, 'provider request failed');
+          : clientDisconnected ? 'CLIENT_DISCONNECTED' : controller.signal.aborted ? 'GATEWAY_TIMEOUT' : 'PROVIDER_UNAVAILABLE' }, 'provider request failed');
       if (v2RequestId) {
         try {
           await settleAiRequest(v2RequestId, clientDisconnected ? 'CLIENT_DISCONNECTED' : 'PROVIDER_ERROR', observedResult ? {
@@ -313,7 +294,7 @@ export async function registerGateway(app: FastifyInstance) {
         } catch (settlementError) { req.log.error({ settlementErrorType: settlementError instanceof Error ? settlementError.name : 'UnknownError', requestId: v2RequestId }, 'V2 settlement failed'); }
       }
       const failure = error instanceof CopilotFailure || error instanceof ApiError ? error : controller.signal.aborted
-        ? new CopilotFailure(504, 'GATEWAY_TIMEOUT') : new CopilotFailure(503, 'PROVIDER_UNAVAILABLE');
+        ? new ApiError(clientDisconnected ? 499 : 504, clientDisconnected ? 'CLIENT_DISCONNECTED' : 'GATEWAY_TIMEOUT', clientDisconnected ? '客户端连接已断开。' : '模型请求超时。') : new CopilotFailure(503, 'PROVIDER_UNAVAILABLE');
       requestContext(req,{terminalStatus:clientDisconnected?'client_disconnected':'failed',errorCode:failure.code,...(failure instanceof NativeTimeoutError?{timeoutPhase:failure.phase}:{})});
       const failedHealth=upstreamAttempted&&!clientDisconnected&&!observedResult&&!(failure instanceof NativeTimeoutError&&failure.phase==='total')?instanceHealthAfterFailure(failure.code):null;
       if(failedHealth)await db.update(modelInstances).set(failedHealth).where(eq(modelInstances.id,selected.instance.id));

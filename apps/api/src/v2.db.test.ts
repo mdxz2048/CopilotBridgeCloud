@@ -301,13 +301,13 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
     const unpaid = await meterModule.settleAiRequest(overrun.id, 'COMPLETED', { usage: { inputTokens: 100000 } });
     expect(unpaid.billingStatus).toBe('UNPAID');
     expect(unpaid.pointsCharged).toBe(0);
-    await expect(meterModule.preflightPoints(ids.secondUser, ids.provider, ids.model, 'MANAGED_USAGE')).rejects.toMatchObject({ code: 'INSUFFICIENT_POINTS' });
+    await expect(meterModule.preflightPoints(ids.secondUser, ids.provider, ids.model, 'MANAGED_USAGE')).resolves.toMatchObject({rate:expect.anything()});
     const [invalid] = await db.insert(aiRequests).values({ responseId: `resp_${randomUUID().replaceAll('-', '')}`, userId: ids.user,
       deviceId: ids.device, providerId: ids.provider, modelId: ids.model, billingPolicy: 'MANAGED_USAGE', rateCardVersionId: ids.rateVersion, status: 'STARTED' }).returning();
     const invalidEvent = await meterModule.settleAiRequest(invalid.id, 'COMPLETED', { usage: { inputTokens: -1 }, providerReportedUsage: { input_tokens: -1 } });
     expect(invalidEvent.billingStatus).toBe('METERING_ERROR');
     expect(invalidEvent.pointsCharged).toBe(0);
-    await expect(meterModule.preflightPoints(ids.user, ids.provider, ids.model, 'MANAGED_USAGE')).rejects.toMatchObject({ code: 'BILLING_REVIEW_REQUIRED' });
+    await expect(meterModule.preflightPoints(ids.user, ids.provider, ids.model, 'MANAGED_USAGE')).resolves.toMatchObject({ rate: expect.anything() });
   });
 
   it('flags observed upstream text after disconnect without final usage for review without debiting points', async () => {
@@ -330,7 +330,7 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
     expect(retry.id).toBe(event.id);
     expect(await db.select().from(usageEvents).where(eq(usageEvents.requestId, request.id))).toHaveLength(1);
     await expect(meterModule.preflightPoints(user.id, ids.provider, ids.model, 'MANAGED_USAGE'))
-      .rejects.toMatchObject({ code: 'BILLING_REVIEW_REQUIRED' });
+      .resolves.toMatchObject({ rate: expect.anything() });
     const app=await(await import('./server.js')).createServer();
     try {
       const adminHeaders=await testCookieHeaders(dbModule,ids.admin);const userHeaders=await testCookieHeaders(dbModule,user.id);
@@ -348,7 +348,7 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
       expect((await db.select().from(dbModule.auditLogs).where(eq(dbModule.auditLogs.targetId,event.id))).filter(log=>log.action==='USAGE_BILLING_REVIEWED')).toHaveLength(1);
       const [next]=await db.insert(aiRequests).values({responseId:`resp_${randomUUID()}`,userId:user.id,deviceId:device.id,providerId:ids.provider,modelId:ids.model,billingPolicy:'MANAGED_USAGE',rateCardVersionId:ids.rateVersion,status:'STARTED'}).returning();
       await meterModule.settleAiRequest(next.id,'CLIENT_DISCONNECTED',{usageUnavailable:true},'SHADOW');
-      await expect(meterModule.preflightPoints(user.id,ids.provider,ids.model,'MANAGED_USAGE')).rejects.toMatchObject({code:'BILLING_REVIEW_REQUIRED'});
+      await expect(meterModule.preflightPoints(user.id,ids.provider,ids.model,'MANAGED_USAGE')).resolves.toMatchObject({rate:expect.anything()});
     }finally{await app.close();}
   });
 
@@ -654,7 +654,7 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
   it('pins native instances, bills actual cached/reasoning usage once, and scopes encrypted previous responses', async () => {
     const {db,users,devices,providers,providerCredentials,models,modelInstances,plans,planModelAccess,subscriptions,systemSettings,aiRequests,usageEvents,modelSessions,usageRecords}=dbModule;
     const {eq}=await import('drizzle-orm');const security=await import('./security.js');
-    const [user]=await db.insert(users).values({email:`native-${randomUUID()}@example.test`,passwordHash:'fixture'}).returning();
+    const [user]=await db.insert(users).values({email:`native-${randomUUID()}@example.test`,passwordHash:await security.hashPassword('FixturePassword123!')}).returning();
     const {privateKey,publicKey}=proofKey();const jwk=publicKey.export({format:'jwk'});
     const deviceData={userId:user.id,deviceName:'Native Fixture',platform:'Windows',appVersion:'0.3.0',publicKeyJwk:{kty:'EC' as const,crv:'P-256' as const,x:jwk.x!,y:jwk.y!}};
     const [device]=await db.insert(devices).values({...deviceData,deviceId:randomUUID()}).returning();
@@ -690,11 +690,9 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
         return app.inject({method:'POST',url:'/v1/responses',headers:{...await signedHeaders(privateKey,'POST','/v1/responses',payload,activeToken),authorization:`Bearer ${activeToken}`,'x-device-id':activeDevice.deviceId,'x-client-thread-id':useOtherDevice?randomUUID():thread},payload});
       };
       const before=(await walletModule.walletSummary(user.id)).balance;
-      // Requests started in a previous billing period still hold concurrency and money reservations.
+      // Old RUNNING records no longer reserve balance or block unrelated requests.
       const held=await db.insert(usageRecords).values(Array.from({length:3},()=>({userId:user.id,deviceId:device.id,planId:plan.id,providerId:provider.id,modelId:model.id,status:'RUNNING',totalTokens:1,usageCredit:'1',createdAt:new Date(Date.now()-86400000)}))).returning();
-      const blockedByPriorPeriod=await send('private fixture prompt');expect(blockedByPriorPeriod.statusCode,blockedByPriorPeriod.body).toBe(429);expect(blockedByPriorPeriod.json().error.code).toBe('RATE_LIMITED');expect(executions).toBe(0);
-      expect((await(await import('./core.js')).currentUsage(user.id,(await db.select().from(subscriptions).where(eq(subscriptions.userId,user.id)))[0],plan)).remainingPoints).toBe(before-3);
-      for(const row of held)await db.delete(usageRecords).where(eq(usageRecords.id,row.id));
+      expect((await(await import('./core.js')).currentUsage(user.id,(await db.select().from(subscriptions).where(eq(subscriptions.userId,user.id)))[0],plan)).remainingPoints).toBe(before);
       const previousNative=process.env.NATIVE_RESPONSES_ENABLED;process.env.NATIVE_RESPONSES_ENABLED='false';
       try {const closed=await send('private fixture prompt');expect(closed.statusCode).toBe(503);expect(executions).toBe(0);expect(await db.select().from(aiRequests).where(eq(aiRequests.userId,user.id))).toHaveLength(0);expect((await walletModule.walletSummary(user.id)).balance).toBe(before);}
       finally {if(previousNative===undefined)delete process.env.NATIVE_RESPONSES_ENABLED;else process.env.NATIVE_RESPONSES_ENABLED=previousNative;}
@@ -708,14 +706,47 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
       const requests=await db.select().from(aiRequests).where(eq(aiRequests.userId,user.id));expect(requests).toHaveLength(2);expect(requests.every(r=>r.instanceId===instance.id&&r.protocolMode==='native')).toBe(true);expect(requests.map(r=>r.responseId)).toContain(first.json().id);
       const events=await db.select().from(usageEvents).where(eq(usageEvents.userId,user.id));expect(events).toHaveLength(2);expect(events.every(e=>e.cachedInputTokens===4&&e.reasoningTokens===3&&e.billingStatus==='SETTLED')).toBe(true);
       expect(before-(await walletModule.walletSummary(user.id)).balance).toBe(events.reduce((sum,e)=>sum+e.pointsCharged,0));
-      const records=await db.select().from(usageRecords).where(eq(usageRecords.userId,user.id));expect(records.map(r=>r.rateCounted)).toEqual([true,false]);
+      const records=await db.select().from(usageRecords).where(eq(usageRecords.userId,user.id));expect(records.filter(r=>r.status!=='RUNNING').map(r=>r.rateCounted)).toEqual([true,false]);
       await db.update(systemSettings).set({value:{accountRpm:120,deviceRpm:60,publicIpRpm:120,authIpRpm:120}}).where(eq(systemSettings.key,'rate_policy'));
       const timedOut=await send('fixed slow document-writing fixture',second.json().id,false,true);expect(timedOut.statusCode,timedOut.body).toBe(200);
       const failed=timedOut.body.split(/\n\n/).filter(block=>block.includes('event: response.failed')).map(block=>JSON.parse(block.split('\n').find(line=>line.startsWith('data: '))!.slice(6)))[0];
       expect(failed.response.error).toMatchObject({code:'GATEWAY_TIMEOUT',request_id:expect.any(String),timeout_phase:'total'});expect(failed.error).toEqual(failed.response.error);
       const [timeoutEvent]=await db.select().from(usageEvents).where(eq(usageEvents.requestId,failed.response.error.request_id));expect(timeoutEvent.billingStatus).toBe('METERING_ERROR');expect(timeoutEvent.providerCost).toBeNull();
       const [afterPlatformLimit]=await db.select().from(modelInstances).where(eq(modelInstances.id,instance.id));expect(afterPlatformLimit).toMatchObject({healthStatus:'READY',cooldownUntil:null});
-      await db.update(modelInstances).set({enabled:false}).where(eq(modelInstances.id,instance.id));const disabled=await send('new turn',second.json().id);expect(disabled.statusCode).toBe(409);expect(disabled.json().error.code).toBe('MODEL_UNAVAILABLE');expect(executions).toBe(3);
+      // A fresh conversation survives the previous metering anomaly even with no balance,
+      // a zero period limit and more running requests than the plan permits.
+      const available=(await walletModule.walletSummary(user.id)).balance;
+      await db.transaction(tx=>walletModule.applyWalletChange(tx,{userId:user.id,points:-available,type:'TEST',referenceType:'TEST',referenceId:user.id,idempotencyKey:`empty-${user.id}`}));
+      await db.insert(systemSettings).values({key:`user_quota:${user.id}`,value:{rmbLimit:0}});
+      const fresh=await send('new conversation with an empty wallet',undefined,true);expect(fresh.statusCode,fresh.body).toBe(200);expect(fresh.json().usage).toMatchObject({billing_status:'UNPAID',balance_warning:true,settlement_pending:true});expect(executions).toBe(4);
+      const adminHeaders=await testCookieHeaders(dbModule,ids.admin);
+      const lockPath=`/api/v1/admin/users/${user.id}`;
+      expect((await app.inject({method:'PATCH',url:lockPath,headers:adminHeaders,payload:{status:'DISABLED'}})).statusCode).toBe(200);
+      const locked=await send('locked user',undefined,true);expect(locked.statusCode).toBe(403);expect(locked.json().error.code).toBe('ACCOUNT_DISABLED');expect(executions).toBe(4);
+      expect((await app.inject({method:'PATCH',url:lockPath,headers:adminHeaders,payload:{status:'ACTIVE'}})).statusCode).toBe(200);
+      const topup={points:10000,reason:'Administrator immediate balance adjustment',idempotencyKey:randomUUID()};
+      const adjustPath=`${lockPath}/wallet/adjust`;
+      const credited=await app.inject({method:'POST',url:adjustPath,headers:adminHeaders,payload:topup});expect(credited.statusCode,credited.body).toBe(200);expect(credited.json().transaction.balanceAfter).toBe(10000);
+      expect((await app.inject({method:'POST',url:adjustPath,headers:adminHeaders,payload:topup})).json().duplicate).toBe(true);expect((await walletModule.walletSummary(user.id)).balance).toBe(10000);
+      const resumed=await send('unlocked account',undefined,true);expect(resumed.statusCode,resumed.body).toBe(200);expect(resumed.json().usage.billing_status).toBe('SETTLED');expect(executions).toBe(5);
+      const reduced=await app.inject({method:'POST',url:adjustPath,headers:adminHeaders,payload:{points:-1000,reason:'Administrator decreases available balance',idempotencyKey:randomUUID()}});expect(reduced.statusCode,reduced.body).toBe(200);
+      const beforeReduction=(await walletModule.walletSummary(user.id)).balance;
+      const invalidReduction=await app.inject({method:'POST',url:adjustPath,headers:adminHeaders,payload:{points:-(beforeReduction+1),reason:'Administrator tries to exceed available balance',idempotencyKey:randomUUID()}});expect(invalidReduction.statusCode).toBe(402);expect((await walletModule.walletSummary(user.id)).balance).toBe(beforeReduction);
+      const limitPath=`${lockPath}/devices-limit`;
+      expect((await app.inject({method:'PUT',url:limitPath,headers:await testCookieHeaders(dbModule,user.id),payload:{maxDevices:4}})).statusCode).toBe(403);
+      expect((await app.inject({method:'PUT',url:limitPath,headers:adminHeaders,payload:{maxDevices:4}})).statusCode).toBe(200);
+      expect((await(await import('./core.js')).currentSubscription(user.id))!.plan.maxDevices).toBe(4);
+      const thirdIdentity=randomUUID();const newDevicePayload={deviceId:thirdIdentity,deviceName:'Third Fixture',platform:'Windows',appVersion:'0.3.0',publicKeyJwk:jwk};
+      const userHeaders=await testCookieHeaders(dbModule,user.id);
+      const registered=await app.inject({method:'POST',url:'/api/v1/auth/login',payload:{email:user.email,password:'FixturePassword123!',device:newDevicePayload}});expect(registered.statusCode,registered.body).toBe(200);
+      expect((await app.inject({method:'PUT',url:limitPath,headers:adminHeaders,payload:{maxDevices:2}})).statusCode).toBe(200);
+      const overLimit=await app.inject({method:'POST',url:'/api/v1/auth/login',payload:{email:user.email,password:'FixturePassword123!',device:{...newDevicePayload,deviceId:randomUUID()}}});expect(overLimit.statusCode).toBe(409);expect(overLimit.json().error.code).toBe('DEVICE_LIMIT_REACHED');
+      const thirdId=registered.json().device.id;expect((await app.inject({method:'PATCH',url:`/api/v1/admin/devices/${thirdId}`,headers:adminHeaders,payload:{status:'REVOKED'}})).statusCode).toBe(200);
+      const restore=await app.inject({method:'PATCH',url:`/api/v1/admin/devices/${thirdId}`,headers:adminHeaders,payload:{status:'ACTIVE'}});expect(restore.statusCode).toBe(409);
+      const detail=(await app.inject({url:lockPath,headers:adminHeaders})).json();expect(Number(detail.billingRisks.pendingReview)).toBe(1);expect(Number(detail.billingRisks.unpaidRequests)).toBe(1);expect(detail.limits.maxDevices).toBe(2);expect(detail.wallet.balance).toBe(beforeReduction);
+
+      for(const row of held)await db.delete(usageRecords).where(eq(usageRecords.id,row.id));
+      await db.update(modelInstances).set({enabled:false}).where(eq(modelInstances.id,instance.id));const disabled=await send('new turn',second.json().id);expect(disabled.statusCode).toBe(409);expect(disabled.json().error.code).toBe('MODEL_UNAVAILABLE');expect(executions).toBe(5);
     } finally {await app.close();vi.unstubAllGlobals();}
   });
 

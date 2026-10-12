@@ -66,7 +66,7 @@ export async function registerV2Admin(app: FastifyInstance) {
   });
   app.post('/api/v1/admin/users/:id/wallet/adjust', async req => {
     const a = await admin(req); const userId = uuidParam(req.params);
-    const data = z.object({ points: z.number().int().min(-1_000_000).max(1_000_000).refine(n => n !== 0), reason: z.string().trim().min(10).max(500), idempotencyKey: z.uuid() }).parse(req.body);
+    const data = z.object({ points: z.number().int().min(-1_000_000_000).max(1_000_000_000).refine(n => n !== 0), reason: z.string().trim().min(10).max(500), idempotencyKey: z.uuid() }).parse(req.body);
     return db.transaction(async tx => {
       const result = await applyWalletChange(tx, { userId, points: data.points, type: 'ADMIN_ADJUSTMENT', referenceType: 'ADMIN', referenceId: a.user.id,
         idempotencyKey: `admin:${data.idempotencyKey}`, metadata: { reason: data.reason } });

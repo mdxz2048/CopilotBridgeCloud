@@ -34,7 +34,7 @@ export async function actor(req: FastifyRequest, desktop = false): Promise<Actor
     if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && req.headers.origin !== config.PUBLIC_BASE_URL) throw new ApiError(403, 'CSRF_REJECTED');
   }
   const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
-  if (!user || user.status !== 'ACTIVE') throw new ApiError(403, 'ACCOUNT_DISABLED');
+  if (!user || user.status !== 'ACTIVE') throw new ApiError(403, 'ACCOUNT_DISABLED', '账号已被管理员锁定，请联系管理员解锁。');
   let device: typeof devices.$inferSelect | undefined;
   if (jwtDevice) {
     const [found] = await db.select().from(devices).where(and(eq(devices.id, jwtDevice), eq(devices.userId, userId))).limit(1);
@@ -51,6 +51,8 @@ export async function actor(req: FastifyRequest, desktop = false): Promise<Actor
     if (!device || typeof deviceUuid !== 'string' || device.deviceId !== deviceUuid) throw new ApiError(403, 'DEVICE_NOT_REGISTERED');
     requireCurrentClient(device.appVersion,(await latestClientRelease())?.version);
   }
+  // Signed account polling serves as a heartbeat, with at most one write/minute.
+  if (device && req.routeOptions.url === '/api/v1/me') await db.update(devices).set({lastSeenAt:new Date()}).where(and(eq(devices.id,device.id),sql`(${devices.lastSeenAt} is null or ${devices.lastSeenAt} < now() - interval '1 minute')`));
   requestContext(req, { userId: user.id, deviceId: device?.id });
   return { user, device, web: !bearer };
 }
@@ -60,26 +62,38 @@ export async function admin(req: FastifyRequest) {
   return a;
 }
 export async function changeDeviceStatus(id: string, status: 'ACTIVE' | 'REVOKED' | 'BLOCKED', userId?: string) {
+  const [owner] = await db.select({userId:devices.userId}).from(devices).where(userId?and(eq(devices.id,id),eq(devices.userId,userId)):eq(devices.id,id)).limit(1);
+  if (!owner) throw new ApiError(404,'NOT_FOUND');
   return db.transaction(async tx => {
-    const [current] = await tx.select({ status: devices.status }).from(devices)
-      .where(userId ? and(eq(devices.id, id), eq(devices.userId, userId)) : eq(devices.id, id)).for('update').limit(1);
-    if (!current) throw new ApiError(404, 'NOT_FOUND');
+    await tx.execute(sql`select id from users where id = ${owner.userId} for update`);
+    const [current] = await tx.select({status:devices.status}).from(devices).where(eq(devices.id,id)).for('update').limit(1);
+    if (!current) throw new ApiError(404,'NOT_FOUND');
+    if (status === 'ACTIVE' && current.status !== 'ACTIVE') {
+      const active = await currentSubscription(owner.userId);
+      const maximum = await currentDeviceLimit(owner.userId,active?.plan.maxDevices??3);
+      const [count] = await tx.select({total:sql<number>`count(*)`}).from(devices).where(and(eq(devices.userId,owner.userId),eq(devices.status,'ACTIVE')));
+      if (Number(count.total) >= maximum) throw new ApiError(409,'DEVICE_LIMIT_REACHED');
+    }
     const changed = current.status !== status;
-    const [device] = await tx.update(devices).set({ status, updatedAt: new Date(),
-      authVersion: changed ? sql`${devices.authVersion} + 1` : undefined }).where(eq(devices.id, id)).returning();
-    if (changed || status !== 'ACTIVE') await tx.update(refreshTokens).set({ revokedAt: new Date() })
-      .where(and(eq(refreshTokens.deviceId, id), isNull(refreshTokens.revokedAt)));
+    const [device] = await tx.update(devices).set({status,updatedAt:new Date(),authVersion:changed?sql`${devices.authVersion} + 1`:undefined}).where(eq(devices.id,id)).returning();
+    if (changed || status !== 'ACTIVE') await tx.update(refreshTokens).set({revokedAt:new Date()}).where(and(eq(refreshTokens.deviceId,id),isNull(refreshTokens.revokedAt)));
     return device;
   });
 }
 export async function audit(actorId: string | null, action: string, targetType: string, targetId: string, metadata: Record<string, unknown> = {}) {
   await db.insert(auditLogs).values({ actorId, action, targetType, targetId, metadata });
 }
+export async function currentDeviceLimit(userId: string, fallback: number) {
+  const [setting] = await db.select({value:systemSettings.value}).from(systemSettings).where(eq(systemSettings.key,`user_devices:${userId}`)).limit(1);
+  const value = (setting?.value as {maxDevices?:number}|undefined)?.maxDevices;
+  return Number.isSafeInteger(value) && value! >= 1 && value! <= 100 ? value! : fallback;
+}
 export async function currentSubscription(userId: string) {
   const [subscription] = await db.select().from(subscriptions).where(eq(subscriptions.userId, userId)).orderBy(desc(subscriptions.createdAt)).limit(1);
   if (!subscription || !subscriptionActive(subscription.status, subscription.currentPeriodEnd)) return null;
   const [plan] = await db.select().from(plans).where(eq(plans.id, subscription.planId)).limit(1);
   if (!plan) return null;
+  plan.maxDevices = await currentDeviceLimit(userId,plan.maxDevices);
   if (plan.enabled) return { subscription, plan };
   const [testAccess] = await db.select({ value: systemSettings.value }).from(systemSettings).where(eq(systemSettings.key, 'internal_test_user_ids')).limit(1);
   if (plan.code === 'PRO' && internalTestAllowed(currentBillingMode(), userId, testAccess?.value)) return { subscription, plan };
@@ -103,12 +117,10 @@ export async function currentUsage(userId: string, subscription: typeof subscrip
   const creditLimit = Number.isSafeInteger(override?.creditLimit) && override!.creditLimit! > 0 ? override!.creditLimit! : Number(plan.monthlyUsageCreditLimit);
   const moneyEnabled = typeof override?.rmbLimit === 'number' || ['PAYG','QUARTER'].includes(plan.code) || (await moneyPolicy()).enforceManaged;
   const [moneyRow] = moneyEnabled ? await db.select({ points: sql<number>`coalesce(sum(${usageEvents.pointsRated}),0)` }).from(usageEvents).where(and(eq(usageEvents.userId,userId),gte(usageEvents.createdAt,subscription.currentPeriodStart),lt(usageEvents.createdAt,subscription.currentPeriodEnd),sql`${usageEvents.billingStatus} <> 'SHADOW'`)) : [];
-  const [reserved] = moneyEnabled ? await db.select({points:sql<number>`coalesce(sum(${usageRecords.usageCredit}),0)`}).from(usageRecords).where(and(eq(usageRecords.userId,userId),eq(usageRecords.status,"RUNNING"))) : [];
-  const reservedPoints=Number(reserved?.points??0);
   const wallet = moneyEnabled ? await walletSummary(userId) : null;
   const pointsUsed = Number(moneyRow?.points??0);
   const rmbLimit = override?.rmbLimit ?? (plan.code === 'QUARTER' ? plan.monthlyPoints / 10000 : moneyEnabled ? (pointsUsed + (wallet?.balance??0))/10000 : null);
-  const remainingPoints = moneyEnabled ? Math.max(0,Math.min(wallet?.balance??0,Math.round((rmbLimit??0)*10000)-pointsUsed)-reservedPoints) : 0;
+  const remainingPoints = moneyEnabled ? Math.max(0, wallet?.balance ?? 0) : 0;
   const moneyLimitPoints = Math.round((rmbLimit??0)*10000);
   const moneyState = {percent: moneyLimitPoints>0?Math.round(pointsUsed*100/moneyLimitPoints):100,threshold:moneyLimitPoints<=0||pointsUsed>=moneyLimitPoints?100:pointsUsed>=moneyLimitPoints*.9?90:pointsUsed>=moneyLimitPoints*.7?70:0};
   const tokenState = moneyEnabled ? moneyState : usageState(tokens, tokenLimit);
@@ -143,6 +155,5 @@ export async function requireEntitlement(userId: string, deviceId: string, publi
   const found = allowed.find(({ model }) => model.publicId === publicModelId);
   if (!found) throw new ApiError(403, 'MODEL_NOT_ALLOWED');
   const usage = await currentUsage(userId, subscription, plan);
-  if (usage.threshold >= 100) throw new ApiError(429, 'MONTHLY_QUOTA_EXCEEDED', usage.moneyEnabled ? '本周期人民币消费限额已用完，请管理员调整额度。' : '本周期 Token 限额已用完，请管理员调整额度。');
   return { ...active, ...found, usage };
 }

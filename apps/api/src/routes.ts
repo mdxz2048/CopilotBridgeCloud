@@ -5,7 +5,7 @@ import { and, desc, eq, gte, isNull, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { DeviceInfoV23Schema, LoginRequestSchema, RefreshRequestSchema, RegisterRequestV2Schema, RegisterRequestV24Schema, RequestEmailCodeV24Schema } from '@bridge/contract';
-import { actor, admin, ApiError, audit, changeDeviceStatus, currentSubscription, currentUsage, allowedModels, subscriptionError } from './core.js';
+import { actor, admin, ApiError, audit, changeDeviceStatus, currentDeviceLimit, currentSubscription, currentUsage, allowedModels, subscriptionError } from './core.js';
 import { config } from './config.js';
 import { hashPassword, hashRefresh, issueAccess, newRefresh, verifyPassword } from './security.js';
 import { registerReferralInTransaction, validateReferralCode } from './referral.js';
@@ -41,7 +41,7 @@ async function registerDevice(userId: string, info: z.infer<typeof deviceSchema>
     if (!['ACTIVE', 'TRIAL', 'CANCELED'].includes(sub.status)) throw new ApiError(403, 'SUBSCRIPTION_REQUIRED');
     const [plan] = await tx.select().from(plans).where(eq(plans.id, sub.planId)).limit(1);
     const [{ count }] = await tx.select({ count: sql<number>`count(*)` }).from(devices).where(and(eq(devices.userId, userId), eq(devices.status, 'ACTIVE')));
-    if (!plan || Number(count) >= plan.maxDevices) throw new ApiError(409, 'DEVICE_LIMIT_REACHED');
+    if (!plan || Number(count) >= await currentDeviceLimit(userId,plan.maxDevices)) throw new ApiError(409, 'DEVICE_LIMIT_REACHED');
     const [newDevice] = await tx.insert(devices).values({ userId, ...info, lastSeenAt: new Date() }).returning();
     return newDevice;
   });

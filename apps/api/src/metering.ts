@@ -2,9 +2,8 @@ import { aiRequests, db, rateCards, rateCardVersions, usageEvents } from '@bridg
 import { and, desc, eq, gt, isNull, lte, or } from 'drizzle-orm';
 import { ApiError } from './core.js';
 import { normalizeUsage, ratePoints, type BillingPolicy, type NormalizedUsage, type PointRates } from './rating.js';
-import { applyWalletChange, walletSummary } from './wallet.js';
+import { applyWalletChange } from './wallet.js';
 import type { BillingMode } from './billing-mode.js';
-import { unresolvedBillingReview } from './billing-review.js';
 
 export type RequestState = 'COMPLETED' | 'CLIENT_DISCONNECTED' | 'PROVIDER_ERROR';
 export type MeteredResult = {
@@ -50,13 +49,8 @@ export async function preflightPoints(userId: string, providerId: string, modelI
   if (policy === 'LOCAL_USAGE') return { rate: null };
   const rate = await activeRateVersion(providerId, modelId, policy);
   if (!rate) throw new ApiError(503, 'RATE_CARD_UNAVAILABLE');
-  const requiresBalance = rate.minimumCharge > 0 || [rate.inputRate, rate.outputRate, rate.cachedInputRate, rate.reasoningRate,
-    rate.imageInputRate, rate.imageOutputRate, rate.toolRate].some(value => Number(value) > 0);
-  const [unpaid] = await db.select({ id: usageEvents.id }).from(usageEvents).where(and(eq(usageEvents.userId, userId), eq(usageEvents.billingStatus, 'UNPAID'))).limit(1);
-  if (unpaid) throw new ApiError(402, 'INSUFFICIENT_POINTS');
-  const [review] = await db.select({ id: usageEvents.id }).from(usageEvents).where(and(eq(usageEvents.userId, userId), or(eq(usageEvents.billingStatus, 'METERING_ERROR'), eq(usageEvents.billingStatus, 'UNRATED')),unresolvedBillingReview)).limit(1);
-  if (review) throw new ApiError(409, 'BILLING_REVIEW_REQUIRED');
-  if (requiresBalance && (await walletSummary(userId)).balance <= 0) throw new ApiError(402, 'INSUFFICIENT_POINTS');
+  // Usage anomalies and an empty wallet are advisory. Only an administrator
+  // explicitly disabling the account may stop unrelated conversations.
   return { rate };
 }
 
