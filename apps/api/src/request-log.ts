@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 
 type Stage='authDone'|'entitlementDone'|'historyRecovered'|'routingDone'|'preflightDone'|'reservationDone'|'upstreamStarted'|'relayFirstEvent'|'relayFirstText'|'relayToolArgumentsDone'|'settlementDone'|'historySaved';
-type Count='requestBytes'|'toolResultBytes'|'inputItemCount'|'toolCount'|'upstreamAttemptCount';
+type Count='declaredRequestBytes'|'requestBytes'|'toolResultBytes'|'inputItemCount'|'toolCount'|'upstreamAttemptCount';
 type Context = { userId?: string; deviceId?: string; model?: string; providerId?: string; instanceId?: string; inputProtocol?: string; outboundProtocol?: string; protocolMode?: string; reasoningMode?: string; stream?: boolean; ignoredFields?: string[]; ignoredToolTypes?: string[]; traceId?:string; responseId?:string; terminalStatus?:string; errorCode?:string;timeoutPhase?:'connect'|'idle'|'total'; responsesProfile?:string; stageTimingsMs?:Partial<Record<Stage,number>>; counts?:Partial<Record<Count,number>>; nativeMetrics?:Record<string,number> };
 const contexts = new WeakMap<FastifyRequest, Context>();
 const starts = new WeakMap<FastifyRequest, number>();
@@ -26,6 +26,8 @@ export function registerRequestLog(app: FastifyInstance) {
   const errors = new WeakMap<FastifyRequest, string>();
   app.addHook('onRequest', async (req, reply) => {
     starts.set(req, Date.now());
+    const declared=req.headers['content-length'];
+    if(typeof declared==='string'&&/^\d{1,12}$/.test(declared)&&Number.isSafeInteger(Number(declared)))requestCounts(req,{declaredRequestBytes:Number(declared)});
     reply.header('X-Request-Id', req.id);
   });
   app.addHook('onSend', async (req, _reply, payload) => {

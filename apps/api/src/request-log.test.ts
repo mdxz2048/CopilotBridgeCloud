@@ -22,7 +22,7 @@ describe('request diagnostics', () => {
     const entry = JSON.parse(logs.trim());
     expect(entry).toMatchObject({ event: 'request_completed', statusCode: 429, errorCode: 'MONTHLY_QUOTA_EXCEEDED', userId: 'test-user', model: 'deepseek/test', route: '/v1/responses' });
     expect(entry.durationMs).toBeGreaterThanOrEqual(0);
-    expect(entry.stageTimingsMs.authDone).toBeGreaterThanOrEqual(0);expect(entry.counts).toEqual({requestBytes:100,upstreamAttemptCount:1});expect(entry.nativeMetrics).toEqual({eventCount:4,upstreamFirstTextMs:25});
+    expect(entry.stageTimingsMs.authDone).toBeGreaterThanOrEqual(0);expect(entry.counts).toEqual({declaredRequestBytes:Buffer.byteLength(JSON.stringify({input:'WORD_DOCUMENT_SECRET',apiKey:'KEY_SECRET'})),requestBytes:100,upstreamAttemptCount:1});expect(entry.nativeMetrics).toEqual({eventCount:4,upstreamFirstTextMs:25});
     expect(res.headers['x-request-id']).toBe(entry.requestId);
     expect(logs).not.toMatch(/QUERY_SECRET|AUTH_SECRET|SESSION_SECRET|WORD_DOCUMENT_SECRET|KEY_SECRET/);
   });

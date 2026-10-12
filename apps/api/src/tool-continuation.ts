@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import type { CanonicalRequest, CanonicalResult } from './provider.js';
 
 const MAX_CONTINUATIONS = 8;
-const CONTINUATION_WINDOW_MS = 5 * 60_000;
+const CONTINUATION_WINDOW_MS = 65 * 60_000;
 
 export type ContinuationState = {
   pendingCallIds: string[];

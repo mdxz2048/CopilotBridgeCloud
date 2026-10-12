@@ -1,0 +1,9 @@
+{
+  "at": "2026-10-12T01:49:56.567Z",
+  "passed": true,
+  "scope": "PUBLIC_NGINX_DECLARED_CONTENT_LENGTH_BOUNDARY",
+  "declaredBytes": 67108865,
+  "status": 413,
+  "jsonContract": true,
+  "noModelCalls": true
+}

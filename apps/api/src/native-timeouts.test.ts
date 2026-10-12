@@ -1,17 +1,17 @@
 import {afterEach,describe,expect,it,vi} from 'vitest';
-import {nativeDeadline,nativeEventProgress,NativeTimeoutError} from './native-timeouts.js';
+import {nativeDeadline,nativeEventProgress,NativeTimeoutError,nativeTimeoutPolicy} from './native-timeouts.js';
 import {executeNativeResponses,nativeFailedEvent} from './native-responses.js';
 afterEach(()=>{vi.useRealTimers();vi.unstubAllGlobals();});
 describe('native document generation deadlines',()=>{
-  it('allows active progress beyond the old 60-second limit but retains a ten-minute cap',async()=>{
+  it('allows active generation beyond one hour but retains a sixty-five-minute cap',async()=>{
     vi.useFakeTimers();const deadline=nativeDeadline(new AbortController().signal,60000);deadline.headersReceived();
-    for(let i=0;i<9;i++){await vi.advanceTimersByTimeAsync(65000);deadline.progress();expect(deadline.signal.aborted).toBe(false);}
-    await vi.advanceTimersByTimeAsync(15000);expect(deadline.signal.reason).toMatchObject({code:'GATEWAY_TIMEOUT',phase:'total',message:expect.stringContaining('十分钟')});deadline.dispose();
+    for(let i=0;i<64;i++){await vi.advanceTimersByTimeAsync(60000);deadline.progress();expect(deadline.signal.aborted).toBe(false);}
+    await vi.advanceTimersByTimeAsync(60000);expect(deadline.signal.reason).toMatchObject({code:'GATEWAY_TIMEOUT',phase:'total',message:expect.stringContaining('平台总时限')});deadline.dispose();
   });
   it('separates connection timeout from idle timeout and ignores heartbeat-only activity',async()=>{
     vi.useFakeTimers();const connect=nativeDeadline(new AbortController().signal,60000);await vi.advanceTimersByTimeAsync(60000);expect(connect.signal.reason.message).toContain('连接');connect.dispose();
     const idle=nativeDeadline(new AbortController().signal);idle.headersReceived();
-    for(let i=0;i<3;i++){await vi.advanceTimersByTimeAsync(30000);for(const type of ['response.created','response.in_progress','ping'])if(nativeEventProgress(type,{}))idle.progress();}
+    for(let i=0;i<9;i++){await vi.advanceTimersByTimeAsync(30000);for(const type of ['response.created','response.in_progress','ping'])if(nativeEventProgress(type,{}))idle.progress();}
     await vi.advanceTimersByTimeAsync(30000);expect(idle.signal.reason.message).toContain('没有内容或工具进展');idle.dispose();
     expect(nativeEventProgress('response.function_call_arguments.delta',{delta:'document text'})).toBe(true);expect(nativeEventProgress('response.function_call_arguments.delta',{delta:''})).toBe(false);
   });
@@ -26,5 +26,10 @@ describe('native document generation deadlines',()=>{
   it('exposes a bounded idle failure inside the native response error',()=>{
     const event=nativeFailedEvent('resp_fixture','logical',new NativeTimeoutError('idle'),'request_fixture');
     expect(event.response).toMatchObject({object:'response',status:'failed',error:{code:'GATEWAY_TIMEOUT',request_id:'request_fixture',timeout_phase:'idle'}});expect(event.error).toEqual(event.response.error);expect('usage' in event.response).toBe(false);
+  });
+  it('validates deployment timeouts and propagates cancellation without leaking timers',()=>{
+    expect(nativeTimeoutPolicy({NATIVE_IDLE_TIMEOUT_MS:'300000',NATIVE_TOTAL_TIMEOUT_MS:'3900000'})).toEqual({idleMs:300000,totalMs:3900000});
+    expect(()=>nativeTimeoutPolicy({NATIVE_TOTAL_TIMEOUT_MS:'0'})).toThrow();expect(()=>nativeTimeoutPolicy({NATIVE_TOTAL_TIMEOUT_MS:'999999999'})).toThrow();
+    vi.useFakeTimers();const parent=new AbortController();const deadline=nativeDeadline(parent.signal);parent.abort(new Error('cancelled'));expect(deadline.signal.reason.message).toBe('cancelled');deadline.dispose();expect(vi.getTimerCount()).toBe(0);
   });
 });

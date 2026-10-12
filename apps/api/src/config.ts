@@ -9,6 +9,8 @@ const schema = z.object({
   TRUSTED_PROXY_HOPS: z.coerce.number().int().min(0).max(2).default(0),
   TRUSTED_PROXY_CIDRS: z.string().default('127.0.0.0/8,::1/128'),
   API_PORT: z.coerce.number().int().min(1).max(65535).default(3001),
+  NATIVE_IDLE_TIMEOUT_MS:z.coerce.number().int().min(120000).max(600000).default(300000),
+  NATIVE_TOTAL_TIMEOUT_MS:z.coerce.number().int().min(600000).max(4200000).default(3900000),
   STAGED_EMAIL_REGISTRATION_ENABLED: z.enum(['true', 'false']).default('false'),
   TURNSTILE_SITE_KEY: z.string().optional(),
   TURNSTILE_SECRET_KEY: z.string().optional(),

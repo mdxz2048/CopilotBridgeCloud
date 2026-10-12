@@ -2111,6 +2111,102 @@
           },
           "truncated": {
             "type": "boolean"
+          },
+          "requestStats": {
+            "type": "object",
+            "properties": {
+              "desktop": {
+                "type": "object",
+                "properties": {
+                  "bodyBytes": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "declaredBodyBytes": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "inputCount": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "toolDefinitionCount": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "toolCallCount": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "toolOutputCount": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "toolArgumentBytes": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "toolOutputBytes": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "bodyLimitBytes": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "bodyBytes"
+                ],
+                "additionalProperties": false
+              },
+              "forwarded": {
+                "type": "object",
+                "properties": {
+                  "bodyBytes": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "declaredBodyBytes": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "inputCount": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "toolDefinitionCount": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "toolCallCount": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "toolOutputCount": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "toolArgumentBytes": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "toolOutputBytes": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "bodyLimitBytes": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "bodyBytes"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
           }
         },
         "required": [
@@ -26824,6 +26920,102 @@
                   },
                   "truncated": {
                     "type": "boolean"
+                  },
+                  "requestStats": {
+                    "type": "object",
+                    "properties": {
+                      "desktop": {
+                        "type": "object",
+                        "properties": {
+                          "bodyBytes": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "declaredBodyBytes": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "inputCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "toolDefinitionCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "toolCallCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "toolOutputCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "toolArgumentBytes": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "toolOutputBytes": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "bodyLimitBytes": {
+                            "type": "integer",
+                            "minimum": 0
+                          }
+                        },
+                        "required": [
+                          "bodyBytes"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "forwarded": {
+                        "type": "object",
+                        "properties": {
+                          "bodyBytes": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "declaredBodyBytes": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "inputCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "toolDefinitionCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "toolCallCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "toolOutputCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "toolArgumentBytes": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "toolOutputBytes": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "bodyLimitBytes": {
+                            "type": "integer",
+                            "minimum": 0
+                          }
+                        },
+                        "required": [
+                          "bodyBytes"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "additionalProperties": false
                   }
                 },
                 "required": [

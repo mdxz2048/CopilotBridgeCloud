@@ -45,7 +45,7 @@ export async function registerGateway(app: FastifyInstance) {
     const allowed = await allowedModels(a.user.id, sub.plan.id);
     return { object: 'list', data: allowed.map(({ model, candidates }) => ({ id: model.publicId, object: 'model', owned_by: model.publicId.split('/')[0], capabilities:logicalCapabilities(candidates) })) };
   });
-  app.post('/v1/responses',{bodyLimit:10*1024*1024}, async (req, reply) => {
+  app.post('/v1/responses',{bodyLimit:64*1024*1024}, async (req, reply) => {
     const a = await actor(req, true);
     requestMilestone(req,'authDone');
     const threadId = req.headers['x-client-thread-id'];
@@ -123,8 +123,9 @@ export async function registerGateway(app: FastifyInstance) {
         const estimatedInput=Math.min(ent.model.contextWindow??1000000,Buffer.byteLength(serialized)+256+(serialized.includes('input_image')?1000000:0));
         const availablePoints=Math.min(fresh.remainingPoints,upstreamPoints??fresh.remainingPoints);
         const inputPoints=estimatedInput*Number(v2Rate.inputRate)/1000;
-        const maxOutput=Number(v2Rate.outputRate)>0?Math.floor((availablePoints-inputPoints)*1000/Number(v2Rate.outputRate)):32768;
-        maxOutputTokens=Math.min(32768,ent.model.maxOutputTokens??32768,maxOutput, typeof body.max_output_tokens === 'number' ? body.max_output_tokens : 32768);
+        const modelOutputCap=ent.model.maxOutputTokens??32768;
+        const maxOutput=Number(v2Rate.outputRate)>0?Math.floor((availablePoints-inputPoints)*1000/Number(v2Rate.outputRate)):modelOutputCap;
+        maxOutputTokens=Math.min(modelOutputCap,maxOutput, typeof body.max_output_tokens === 'number' ? body.max_output_tokens : modelOutputCap);
         if(maxOutputTokens<1)throw new ApiError(402,'INSUFFICIENT_POINTS','可用人民币额度不足以完成这次请求，请充值或调整周期限额。');
         reserveMoneyPoints=ratePoints('MANAGED_USAGE',{inputTokens:estimatedInput,outputTokens:maxOutputTokens},v2Rate);
         if(reserveMoneyPoints>availablePoints)throw new ApiError(402,'INSUFFICIENT_POINTS');
@@ -146,11 +147,12 @@ export async function registerGateway(app: FastifyInstance) {
       }).from(usageRecords).where(and(eq(usageRecords.userId, a.user.id), eq(usageRecords.rateCounted, true),
         sql`${usageRecords.createdAt} >= now() - interval '1 minute'`));
       if (!ent.usage.moneyEnabled && (Number(totals.tokens ?? 0) + reserveTokens > ent.usage.tokenLimit || Number(totals.credit ?? 0) + reserveCredit > ent.usage.creditLimit)) throw new ApiError(429, 'MONTHLY_QUOTA_EXCEEDED');
-      if (Number(totals.running) >= ent.plan.maxConcurrentRequests || Number(totals.rpm) >= ent.plan.requestsPerMinute
+      const [activeRunning]=await tx.select({count:sql<number>`count(*)`}).from(usageRecords).where(and(eq(usageRecords.userId,a.user.id),eq(usageRecords.status,'RUNNING')));
+      if (Number(activeRunning.count) >= ent.plan.maxConcurrentRequests || Number(totals.rpm) >= ent.plan.requestsPerMinute
         || (!continuation && (Number(recent.account) >= ratePolicy.accountRpm || Number(recent.device) >= ratePolicy.deviceRpm))) throw new ApiError(429, 'RATE_LIMITED');
-      if (session) await tx.update(modelSessions).set({ state: {responseId:session.state.responseId,resolvedMode:session.state.resolvedMode,encryptedHistory:session.state.encryptedHistory} }).where(eq(modelSessions.id, session.id));
-      else await tx.insert(modelSessions).values({userId:a.user.id,deviceId:a.device!.id,clientThreadId:threadId,providerId:ent.provider.id,modelId:ent.model.id,instanceId:selected.instance.id,state:{resolvedMode},expiresAt:new Date(Date.now()+3600000)})
-        .onConflictDoUpdate({target:[modelSessions.userId,modelSessions.deviceId,modelSessions.clientThreadId],set:{providerId:ent.provider.id,modelId:ent.model.id,instanceId:selected.instance.id,state:{resolvedMode},expiresAt:new Date(Date.now()+3600000),lastActiveAt:new Date()}});
+      if (session) await tx.update(modelSessions).set({ expiresAt:new Date(Date.now()+7200000),lastActiveAt:new Date(),state: {responseId:session.state.responseId,resolvedMode:session.state.resolvedMode,encryptedHistory:session.state.encryptedHistory} }).where(eq(modelSessions.id, session.id));
+      else await tx.insert(modelSessions).values({userId:a.user.id,deviceId:a.device!.id,clientThreadId:threadId,providerId:ent.provider.id,modelId:ent.model.id,instanceId:selected.instance.id,state:{resolvedMode},expiresAt:new Date(Date.now()+7200000)})
+        .onConflictDoUpdate({target:[modelSessions.userId,modelSessions.deviceId,modelSessions.clientThreadId],set:{providerId:ent.provider.id,modelId:ent.model.id,instanceId:selected.instance.id,state:{resolvedMode},expiresAt:new Date(Date.now()+7200000),lastActiveAt:new Date()}});
       const [newRecord] = await tx.insert(usageRecords).values({ userId: a.user.id, deviceId: a.device!.id, planId: ent.plan.id,
         providerId: ent.provider.id, modelId: ent.model.id, status: 'RUNNING', rateCounted: !continuation,
         totalTokens: reserveTokens, usageCredit: String(ent.usage.moneyEnabled?reserveMoneyPoints:reserveCredit) }).returning();
@@ -248,8 +250,8 @@ export async function registerGateway(app: FastifyInstance) {
           ...(Buffer.byteLength(JSON.stringify(history)) < 900_000 ? {encryptedHistory:encryptSecret(JSON.stringify(history))} : {historyUnavailable:'LIMIT'})};
         // Expired content is purged, not merely made inaccessible by the TTL query.
         await tx.update(modelSessions).set({state:{}}).where(lt(modelSessions.expiresAt,new Date()));
-        await tx.insert(modelSessions).values({ userId: a.user.id, deviceId: a.device!.id, clientThreadId: threadId, providerId: ent.provider.id, modelId: ent.model.id, instanceId:selected.instance.id, providerSessionId: result.providerSessionId ?? responseId, expiresAt: new Date(Date.now() + 3600000), state })
-          .onConflictDoUpdate({ target: [modelSessions.userId, modelSessions.deviceId, modelSessions.clientThreadId], set: { providerId: ent.provider.id, modelId: ent.model.id, instanceId:selected.instance.id, providerSessionId: result.providerSessionId ?? responseId, lastActiveAt: new Date(), expiresAt: new Date(Date.now() + 3600000), state } });
+        await tx.insert(modelSessions).values({ userId: a.user.id, deviceId: a.device!.id, clientThreadId: threadId, providerId: ent.provider.id, modelId: ent.model.id, instanceId:selected.instance.id, providerSessionId: result.providerSessionId ?? responseId, expiresAt: new Date(Date.now() + 7200000), state })
+          .onConflictDoUpdate({ target: [modelSessions.userId, modelSessions.deviceId, modelSessions.clientThreadId], set: { providerId: ent.provider.id, modelId: ent.model.id, instanceId:selected.instance.id, providerSessionId: result.providerSessionId ?? responseId, lastActiveAt: new Date(), expiresAt: new Date(Date.now() + 7200000), state } });
       });
       requestMilestone(req,'historySaved');
       const latestUsage = await currentUsage(a.user.id, ent.subscription, ent.plan);

@@ -1,7 +1,10 @@
 import { ApiError } from './errors.js';
+import { z } from 'zod';
+export const NativeTimeoutPolicySchema=z.object({idleMs:z.coerce.number().int().min(120000).max(600000).default(300000),totalMs:z.coerce.number().int().min(600000).max(4200000).default(3900000)});
+export function nativeTimeoutPolicy(env:NodeJS.ProcessEnv=process.env){return NativeTimeoutPolicySchema.parse({idleMs:env.NATIVE_IDLE_TIMEOUT_MS,totalMs:env.NATIVE_TOTAL_TIMEOUT_MS});}
 export class NativeTimeoutError extends ApiError {
   constructor(readonly phase:'connect'|'idle'|'total'){
-    super(504,'GATEWAY_TIMEOUT',phase==='connect'?'连接上游模型超时，请稍后重试。':phase==='idle'?'上游模型长时间没有内容或工具进展，本次请求已超时。':'本次模型生成超过十分钟总时限，请缩小任务后重试。');
+    super(504,'GATEWAY_TIMEOUT',phase==='connect'?'连接上游模型超时，请稍后重试。':phase==='idle'?'上游模型长时间没有内容或工具进展，本次请求已超时。':'本次模型生成达到平台总时限，请缩小任务后重试。');
   }
 }
 
@@ -9,8 +12,7 @@ export class NativeTimeoutError extends ApiError {
 export function nativeDeadline(parent:AbortSignal,providerTimeoutMs=60000){
   const controller=new AbortController();
   const connectMs=Math.min(120000,Math.max(10000,providerTimeoutMs));
-  const idleMs=Math.min(180000,Math.max(120000,providerTimeoutMs));
-  const totalMs=600000;
+  const {idleMs,totalMs}=nativeTimeoutPolicy();
   let connection:ReturnType<typeof setTimeout>|undefined,idle:ReturnType<typeof setTimeout>|undefined,total:ReturnType<typeof setTimeout>|undefined;
   const abort=(phase:'connect'|'idle'|'total')=>controller.abort(new NativeTimeoutError(phase));
   const inherited=()=>controller.abort(parent.reason);

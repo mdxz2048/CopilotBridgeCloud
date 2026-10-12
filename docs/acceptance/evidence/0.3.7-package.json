@@ -1,0 +1,25 @@
+{
+  "checks": {
+    "version": true,
+    "dist-electron/cloud/failure-feedback.js": true,
+    "dist-electron/cloud/cloud-error.js": true,
+    "dist-electron/main.js": true,
+    "dist-electron/update-manager.js": true,
+    "dist-electron/official-client-installer.js": true,
+    "dist-electron/chatgpt-manager.js": true,
+    "dist-electron/gateway-profile-store.js": true,
+    "dist-electron/cloud/http-cloud-client.js": true,
+    "dist-renderer/index.html": true,
+    "dist-electron/chatgpt-restart.js": true,
+    "dist-electron/official-client-flow.js": true,
+    "dist-electron/preload.cjs": true,
+    "dist-electron/cloud/remote-bridge-server.js": true,
+    "dist-electron/cloud/desktop-protocol.js": true,
+    "dist-electron/cloud/bridge-trace.js": true,
+    "dist-electron/cloud/conversation-cache.js": true,
+    "dist-electron/cloud/request-diagnostics.js": true,
+    "dist-renderer/assets/index-CnimQVmD.js": true,
+    "dist-renderer/assets/index-Dt0dUhbK.css": true
+  },
+  "passed": true
+}

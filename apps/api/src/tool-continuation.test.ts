@@ -12,6 +12,11 @@ const answer = (ids: string[]) => ({
 const initial = { model: 'mock/mock-chat', tools, input: 'Read and write' };
 
 describe('bounded tool continuation', () => {
+  it('keeps a signed-history tool result rate exemption after a one-hour local operation, bounded to 65 minutes',()=>{
+    const now=Date.now();const state=nextContinuationState(initial,call('long'),null,now);
+    expect(pendingContinuation(state,answer(['long']),now+60*60000)).not.toBeNull();
+    expect(pendingContinuation(state,answer(['long']),now+65*60000)).toBeNull();
+  });
   it('recognizes native reasoning and custom tool transcript as the same metered conversation', () => {
     const now=Date.now();
     const output=[{id:'rs_1',type:'reasoning',content:[{type:'reasoning_text',text:'fixture'}]},
@@ -29,7 +34,7 @@ describe('bounded tool continuation', () => {
     expect(authorized?.remaining).toBe(8);
     expect(pendingContinuation(first, answer(['unrelated']), now + 1000)).toBeNull();
     expect(pendingContinuation(first, answer(['call-1', 'call-1']), now + 1000)).toBeNull();
-    expect(pendingContinuation(first, answer(['call-1']), now + 300_000)).toBeNull();
+    expect(pendingContinuation(first, answer(['call-1']), now + 65*60_000)).toBeNull();
     let current = authorized;
     for (let count = 1; count <= 8; count++) {
       const state = nextContinuationState(answer([`call-${count}`]), call(`call-${count + 1}`), current, now + count * 1000);

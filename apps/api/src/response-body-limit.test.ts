@@ -5,12 +5,12 @@ process.env.REFRESH_TOKEN_PEPPER??='b'.repeat(64);
 process.env.PROVIDER_MASTER_KEY??='c'.repeat(64);
 process.env.PUBLIC_BASE_URL??='http://localhost:3001';
 
-it('accepts Responses context above 1MiB before authentication and returns accurate 413 beyond 10MiB',async()=>{
+it('accepts Responses context above the old 10MiB limit and returns accurate 413 beyond 64MiB',async()=>{
   const app=await(await import('./server.js')).createServer();
   try {
-    const medium=await app.inject({method:'POST',url:'/v1/responses',payload:{model:'fixture',input:'x'.repeat(2*1024*1024)}});
+    const medium=await app.inject({method:'POST',url:'/v1/responses',payload:{model:'fixture',input:'x'.repeat(11*1024*1024)}});
     expect(medium.statusCode).toBe(401);
-    const large=await app.inject({method:'POST',url:'/v1/responses',payload:{model:'fixture',input:'x'.repeat(10*1024*1024)}});
+    const large=await app.inject({method:'POST',url:'/v1/responses',payload:{model:'fixture',input:'x'.repeat(64*1024*1024)}});
     expect(large.statusCode).toBe(413);expect(large.json().error.code).toBe('PAYLOAD_TOO_LARGE');
   } finally {await app.close();}
 },20000);

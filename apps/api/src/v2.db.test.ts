@@ -690,6 +690,11 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
         return app.inject({method:'POST',url:'/v1/responses',headers:{...await signedHeaders(privateKey,'POST','/v1/responses',payload,activeToken),authorization:`Bearer ${activeToken}`,'x-device-id':activeDevice.deviceId,'x-client-thread-id':useOtherDevice?randomUUID():thread},payload});
       };
       const before=(await walletModule.walletSummary(user.id)).balance;
+      // Requests started in a previous billing period still hold concurrency and money reservations.
+      const held=await db.insert(usageRecords).values(Array.from({length:3},()=>({userId:user.id,deviceId:device.id,planId:plan.id,providerId:provider.id,modelId:model.id,status:'RUNNING',totalTokens:1,usageCredit:'1',createdAt:new Date(Date.now()-86400000)}))).returning();
+      const blockedByPriorPeriod=await send('private fixture prompt');expect(blockedByPriorPeriod.statusCode,blockedByPriorPeriod.body).toBe(429);expect(blockedByPriorPeriod.json().error.code).toBe('RATE_LIMITED');expect(executions).toBe(0);
+      expect((await(await import('./core.js')).currentUsage(user.id,(await db.select().from(subscriptions).where(eq(subscriptions.userId,user.id)))[0],plan)).remainingPoints).toBe(before-3);
+      for(const row of held)await db.delete(usageRecords).where(eq(usageRecords.id,row.id));
       const previousNative=process.env.NATIVE_RESPONSES_ENABLED;process.env.NATIVE_RESPONSES_ENABLED='false';
       try {const closed=await send('private fixture prompt');expect(closed.statusCode).toBe(503);expect(executions).toBe(0);expect(await db.select().from(aiRequests).where(eq(aiRequests.userId,user.id))).toHaveLength(0);expect((await walletModule.walletSummary(user.id)).balance).toBe(before);}
       finally {if(previousNative===undefined)delete process.env.NATIVE_RESPONSES_ENABLED;else process.env.NATIVE_RESPONSES_ENABLED=previousNative;}
