@@ -20,6 +20,8 @@ import { registerRatePolicy } from './rate-policy.js';
 import { registerReleaseFiles } from './release-files.js';
 import { registerSiteVisits } from './site-visits.js';
 import { registerDiagnostics } from './diagnostics.js';
+import { transportRateOptions, transportRateScope } from './transport-rate-limit.js';
+import { requestContext } from './request-log.js';
 
 export async function createServer() {
   currentBillingMode();
@@ -31,7 +33,8 @@ export async function createServer() {
   registerRequestLog(app);
   captureDeviceBody(app);
   await app.register(cookie);
-  await app.register(rateLimit, { max: 120, timeWindow: '1 minute' });
+  app.addHook('onRequest', async req => { requestContext(req, { transportRateScope: transportRateScope(req) }); });
+  await app.register(rateLimit, transportRateOptions);
   registerRatePolicy(app);
   app.setErrorHandler((error, req, reply) => {
     if (error instanceof ApiError) return reply.code(error.status).send({ error: { code: error.code, message: error.message, requestId: req.id, request_id: req.id } });

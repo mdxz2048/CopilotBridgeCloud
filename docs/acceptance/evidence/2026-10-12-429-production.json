@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "noPaidModelCalls": true,
+  "officialHostActions": false,
+  "metadataReadCount": 130,
+  "modelsAvailable": true,
+  "modelEndpointStatus": 401,
+  "modelEndpointCode": "UNAUTHORIZED",
+  "walletUnchanged": true
+}
