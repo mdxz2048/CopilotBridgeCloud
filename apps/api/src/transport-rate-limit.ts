@@ -15,6 +15,7 @@ const metadataPaths = new Set(['/v1/models', '/api/v1/auth/me', '/api/v1/account
 
 export const transportRateOptions = {
   timeWindow: '1 minute',
-  max: (req: FastifyRequest) => transportRateScope(req) === 'general' ? 120 : 600,
+  max: 120,
+  allowList: (req: FastifyRequest) => transportRateScope(req) !== 'general',
   keyGenerator: (req: FastifyRequest) => `${transportRateScope(req)}:${req.ip}`,
 };

@@ -11,7 +11,7 @@ const answer = (ids: string[]) => ({
 });
 const initial = { model: 'mock/mock-chat', tools, input: 'Read and write' };
 
-describe('bounded tool continuation', () => {
+describe('authenticated tool continuation', () => {
   it('keeps a signed-history tool result rate exemption after a one-hour local operation, bounded to 65 minutes',()=>{
     const now=Date.now();const state=nextContinuationState(initial,call('long'),null,now);
     expect(pendingContinuation(state,answer(['long']),now+60*60000)).not.toBeNull();
@@ -27,20 +27,20 @@ describe('bounded tool continuation', () => {
     expect(pendingContinuation(state,follow,now+1000)?.satisfiedCallIds).toEqual(['patch_1']);
     expect(pendingContinuation(state,{...follow,input:follow.input.map(i=>i.type==='reasoning'?{...i,content:[]}:i)},now+1000)).toBeNull();
   });
-  it('allows a pending same-thread tool result and bounds the chain and lifetime', () => {
+  it('allows more than eight tool continuations and renews history lifetime', () => {
     const now = Date.now();
     const first = nextContinuationState(initial, call('call-1'), null, now);
     const authorized = pendingContinuation(first, answer(['call-1']), now + 1000);
-    expect(authorized?.remaining).toBe(8);
+    expect(authorized?.pendingCallIds).toEqual(['call-1']);
     expect(pendingContinuation(first, answer(['unrelated']), now + 1000)).toBeNull();
     expect(pendingContinuation(first, answer(['call-1', 'call-1']), now + 1000)).toBeNull();
     expect(pendingContinuation(first, answer(['call-1']), now + 65*60_000)).toBeNull();
     let current = authorized;
-    for (let count = 1; count <= 8; count++) {
-      const state = nextContinuationState(answer([`call-${count}`]), call(`call-${count + 1}`), current, now + count * 1000);
-      current = pendingContinuation(state, answer([`call-${count + 1}`]), now + count * 1000);
+    for (let count = 1; count <= 100; count++) {
+      const state = nextContinuationState(answer([`call-${count}`]), call(`call-${count + 1}`), current, now + count * 60000);
+      current = pendingContinuation(state, answer([`call-${count + 1}`]), now + count * 60000);
     }
-    expect(current).toBeNull();
+    expect(current?.pendingCallIds).toEqual(['call-101']);
   });
   it('recognizes official reasoning transport changes while rejecting altered private execution history',()=>{
     const now=Date.now();

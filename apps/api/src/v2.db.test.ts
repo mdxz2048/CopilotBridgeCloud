@@ -719,7 +719,7 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
     } finally {await app.close();vi.unstubAllGlobals();}
   });
 
-  it('admits bounded tool continuations without allowing another user turn at one device request per minute', async () => {
+  it('admits new turns and tool continuations without account, device or plan RPM caps', async () => {
     const { db, devices, models, planModelAccess, plans, providers, subscriptions, systemSettings, usageRecords, users } = dbModule;
     const { eq } = await import('drizzle-orm');
     const [user] = await db.insert(users).values({ email: `v2-tool-${randomUUID()}@example.test`, passwordHash: 'test' }).returning();
@@ -732,7 +732,7 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
       publicId: 'mock/tool', displayName: 'Tool Mock', enabled: true, supportsTools: true }).returning();
     const [plan] = await db.insert(plans).values({ code: `TOOL_${randomUUID().slice(0, 8)}`, name: 'Tool Test',
       monthlyPrice: '0', maxDevices: 1, monthlyTokenLimit: 100000, monthlyUsageCreditLimit: '100000',
-      maxConcurrentRequests: 4, requestsPerMinute: 60, enabled: true }).returning();
+      maxConcurrentRequests: 4, requestsPerMinute: 1, enabled: true }).returning();
     const now = new Date();
     await db.insert(subscriptions).values({ userId: user.id, planId: plan.id, status: 'ACTIVE',
       startedAt: now, currentPeriodStart: now, currentPeriodEnd: new Date(now.getTime() + 86400000) });
@@ -765,7 +765,6 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
       expect(first.statusCode).toBe(200);
       const firstCall = first.json().output[0];
       const firstOutput = { type: 'function_call_output', call_id: firstCall.call_id, output: 'read result' };
-      expect((await send([prompt, firstCall, { role: 'user', content: 'unrelated question' }, firstOutput])).statusCode).toBe(429);
       const second = await send([prompt, firstCall, firstOutput]);
       expect(second.statusCode).toBe(200);
       const secondCall = second.json().output[0];
@@ -773,10 +772,9 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
         { type: 'function_call_output', call_id: secondCall.call_id, output: 'write result' }]);
       expect(third.statusCode).toBe(200);
       expect(third.json().output[0].type).toBe('message');
-      expect((await send('new turn')).statusCode).toBe(429);
-      expect((await send([firstOutput], randomUUID())).statusCode).toBe(429);
+      expect((await send('new turn')).statusCode).toBe(200);
       const records = await db.select({ counted: usageRecords.rateCounted }).from(usageRecords).where(eq(usageRecords.userId, user.id));
-      expect(records.map(row => row.counted)).toEqual([true, false, false]);
+      expect(records.map(row => row.counted)).toEqual([true, false, false, true]);
     } finally {
       await app.close();
       if (previousMockEnabled === undefined) delete process.env.INTEGRATION_MOCK_ENABLED;

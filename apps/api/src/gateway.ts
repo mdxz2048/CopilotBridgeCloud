@@ -15,7 +15,6 @@ import type { BillingPolicy } from './rating.js';
 import { currentBillingMode, type BillingMode } from './billing-mode.js';
 import { integrationMockAllowed } from './logic.js';
 import { CopilotFailure } from './copilot-provider.js';
-import { currentRatePolicy } from './rate-policy.js';
 import { ensureMoneyRate,upstreamBalance } from './money-policy.js';
 import { currentUsage } from './core.js';
 import { requestContext,requestCounts,requestMilestone,requestNativeMetrics } from './request-log.js';
@@ -84,7 +83,6 @@ export async function registerGateway(app: FastifyInstance) {
     if (sessionHint?.state.resolvedMode && sessionHint.state.resolvedMode !== resolvedMode) throw new ApiError(409,'CONVERSATION_MODE_CHANGED','当前会话的思考模式已改变，请新建会话。');
     requestMilestone(req,'routingDone');
     requestContext(req, { providerId: ent.provider.id, instanceId:selected.instance.id, inputProtocol:'responses', outboundProtocol:native?'responses':'integration_mock', protocolMode:native?'native':'integration_mock', responsesProfile:profile,reasoningMode:resolvedMode, stream:body.stream, ...compatibility });
-    const ratePolicy = await currentRatePolicy(a.user.id);
     const mode = ent.usage.moneyEnabled ? 'ENFORCED' : currentBillingMode();
     const connectionHeader = req.headers['x-provider-connection-id'];
     if (connectionHeader !== undefined && typeof connectionHeader !== 'string') throw new ApiError(400, 'INVALID_PROVIDER_CONNECTION');
@@ -141,15 +139,10 @@ export async function registerGateway(app: FastifyInstance) {
         ? pendingContinuation(session.state, body, Date.now()) : null;
       const [totals] = await tx.select({ tokens: sum(usageRecords.totalTokens), credit: sum(usageRecords.usageCredit), running: sql<number>`count(*) filter (where ${usageRecords.status} = 'RUNNING')`, rpm: sql<number>`count(*) filter (where ${usageRecords.createdAt} >= now() - interval '1 minute')` }).from(usageRecords)
         .where(and(eq(usageRecords.userId, a.user.id), gte(usageRecords.createdAt, ent.subscription.currentPeriodStart), lt(usageRecords.createdAt, ent.subscription.currentPeriodEnd)));
-      const [recent] = await tx.select({
-        account: sql<number>`count(*)`,
-        device: sql<number>`count(*) filter (where ${usageRecords.deviceId} = ${a.device!.id})`,
-      }).from(usageRecords).where(and(eq(usageRecords.userId, a.user.id), eq(usageRecords.rateCounted, true),
-        sql`${usageRecords.createdAt} >= now() - interval '1 minute'`));
       if (!ent.usage.moneyEnabled && (Number(totals.tokens ?? 0) + reserveTokens > ent.usage.tokenLimit || Number(totals.credit ?? 0) + reserveCredit > ent.usage.creditLimit)) throw new ApiError(429, 'MONTHLY_QUOTA_EXCEEDED');
       const [activeRunning]=await tx.select({count:sql<number>`count(*)`}).from(usageRecords).where(and(eq(usageRecords.userId,a.user.id),eq(usageRecords.status,'RUNNING')));
-      if (Number(activeRunning.count) >= ent.plan.maxConcurrentRequests || Number(totals.rpm) >= ent.plan.requestsPerMinute
-        || (!continuation && (Number(recent.account) >= ratePolicy.accountRpm || Number(recent.device) >= ratePolicy.deviceRpm))) throw new ApiError(429, 'RATE_LIMITED');
+      if (Number(activeRunning.count) >= ent.plan.maxConcurrentRequests)
+        throw new ApiError(429, 'RATE_LIMITED', '同时进行的模型请求已达并发上限，请等待当前请求完成。');
       if (session) await tx.update(modelSessions).set({ expiresAt:new Date(Date.now()+7200000),lastActiveAt:new Date(),state: {responseId:session.state.responseId,resolvedMode:session.state.resolvedMode,encryptedHistory:session.state.encryptedHistory} }).where(eq(modelSessions.id, session.id));
       else await tx.insert(modelSessions).values({userId:a.user.id,deviceId:a.device!.id,clientThreadId:threadId,providerId:ent.provider.id,modelId:ent.model.id,instanceId:selected.instance.id,state:{resolvedMode},expiresAt:new Date(Date.now()+7200000)})
         .onConflictDoUpdate({target:[modelSessions.userId,modelSessions.deviceId,modelSessions.clientThreadId],set:{providerId:ent.provider.id,modelId:ent.model.id,instanceId:selected.instance.id,state:{resolvedMode},expiresAt:new Date(Date.now()+7200000),lastActiveAt:new Date()}});
@@ -262,7 +255,7 @@ export async function registerGateway(app: FastifyInstance) {
       Object.assign(response.usage,{ points_per_rmb:10000, cost_rmb:(event?.pointsCharged??0)/10000, remaining_rmb:balance/10000,
         billing_status:event?.billingStatus, ...(result.usageUnavailable?{usage_unavailable:true}:{}),
         period_limit_rmb:latestUsage.rmbLimit, period_used_rmb:latestUsage.rmbUsed, money_enabled:latestUsage.moneyEnabled,
-        limits:{account_rpm:ratePolicy.accountRpm,device_rpm:ratePolicy.deviceRpm,plan_rpm:ent.plan.requestsPerMinute} });
+        limits:{account_rpm:0,device_rpm:0,plan_rpm:0} });
       if (!body.stream) { ended = true; return response; }
       if (copilotStreamOpened) {
         if (!reply.raw.destroyed && !reply.raw.writableEnded) {

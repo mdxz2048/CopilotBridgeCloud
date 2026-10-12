@@ -1,0 +1,12 @@
+{
+  "id": "af00e895-8377-4d15-9344-89bf20c4a8ce",
+  "version": "0.3.9",
+  "channel": "stable",
+  "platform": "windows",
+  "arch": "x64",
+  "downloadUrl": "https://ai.mddxz.top/api/v1/releases/files/af00e895-8377-4d15-9344-89bf20c4a8ce",
+  "sha256": "527e7b44f518bfcd696e68fb0e87b2352f5d73654e2a9c843ecceaf99f89a1be",
+  "releaseNotes": "取消模型请求和后台状态查询的次数限制，连续工具调用不限次数，保留余额与并发保护。",
+  "published": true,
+  "createdAt": "2026-10-12T04:10:22.444Z"
+}

@@ -33,7 +33,7 @@ export async function registerV2Routes(app: FastifyInstance) {
     const [deviceCount] = await db.select({ count: sql<number>`count(*)` }).from(devices).where(and(eq(devices.userId, a.user.id), eq(devices.status, 'ACTIVE')));
     return { account: { id: a.user.id, email: a.user.email, status: a.user.status },
       subscription: active ? { id: active.subscription.id, status: active.subscription.status, planCode: active.plan.code, periodStart: active.subscription.currentPeriodStart, periodEnd: active.subscription.currentPeriodEnd, monthlyPoints: active.plan.monthlyPoints, maxDevices: active.plan.maxDevices, rolloverPolicy: active.plan.rolloverPolicy } : null,
-      billing:usage?.moneyEnabled?{pointsPerRmb:10000,currency:"CNY",balanceRmb:usage.balanceRmb,usedRmb:usage.rmbUsed,limitRmb:usage.rmbLimit,remainingRmb:usage.remainingRmb,accountRpm:Math.min(limits.accountRpm,active!.plan.requestsPerMinute),deviceRpm:Math.min(limits.deviceRpm,active!.plan.requestsPerMinute),maxDevices:active!.plan.maxDevices}:null,
+      billing:usage?.moneyEnabled?{pointsPerRmb:10000,currency:"CNY",balanceRmb:usage.balanceRmb,usedRmb:usage.rmbUsed,limitRmb:usage.rmbLimit,remainingRmb:usage.remainingRmb,accountRpm:0,deviceRpm:0,maxDevices:active!.plan.maxDevices}:null,
       wallet: await walletSummary(a.user.id), activeDevices: Number(deviceCount.count) };
   });
   app.get('/api/v1/me/subscription', async req => {

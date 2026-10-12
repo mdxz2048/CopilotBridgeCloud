@@ -1,0 +1,9 @@
+{
+  "passed": true,
+  "oldVersionStatus": 426,
+  "oldVersionCode": "CLIENT_UPGRADE_REQUIRED",
+  "requestRateUnlimited": true,
+  "sameDeviceId": true,
+  "updatedVersion": "0.3.9",
+  "latestModelsAvailable": true
+}

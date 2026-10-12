@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "appTests": 191,
+  "cloudUnitTests": 119,
+  "isolatedDatabaseTests": 22,
+  "metadataAndModelTransportQuotaRemoved": true,
+  "accountDevicePlanRpmRemoved": true,
+  "toolContinuationOver100Rounds": true,
+  "officialHostActions": false,
+  "originalUserTaskReplayed": false
+}
