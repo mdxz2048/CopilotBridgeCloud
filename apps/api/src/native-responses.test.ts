@@ -1,9 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { executeNativeResponses, nativeReasoning, nativeResult, providerHttpFailure, validateNativeRequest } from './native-responses.js';
+import { executeNativeResponses, nativeInput, nativeReasoning, nativeResult, providerHttpFailure, validateNativeRequest } from './native-responses.js';
 
 afterEach(()=>vi.unstubAllGlobals());
 const terminal = {id:'upstream',object:'response',model:'deepseek-flash',status:'completed',output:[{id:'rs_1',type:'reasoning',content:[{type:'reasoning_text',text:'fixture reasoning'}]},{id:'fc_1',type:'function_call',call_id:'call_1',name:'probe',arguments:'{}'}],usage:{input_tokens:20,input_tokens_details:{cached_tokens:4},output_tokens:8,output_tokens_details:{reasoning_tokens:3},total_tokens:28},provider_extension:{keep:true}};
 describe('native Responses protocol',()=>{
+  it('preserves collaboration envelope content and routing in DeepSeek history',async()=>{
+    const item={type:'agent_message',id:'message',author:{agent_id:'child'},recipient:{agent_id:'parent'},content:'fixture result',internal_chat_message_metadata_passthrough:{keep:true}};
+    const request={model:'logical',input:[item]};
+    expect(()=>validateNativeRequest(request)).not.toThrow();
+    expect(nativeInput(request.input,'openai')).toEqual([item]);
+    vi.stubGlobal('fetch',vi.fn(async(_url,init)=>{const wire=JSON.parse(init.body);expect(wire.input[0].role).toBe('user');expect(JSON.parse(wire.input[0].content[0].text.split('\n').slice(1).join('\n'))).toEqual(item);return Response.json(terminal);}));
+    await executeNativeResponses('https://fixture.test','fixture',request,'fixture',new AbortController().signal);
+  });
   it('keeps OpenAI fields and tool semantics while rejecting platform asynchronous ownership',async()=>{
     const request={model:'logical',input:[{type:'message',role:'user',content:[{type:'input_file',file_data:'data:application/pdf;base64,fixture'}]}],tools:[{type:'namespace',name:'functions',tools:[{type:'custom',name:'exec'}]}],parallel_tool_calls:false,reasoning:{mode:'thinking',effort:'medium'},metadata:{keep:true},future_extension:{keep:true}};
     expect(validateNativeRequest(request,'openai')).toEqual({ignoredFields:[],ignoredToolTypes:[]});

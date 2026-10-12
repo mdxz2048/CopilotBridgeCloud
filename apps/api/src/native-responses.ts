@@ -3,6 +3,10 @@ import type { CanonicalRequest, CanonicalResult } from './provider.js';
 import type { ResponsesProfile } from './instance-router.js';
 import { nativeDeadline,nativeEventProgress } from './native-timeouts.js';
 
+export function nativeInput(input: CanonicalRequest['input'],profile:ResponsesProfile='deepseek'): CanonicalRequest['input'] {
+  if(profile!=='deepseek'||!Array.isArray(input))return input;
+  return input.map(item=>item.type==='agent_message'?{type:'message',role:'user',content:[{type:'input_text',text:`Sub-agent message (author and recipient retained):\n${JSON.stringify(item)}`}]}:item);
+}
 export function validateNativeRequest(request: CanonicalRequest,profile:ResponsesProfile='deepseek') {
   if(request.background===true||request.conversation)throw new ApiError(422,'UNSUPPORTED_CAPABILITY','平台同步计费暂不支持后台响应或上游服务器会话引用。');
   if(profile==='openai')return {ignoredFields:[],ignoredToolTypes:[]};
@@ -15,7 +19,8 @@ export function validateNativeRequest(request: CanonicalRequest,profile:Response
       if (part.type==='input_image' && part.file_id && !String(part.file_id).startsWith('file-api-')) throw new ApiError(422,'UNSUPPORTED_CAPABILITY','此图片文件引用不属于 DeepSeek，请提供图片数据。');
     }
   };
-  if (Array.isArray(request.input)) for (const item of request.input) {
+  const input=nativeInput(request.input,profile);
+  if (Array.isArray(input)) for (const item of input) {
     if (item.type && !supportedItems.has(String(item.type))) throw new ApiError(422,'UNSUPPORTED_PROTOCOL','不支持此历史条目，请提供完整未压缩历史。');
     if (item.type==='reasoning') {
       // DeepSeek returns an opaque sidecar alongside usable plaintext reasoning.
@@ -74,7 +79,7 @@ export async function executeNativeResponses(baseUrl: string, key: string, reque
   const profile=options.responsesProfile??'deepseek';validateNativeRequest(request,profile);
   const { maxOutputTokens, reasoning:_wireReasoning, ...wire } = request;
   const reasoning=nativeReasoning(request,options.canThink??true,profile);
-  const body = { ...wire, model: modelId, ...(Object.keys(reasoning).length||profile==='deepseek'?{reasoning}:{}),
+  const body = { ...wire, input:nativeInput(request.input,profile), model: modelId, ...(Object.keys(reasoning).length||profile==='deepseek'?{reasoning}:{}),
     ...(maxOutputTokens ? { max_output_tokens: Math.min(maxOutputTokens, typeof request.max_output_tokens === 'number' ? request.max_output_tokens : maxOutputTokens) } : {}) };
   const started=performance.now();const encodedBody=JSON.stringify(body);
   const metrics:Record<string,number>={requestBytes:Buffer.byteLength(encodedBody),responseBytes:0,eventCount:0,upstreamAttemptCount:1};
