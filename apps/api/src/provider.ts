@@ -59,6 +59,6 @@ export async function providerFor(providerId: string, code: string, connection?:
   if (code === 'COPILOT') return new CopilotProvider(key, provider.timeoutMs);
   if (isDeepSeekProvider(code)) return new DeepSeekProvider(provider.baseUrl ?? 'https://api.deepseek.com', key, provider.timeoutMs);
   if (isOpenAIProvider(code)) return new OpenAIProvider(provider.baseUrl ?? 'https://api.openai.com/v1', key, provider.timeoutMs,
-    Array.isArray(provider.config.nativeReasoningModels) ? provider.config.nativeReasoningModels.filter((value): value is string => typeof value === 'string') : []);
+    Array.isArray(provider.config.nativeReasoningModels) ? provider.config.nativeReasoningModels.filter((value): value is string => typeof value === 'string') : [],provider.config.emptyToolsWorkaround===true);
   throw new Error('PROVIDER_UNAVAILABLE');
 }

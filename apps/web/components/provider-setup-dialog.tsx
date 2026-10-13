@@ -19,7 +19,12 @@ export function ProviderSetupDialog({ provider, onClose, onReady }: {
   const [ready, setReady] = useState(false);
   const [modelId,setModelId] = useState('');
   const [reasoning,setReasoning] = useState(false);
-  const [verifyGeneration,setVerifyGeneration] = useState(false);
+  const [verifyGeneration,setVerifyGeneration] = useState(true);
+  const [baseUrl,setBaseUrl]=useState('https://api.openai.com/v1');
+  const [workaround,setWorkaround]=useState(false);
+  const [catalog,setCatalog]=useState<string[]>([]);
+  useEffect(()=>{if(managedProviderKind(provider.code)!=='OPENAI')return;const controller=new AbortController();void api<{data:Array<{id:string;baseUrl?:string;config?:{emptyToolsWorkaround?:boolean}}>} >('/api/v1/admin/providers',{signal:controller.signal}).then(result=>{if(controller.signal.aborted)return;const saved=result.data.find(p=>p.id===provider.id);if(saved?.baseUrl)setBaseUrl(saved.baseUrl);setWorkaround(saved?.config?.emptyToolsWorkaround===true);}).catch(()=>{});return()=>controller.abort();},[provider.id,provider.code]);
+  async function syncCatalog(){setBusy(true);setMessage('');try{const result=await post<{catalog:string[]}>(`/api/v1/admin/providers/${provider.id}/sync-openai`,{baseUrl,...(key.trim()?{apiKey:key.trim()}:{}),emptyToolsWorkaround:workaround});setCatalog(result.catalog);setKey('');if(!result.catalog.includes(modelId))setModelId(result.catalog[0]??'');onReady();setMessage('已导入这把密钥实际提供的模型，默认停用。选择模型检查后，再启用并分配用户权限。');}catch(e){setMessage((e as Error).message);}finally{setBusy(false);}}
   const kind = managedProviderKind(provider.code);
 
   useEffect(() => {
@@ -62,9 +67,9 @@ export function ProviderSetupDialog({ provider, onClose, onReady }: {
     if (!modelId.trim()) {setMessage('请选择或填写上游模型 ID。');return;}
     setBusy(true);setMessage('');setReady(false);
     try {
-      const result=await post<{ready:boolean;configured:boolean;model:{displayName:string}}>(`/api/v1/admin/providers/${provider.id}/connect-openai`,{...(key.trim()?{apiKey:key.trim()}:{}),modelId:modelId.trim(),reasoning,verifyGeneration});
+      const result=await post<{ready:boolean;configured:boolean;model:{displayName:string}}>(`/api/v1/admin/providers/${provider.id}/connect-openai`,{...(key.trim()?{apiKey:key.trim()}:{}),modelId:modelId.trim(),reasoning,verifyGeneration,baseUrl,emptyToolsWorkaround:workaround});
       setKey('');setReady(true);
-      setMessage(result.ready?`已验证 ${result.model.displayName} 的原生 Responses。请配置费率和用户权限，再启用实例。`:`已保存 ${result.model.displayName}，没有发起生成请求。授权后客户端可选择并显示待开通；充值后检查连接、配置费率并启用实例即可使用。`);
+      setMessage(result.ready?`已验证 ${result.model.displayName} 的原生 Responses。请配置费率和用户权限，再启用实例。`:`已保存 ${result.model.displayName}，没有发起生成请求。检查连接、配置费率并启用实例与模型后，授权用户才能在客户端看到。`);
     } catch(error) {
       const value=error as {message?:string;requestId?:string};setMessage(`${value.message??'连接或能力检查失败，请重试。'}${value.requestId?` · 请求 ID：${value.requestId}`:''}`);
     } finally {setBusy(false);}
@@ -74,13 +79,17 @@ export function ProviderSetupDialog({ provider, onClose, onReady }: {
     <div className="provider-dialog-content">
       <div className="inline-actions"><h2>连接 {provider.name}</h2><button type="button" className="mini-button" disabled={busy} onClick={onClose}>关闭</button></div>
       {provider.code === 'COPILOT' ? <><CopilotAuthCard/><button type="button" className="button button-small" disabled={busy} onClick={() => void verifyCopilot()}>检查认证结果</button></>
-        : kind === 'OPENAI' ? <><p>需要独立的 OpenAI API Key；ChatGPT 订阅不能作为 API Key 使用。密钥加密保存，不回显。连接固定使用 https://api.openai.com/v1。</p>
-          <div className="field"><label htmlFor="provider-api-key">OpenAI API Key（可稍后添加，留空保留现有 Key）</label><input id="provider-api-key" type="password" autoComplete="new-password" value={key} onChange={event=>setKey(event.target.value)}/></div>
-          <div className="field"><label htmlFor="provider-model-id">上游模型 ID</label><input id="provider-model-id" list="openai-model-presets" value={modelId} placeholder="选择或填写 API 模型 ID" onChange={event=>setModelId(event.target.value)}/><datalist id="openai-model-presets"><option value="gpt-6.1-sol">GPT-6.1 Sol</option><option value="gpt-6-astra">GPT-6 Astra</option><option value="gpt-6-luna">GPT-6 Luna</option></datalist></div>
-          <label><input type="checkbox" checked={reasoning} onChange={event=>setReasoning(event.target.checked)}/> 自定义模型支持思考（预置型号按官方文档配置）</label>
-          <label><input type="checkbox" checked={verifyGeneration} onChange={event=>setVerifyGeneration(event.target.checked)}/> 同时执行生成检查（少量付费）</label>
-          <p>默认只保存配置，不调用模型，尚未充值也可以先配置。只有勾选生成检查才消耗上游额度；实例启用与用户授权单独管理。</p>
-          <button type="button" className="button button-small" disabled={busy||!modelId.trim()} onClick={()=>void connectOpenAI()}>{busy?'正在保存…':verifyGeneration?'保存并检查原生 Responses':'保存配置，不发起生成'}</button></>
+        : kind === 'OPENAI' ? <><p>OpenAI 官方与兼容中转均使用 Responses。地址、密钥和兼容选项仅保存在服务器，客户端无需配置。</p>
+          <div className="field"><label htmlFor="provider-base-url">API 地址</label><input id="provider-base-url" value={baseUrl} placeholder="https://api.openai.com/v1" onChange={event=>setBaseUrl(event.target.value)}/></div>
+          <div className="field"><label htmlFor="provider-api-key">API Key（留空保留现有密钥）</label><input id="provider-api-key" type="password" autoComplete="new-password" value={key} onChange={event=>setKey(event.target.value)}/></div>
+          <label><input type="checkbox" checked={workaround} onChange={event=>setWorkaround(event.target.checked)}/> 中转空工具兼容（仅对存在此问题的中转开启）</label>
+          <p>纯文本请求使用禁止调用的占位定义；不会执行工具。官方接口请关闭此选项。</p>
+          <button type="button" className="button button-small" disabled={busy||!baseUrl.trim()} onClick={()=>void syncCatalog()}>{busy?'正在处理…':'保存连接并导入上游模型'}</button>
+          <div className="field"><label htmlFor="provider-model-id">检查模型</label><input id="provider-model-id" list="openai-model-presets" value={modelId} placeholder="从导入目录选择模型 ID" onChange={event=>setModelId(event.target.value)}/><datalist id="openai-model-presets">{catalog.map(id=><option key={id} value={id}/>)}</datalist></div>
+          <label><input type="checkbox" checked={reasoning} onChange={event=>setReasoning(event.target.checked)}/> 同时验证思考能力</label>
+          <label><input type="checkbox" checked={verifyGeneration} onChange={event=>setVerifyGeneration(event.target.checked)}/> 执行生成检查（少量付费）</label>
+          <p>模型目录不等于生成验证。检查成功后启用连接实例与模型，再到用户管理分配权限。</p>
+          <button type="button" className="button button-small" disabled={busy||!modelId.trim()} onClick={()=>void connectOpenAI()}>{busy?'正在保存…':verifyGeneration?'检查所选模型':'保存所选模型'}</button></>
         : kind === 'DEEPSEEK' ? <><p>输入管理员管理的 DeepSeek API Key；密钥在服务端加密保存，页面不会回显。</p>
           <div className="field"><label htmlFor="provider-api-key">DeepSeek API Key</label><input id="provider-api-key" type="password" autoComplete="new-password" value={key} onChange={event => setKey(event.target.value)}/></div>
           <button type="button" className="button button-small" disabled={busy} onClick={() => void connectDeepSeek()}>{busy ? '正在检查…' : '连接并同步可用模型'}</button></>

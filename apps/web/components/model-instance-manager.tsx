@@ -2,7 +2,7 @@
 import {useEffect,useState} from 'react';
 import {api,patch,post} from '../lib/api';
 import {managedProviderKind,providerMatchesLogicalModel} from './provider-kind';
-type Model={id:string;displayName:string;publicId:string;providerModelId:string};
+type Model={id:string;displayName:string;publicId:string;providerModelId:string;enabled:boolean};
 type Provider={id:string;name:string;enabled:boolean;code:string};
 type Instance={id:string;modelId:string;providerId:string;providerModelId:string;enabled:boolean;priority:number;weight:number;nativeProtocols:string[];capabilities:Record<string,unknown>;healthStatus:string;healthCheckedAt:string|null;cooldownUntil?:string|null};
 export function ModelInstanceManager({refreshKey=''}:{refreshKey?:string}){
@@ -15,11 +15,12 @@ export function ModelInstanceManager({refreshKey=''}:{refreshKey?:string}){
   const logical=models.find(model=>model.id===modelId);
   const compatibleProviders=providers.filter(provider=>logical&&providerMatchesLogicalModel(logical.publicId,provider.code));
   const bindingValid=compatibleProviders.some(provider=>provider.id===providerId);
-  return <section className="panel"><h2>逻辑模型与实例绑定</h2><p>用户权限分配给逻辑模型；连接密钥仅由服务器管理。新增实例先检查能力，再启用，不会自动扩大用户权限。</p>
+  return <section className="panel"><h2>已导入的模型与连接</h2><p>用户权限分配给逻辑模型；连接密钥仅由服务器管理。新增实例先检查能力，再启用，不会自动扩大用户权限。</p>
     {error&&<p role="alert" className="error-text">{error} <button className="mini-button" disabled={busy} onClick={()=>void load()}>重试读取</button></p>}{message&&<p role="status" className="notice">{message}</p>}
     <div className="form-grid"><div className="field"><label htmlFor="instance-model">逻辑模型</label><select id="instance-model" value={modelId} onChange={e=>{setModelId(e.target.value);setProviderId('');}}><option value="">请选择模型</option>{models.map(m=><option key={m.id} value={m.id}>{m.displayName} · {m.publicId}</option>)}</select></div><div className="field"><label htmlFor="instance-provider">连接资源</label><select id="instance-provider" value={providerId} onChange={e=>setProviderId(e.target.value)}><option value="">请选择连接</option>{compatibleProviders.map(p=><option key={p.id} value={p.id}>{p.name}{!p.enabled?'（已停用）':''}</option>)}</select></div></div>
     <button className="button button-small" disabled={busy||loading||!modelId||!providerId||!bindingValid} onClick={()=>void run(()=>post('/api/v1/admin/model-instances',{modelId,providerId,providerModelId:models.find(m=>m.id===modelId)?.providerModelId,priority:0,weight:1}),'实例已创建，检查通过后可启用。')}>绑定新实例</button>
     <p><small>本期绑定沿用逻辑模型的上游模型 ID，避免混用费率。检查会执行少量真实模型请求，消耗连接的上游余额，不扣用户钱包。优先级越高越优先，同级按权重分配；权重 0 不参与新请求。</small></p>
+    <div className="instance-list">{models.map(model=><article className="model-instance-card" key={model.id}><h3>{model.displayName}</h3><p>{model.publicId} · {model.enabled?'已向授权用户开放':'停用'} · {instances.some(i=>i.modelId===model.id&&i.enabled&&i.healthStatus==='READY')?'连接已验证':'等待检查连接'}</p><button className="mini-button" disabled={busy||(!model.enabled&&!instances.some(i=>i.modelId===model.id&&i.enabled&&i.healthStatus==='READY'))} onClick={()=>void run(()=>patch(`/api/v1/admin/models/${model.id}`,{enabled:!model.enabled}),model.enabled?'模型已停用，用户目录自动同步。':'模型已启用，请到用户管理分配权限。')}>{model.enabled?'停用模型':'启用模型'}</button><button className="mini-button" disabled={busy||model.enabled} onClick={()=>void run(()=>api(`/api/v1/admin/models/${model.id}`,{method:'DELETE'}),'已从管理列表移除，历史记录保留。')}>移除停用模型</button></article>)}</div>
     {loading?<p role="status">正在读取实例…</p>:!instances.length?<p>尚无模型实例。请先保存连接，再绑定并检查。</p>:<div className="instance-list">{instances.filter(i=>models.some(m=>m.id===i.modelId)).map(i=><InstanceEditor key={`${i.id}-${i.priority}-${i.weight}-${i.enabled}-${i.healthCheckedAt}`} instance={i} models={models} providers={providers} busy={busy} run={run}/>)}</div>}
   </section>;
 }

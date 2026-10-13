@@ -1,0 +1,23 @@
+{
+  "passed": true,
+  "enabledModels": [
+    "deepseek/deepseek-flash",
+    "openai/gpt-6-sol"
+  ],
+  "provider": {
+    "url": "https://gateai.cc/v1",
+    "enabled": true,
+    "compatibility": true,
+    "encryptedCredential": true
+  },
+  "rates": [
+    {
+      "input_rate": "140.000000",
+      "output_rate": "700.000000",
+      "cached_input_rate": "7.000000",
+      "reasoning_rate": "700.000000"
+    }
+  ],
+  "temporaryActive": 0,
+  "sourceHash": "f30773d0d491dd2a1799b7e6cda8d6362975ee7fa0b9d7211215c86946abdf79"
+}

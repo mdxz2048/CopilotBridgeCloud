@@ -1,0 +1,70 @@
+{
+  "passed": true,
+  "appVersion": "0.3.14",
+  "catalog": [
+    "gpt-6.1-sol",
+    "gpt-5.6-terra",
+    "gpt-5.5",
+    "gpt-5.6-sol",
+    "gpt-6-sol"
+  ],
+  "results": [
+    {
+      "model": "deepseek/deepseek-flash",
+      "stream": false,
+      "completed": true,
+      "inputTokens": 8,
+      "outputTokens": 1
+    },
+    {
+      "model": "openai/gpt-6-sol",
+      "stream": false,
+      "completed": true,
+      "inputTokens": 4422,
+      "outputTokens": 5
+    },
+    {
+      "model": "deepseek/deepseek-flash",
+      "stream": true,
+      "completed": true,
+      "inputTokens": 8,
+      "outputTokens": 1
+    },
+    {
+      "model": "openai/gpt-6-sol",
+      "stream": true,
+      "completed": true,
+      "inputTokens": 4422,
+      "outputTokens": 5
+    },
+    {
+      "model": "deepseek/deepseek-flash",
+      "stream": false,
+      "completed": true,
+      "inputTokens": 8,
+      "outputTokens": 1
+    },
+    {
+      "model": "openai/gpt-6-sol",
+      "toolRoundTrip": true,
+      "callIdPreserved": true
+    }
+  ],
+  "billing": {
+    "settledRequests": 7,
+    "gptPriceVerified": true,
+    "models": [
+      "deepseek/deepseek-flash",
+      "openai/gpt-6-sol"
+    ]
+  },
+  "pricing": {
+    "currency": "CNY",
+    "perMillionTokens": {
+      "input": 14,
+      "output": 70,
+      "cachedInput": 0.7
+    },
+    "usdExchangeRate": 7
+  }
+}

@@ -22,7 +22,7 @@ export function AdminUserDialog({userId,onClose,onChanged}:{userId:string;onClos
     const controller=new AbortController();setError('');
     void Promise.all([api<Detail>(`/api/v1/admin/users/${userId}`,{signal:controller.signal}),api<Access>(`/api/v1/admin/model-access?userId=${userId}`,{signal:controller.signal}),api<{data:Model[]}>('/api/v1/admin/models',{signal:controller.signal}),api<{data:Plan[]}>('/api/v1/admin/plans',{signal:controller.signal})]).then(([d,a,m,p])=>{
       if(controller.signal.aborted)return;
-      setDetail(d);setModels(m.data.filter(model=>!model.publicId.startsWith('mock/')));setPlans(p.data.filter(plan=>['STANDARD','PRO','PAYG','QUARTER'].includes(plan.code)&&(plan.enabled||plan.code==='PRO'||plan.code===d.plan?.code)));
+      setDetail(d);setModels(m.data.filter(model=>model.enabled&&!model.publicId.startsWith('mock/')));setPlans(p.data.filter(plan=>['STANDARD','PRO','PAYG','QUARTER'].includes(plan.code)&&(plan.enabled||plan.code==='PRO'||plan.code===d.plan?.code)));
       setEffective(a.effectiveModelIds);setPlanCode(d.plan?.code??'');setMaxDevices(String(d.limits.maxDevices));
       setSelected(m.data.filter(model=>{if(model.publicId.startsWith('mock/'))return false;const override=a.overrides.find(o=>o.modelId===model.id)?.access;return override==='ALLOW'||(override!=='DENY'&&a.planAccess.some(row=>row.modelId===model.id&&row.planId===a.subscription?.planId));}).map(model=>model.id));
     }).catch(e=>{if(!controller.signal.aborted)setError(e.message);});return()=>controller.abort();

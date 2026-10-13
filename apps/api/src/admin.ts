@@ -22,6 +22,13 @@ const planData = z.object({ name: z.string().min(1), description: z.string(), mo
 const modelData = z.object({ providerId: z.uuid(), providerModelId: z.string().min(1), publicId: z.string().min(1), displayName: z.string().min(1), enabled: z.boolean(), supportsTools: z.boolean(), supportsVision: z.boolean(), supportsReasoning: z.boolean(), supportsStreaming: z.boolean(), contextWindow: z.number().int().positive().nullable(), maxOutputTokens: z.number().int().positive().nullable(), usageWeight: z.number().positive(), sortOrder: z.number().int() });
 const idParam = (params: unknown) => z.uuid().parse((params as { id: string }).id);
 
+function archivedModelIds(value:unknown):string[]{const ids=(value as {ids?:unknown}|undefined)?.ids;return Array.isArray(ids)?ids.filter((id):id is string=>typeof id==='string'):[];}
+export function openAIEndpoint(value:string) {
+  let parsed:URL;try{parsed=new URL(value);}catch{throw new ApiError(400,'VALIDATION_ERROR','请输入有效 HTTPS API 地址。');}
+  if(parsed.protocol!=='https:'||parsed.username||parsed.password||parsed.search||parsed.hash||/^(localhost|127\.|10\.|192\.168\.|169\.254\.|\[|0\.)/i.test(parsed.hostname))throw new ApiError(400,'VALIDATION_ERROR','API 地址必须为公开 HTTPS 地址，不能包含凭据或查询参数。');
+  return parsed.href.replace(/\/$/,'')+(parsed.pathname==='/'?'/v1':'');
+}
+
 export function assertProviderPatchAllowed(code: string, patch: { enabled?: boolean; apiKey?: string }) {
   if (code !== 'COPILOT') return;
   if (patch.enabled) throw new ApiError(503, 'PROVIDER_UNAVAILABLE', 'Copilot adapter requires a reviewed GitHub integration');
@@ -340,11 +347,42 @@ export async function registerAdmin(app: FastifyInstance) {
     if (!p.enabled) return { ready: false, reason: 'DISABLED' };
     try { return await (await providerFor(p.id, p.code)).health(); } catch { return { ready: false, reason: 'NOT_CONFIGURED' }; }
   });
-  app.post('/api/v1/admin/providers/:id/connect-openai', async req => {
+  app.post('/api/v1/admin/providers/:id/sync-openai',async req=>{
     const a=await admin(req),id=idParam(req.params);
-    const {apiKey,modelId,reasoning,verifyGeneration}=z.object({apiKey:z.string().trim().min(10).max(512).optional(),modelId:z.string().trim().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,119}$/),reasoning:z.boolean().default(false),verifyGeneration:z.boolean().default(false)}).parse(req.body);
+    const data=z.object({baseUrl:z.url(),apiKey:z.string().trim().min(10).max(512).optional(),emptyToolsWorkaround:z.boolean().default(false)}).strict().parse(req.body);
+    const endpoint=openAIEndpoint(data.baseUrl);
     const [provider]=await db.select().from(providers).where(eq(providers.id,id)).limit(1);
     if(!provider||!isOpenAIProvider(provider.code))throw new ApiError(400,'MODEL_PROVIDER_MISMATCH');
+    const [saved]=await db.select().from(providerCredentials).where(eq(providerCredentials.providerId,id)).limit(1);
+    if(!data.apiKey&&!saved)throw new ApiError(400,'PROVIDER_AUTH_REQUIRED','请输入 API Key。');
+    const catalog=await new OpenAIProvider(endpoint,data.apiKey??decryptSecret(saved),30000).listModels();
+    const imported=await db.transaction(async tx=>{
+      await tx.select().from(providers).where(eq(providers.id,id)).for('update');
+      if(data.apiKey){const secret=encryptSecret(data.apiKey);await tx.insert(providerCredentials).values({providerId:id,...secret}).onConflictDoUpdate({target:providerCredentials.providerId,set:{...secret,updatedAt:new Date()}});}
+      await tx.update(providers).set({baseUrl:endpoint,enabled:true,config:{...provider.config,catalogConfigured:true,emptyToolsWorkaround:data.emptyToolsWorkaround}}).where(eq(providers.id,id));
+      if(data.apiKey||endpoint!==provider.baseUrl||data.emptyToolsWorkaround!==provider.config.emptyToolsWorkaround)await tx.update(modelInstances).set({enabled:false,healthStatus:'UNKNOWN',healthCheckedAt:null}).where(eq(modelInstances.providerId,id));
+      const rows:Array<typeof models.$inferSelect>=[];
+      for(const modelId of catalog){
+        if(!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,119}$/.test(modelId))continue;
+        const publicId=`openai/${modelId}`,declaration=declaredOpenAICapabilities(modelId,false);
+        await tx.insert(models).values({providerId:id,providerModelId:modelId,publicId,displayName:modelId.replace(/^gpt-/,'GPT-').replace(/-sol$/,' Sol').replace(/-terra$/,' Terra'),enabled:false,supportsTools:true,supportsStreaming:true,supportsReasoning:declaration.reasoning,usageWeight:'1',sortOrder:50}).onConflictDoNothing();
+        const [model]=await tx.select().from(models).where(eq(models.publicId,publicId)).limit(1);
+        await tx.insert(modelInstances).values({modelId:model.id,providerId:id,providerModelId:modelId,enabled:false,nativeProtocols:['responses'],healthStatus:'UNKNOWN',capabilities:declaration}).onConflictDoNothing();rows.push(model);
+      }
+      // Re-importing a retired model intentionally restores it to management only.
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended('archived_models',0))`);
+      const [setting]=await tx.select().from(systemSettings).where(eq(systemSettings.key,'archived_models')).limit(1);
+      if(setting){const ids=(archivedModelIds(setting.value)).filter(id=>!rows.some(m=>m.id===id));await tx.update(systemSettings).set({value:{ids},updatedAt:new Date()}).where(eq(systemSettings.key,'archived_models'));}
+      await tx.insert(auditLogs).values({actorId:a.user.id,action:'OPENAI_CATALOG_SYNCED',targetType:'PROVIDER',targetId:id,metadata:{models:rows.map(m=>m.publicId),endpoint,credentialChanged:!!data.apiKey}});return rows;
+    });return {catalog,models:imported,generationVerified:false};
+  });
+  app.post('/api/v1/admin/providers/:id/connect-openai', async req => {
+    const a=await admin(req),id=idParam(req.params);
+    const {apiKey,modelId,reasoning,verifyGeneration,baseUrl,emptyToolsWorkaround}=z.object({baseUrl:z.url().optional(),emptyToolsWorkaround:z.boolean().optional(),apiKey:z.string().trim().min(10).max(512).optional(),modelId:z.string().trim().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,119}$/),reasoning:z.boolean().default(false),verifyGeneration:z.boolean().default(false)}).parse(req.body);
+    const [provider]=await db.select().from(providers).where(eq(providers.id,id)).limit(1);
+    if(!provider||!isOpenAIProvider(provider.code))throw new ApiError(400,'MODEL_PROVIDER_MISMATCH');
+    const endpoint=openAIEndpoint(baseUrl??provider.baseUrl??'https://api.openai.com/v1');
+    const workaround=emptyToolsWorkaround??provider.config.emptyToolsWorkaround===true;
     const declaration=declaredOpenAICapabilities(modelId,reasoning);
     const canThink=declaration.reasoning;
     let catalog:string[]=openAIModelPresets.map(model=>model.id);
@@ -352,7 +390,7 @@ export async function registerAdmin(app: FastifyInstance) {
     if(verifyGeneration){
       const [saved]=apiKey?[]:await db.select().from(providerCredentials).where(eq(providerCredentials.providerId,id)).limit(1);
       if(!apiKey&&!saved)throw new ApiError(400,'PROVIDER_AUTH_REQUIRED','请先添加 OpenAI API Key，再执行生成检查。');
-      const adapter=new OpenAIProvider('https://api.openai.com/v1',apiKey??decryptSecret(saved),15000,canThink?[modelId]:[]);
+      const adapter=new OpenAIProvider(endpoint,apiKey??decryptSecret(saved),60000,canThink?[modelId]:[],workaround);
       catalog=await adapter.listModels();
       if(!catalog.includes(modelId))throw new ApiError(400,'MODEL_NOT_AVAILABLE','该 API Key 的模型目录中没有所选模型。');
       checked=await probeOpenAIResponses(adapter,modelId,canThink);
@@ -362,9 +400,9 @@ export async function registerAdmin(app: FastifyInstance) {
       const [locked]=await tx.select().from(providers).where(eq(providers.id,id)).limit(1);
       if(apiKey){const secret=encryptSecret(apiKey);await tx.insert(providerCredentials).values({providerId:id,...secret}).onConflictDoUpdate({target:providerCredentials.providerId,set:{...secret,updatedAt:new Date()}});}
       const previous=Array.isArray(locked.config.nativeReasoningModels)?locked.config.nativeReasoningModels.filter(value=>typeof value==='string'&&value!==modelId):[];
-      await tx.update(providers).set({...(checked?{enabled:true}:{}),baseUrl:'https://api.openai.com/v1',config:{...locked.config,catalogConfigured:true,nativeReasoningModels:[...previous,...(canThink?[modelId]:[])]}}).where(eq(providers.id,id));
+      await tx.update(providers).set({...(checked?{enabled:true}:{}),baseUrl:endpoint,config:{...locked.config,emptyToolsWorkaround:workaround,catalogConfigured:true,nativeReasoningModels:[...previous,...(canThink?[modelId]:[])]}}).where(eq(providers.id,id));
       const publicId=`openai/${modelId}`;
-      await tx.insert(models).values({providerId:id,providerModelId:modelId,publicId,displayName:openAIModelPresets.find(model=>model.id===modelId)?.name??`OpenAI · ${modelId}`,enabled:true,supportsTools:true,supportsStreaming:true,supportsReasoning:canThink,supportsVision:declaration.vision,usageWeight:'1',sortOrder:50}).onConflictDoNothing();
+      await tx.insert(models).values({providerId:id,providerModelId:modelId,publicId,displayName:openAIModelPresets.find(model=>model.id===modelId)?.name??modelId.replace(/^gpt-/,'GPT-').replace(/-sol$/,' Sol').replace(/-terra$/,' Terra'),enabled:true,supportsTools:true,supportsStreaming:true,supportsReasoning:canThink,supportsVision:declaration.vision,usageWeight:'1',sortOrder:50}).onConflictDoNothing();
       const [logical]=await tx.select().from(models).where(eq(models.publicId,publicId)).limit(1);
       const insert=tx.insert(modelInstances).values({modelId:logical.id,providerId:id,providerModelId:modelId,enabled:false,nativeProtocols:['responses'],healthStatus:checked?'READY':'UNKNOWN',healthCheckedAt:checked?new Date():null,capabilities:checked?{...checked.capabilities,reasoningModes:declaration.reasoningModes,generationVerified:true}:declaration});
       if(checked)await insert.onConflictDoUpdate({target:[modelInstances.modelId,modelInstances.providerId,modelInstances.providerModelId],set:{nativeProtocols:['responses'],healthStatus:'READY',healthCheckedAt:new Date(),cooldownUntil:null,capabilities:{...checked.capabilities,reasoningModes:declaration.reasoningModes,generationVerified:true}}});
@@ -417,7 +455,24 @@ export async function registerAdmin(app: FastifyInstance) {
     });
     return { ready: true, model: connected.find(model=>model.providerModelId===selected)??connected[0], models: connected, catalog, billingMode: currentBillingMode(), requiresUserAccess: true };
   });
-  app.get('/api/v1/admin/models', async req => { await admin(req); return { data: await db.select().from(models).orderBy(models.sortOrder) }; });
+  app.get('/api/v1/admin/models', async req => {
+    await admin(req);const [setting]=await db.select().from(systemSettings).where(eq(systemSettings.key,'archived_models')).limit(1);
+    const archived=archivedModelIds(setting?.value);
+    const rows=await db.select().from(models).orderBy(models.sortOrder);
+    return {data:rows.filter(model=>!archived.includes(model.id))};
+  });
+  app.delete('/api/v1/admin/models/:id',async req=>{
+    const a=await admin(req),id=idParam(req.params);
+    await db.transaction(async tx=>{
+      const [model]=await tx.select().from(models).where(eq(models.id,id)).limit(1);if(!model)throw new ApiError(404,'NOT_FOUND');
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended('archived_models',0))`);
+      const [setting]=await tx.select().from(systemSettings).where(eq(systemSettings.key,'archived_models')).limit(1);
+      const ids=[...new Set([...(archivedModelIds(setting?.value)),id])];
+      await tx.update(models).set({enabled:false}).where(eq(models.id,id));await tx.update(modelInstances).set({enabled:false}).where(eq(modelInstances.modelId,id));
+      await tx.insert(systemSettings).values({key:'archived_models',value:{ids}}).onConflictDoUpdate({target:systemSettings.key,set:{value:{ids},updatedAt:new Date()}});
+      await tx.insert(auditLogs).values({actorId:a.user.id,action:'MODEL_ARCHIVED',targetType:'MODEL',targetId:id,metadata:{publicId:model.publicId}});
+    });return {archived:true};
+  });
   app.get('/api/v1/admin/model-access', async req => {
     await admin(req);
     const { userId } = z.object({ userId: z.uuid().optional() }).parse(req.query);
@@ -447,7 +502,10 @@ export async function registerAdmin(app: FastifyInstance) {
     if (data.enabled === true || data.providerId !== undefined) {
       const [previous] = await db.select({ providerId: models.providerId, enabled: models.enabled }).from(models).where(eq(models.id, id)).limit(1);
       if (!previous) throw new ApiError(404, 'NOT_FOUND');
-      if (data.enabled ?? previous.enabled) await requireModelProviderReady(data.providerId ?? previous.providerId);
+      if (data.enabled ?? previous.enabled) {
+        const resources=await db.select({instance:modelInstances,provider:providers}).from(modelInstances).innerJoin(providers,eq(modelInstances.providerId,providers.id)).where(eq(modelInstances.modelId,id));
+        if(!resources.some(({instance:i,provider:p})=>p.enabled&&i.enabled&&i.healthStatus==='READY'))throw new ApiError(409,'PROVIDER_NOT_READY','请先检查并启用模型连接。');
+      }
     }
     const [model] = await db.update(models).set({ ...data, usageWeight: data.usageWeight === undefined ? undefined : String(data.usageWeight) }).where(eq(models.id, id)).returning();
     if (!model) throw new ApiError(404, 'NOT_FOUND');

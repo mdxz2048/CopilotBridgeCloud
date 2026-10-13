@@ -4,6 +4,22 @@ import {probeOpenAIResponses} from './native-provider-probe.js';
 afterEach(()=>vi.unstubAllGlobals());
 const output={id:'upstream',object:'response',status:'completed',output:[{type:'message',id:'m',role:'assistant',content:[{type:'output_text',text:'OK'}]}],usage:{input_tokens:4,output_tokens:2,total_tokens:6}};
 describe('OpenAI native Responses adapter',()=>{
+  it('isolates a disabled empty-tool workaround to configured gateways without changing client input',async()=>{
+    const fetcher=vi.fn(async(_url:string,_init:{body:string})=>Response.json(output));vi.stubGlobal('fetch',fetcher);
+    const request={model:'logical',input:'OK',tools:[],store:false};
+    await new OpenAIProvider('https://relay.example/v1','fixture',10000,[],true).executeNative(request,'gpt-fixture',new AbortController().signal);
+    const body=JSON.parse(fetcher.mock.calls[0][1].body);expect(body.tool_choice).toBe('none');expect(body.tools[0].name).toBe('bridge_disabled_placeholder');expect(request.tools).toEqual([]);
+    await new OpenAIProvider('https://api.openai.com/v1','fixture',10000).executeNative(request,'gpt-fixture',new AbortController().signal);
+    expect(JSON.parse(fetcher.mock.calls[1][1].body).tools).toEqual([]);
+  });
+  it('preserves declared tools and rejects a forced call when no tools exist',async()=>{
+    const fetcher=vi.fn(async(_url:string,_init:{body:string})=>Response.json(output));vi.stubGlobal('fetch',fetcher);
+    const adapter=new OpenAIProvider('https://relay.example/v1','fixture',10000,[],true),tools=[{type:'function',name:'real_tool'}];
+    await adapter.executeNative({model:'x',input:'OK',tools,tool_choice:'auto'},'x',new AbortController().signal);
+    expect(JSON.parse(fetcher.mock.calls[0][1].body).tools).toEqual(tools);
+    await expect(adapter.executeNative({model:'x',input:'OK',tool_choice:'required'},'x',new AbortController().signal)).rejects.toMatchObject({code:'UNSUPPORTED_CAPABILITY'});
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
   it('reports unpaid API quota distinctly without affecting later requests',async()=>{
     const fetchMock=vi.fn().mockResolvedValueOnce(Response.json({error:{code:'insufficient_quota',message:'private'}},{status:429})).mockResolvedValueOnce(Response.json(output));vi.stubGlobal('fetch',fetchMock);
     const adapter=new OpenAIProvider('https://api.openai.com/v1','fixture',10000);

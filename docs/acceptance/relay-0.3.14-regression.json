@@ -1,0 +1,24 @@
+{
+  "passed": true,
+  "app": {
+    "tests": 206,
+    "failed": 0
+  },
+  "apiUnit": {
+    "passed": 129,
+    "databaseSkipped": 30
+  },
+  "isolatedPostgres": {
+    "passed": 30,
+    "databaseDropped": true
+  },
+  "web": {
+    "tests": 15,
+    "build": true
+  },
+  "package": {
+    "version": "0.3.14",
+    "asarSourceVerified": true
+  },
+  "officialDesktopGui": false
+}

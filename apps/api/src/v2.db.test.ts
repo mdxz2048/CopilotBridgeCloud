@@ -83,10 +83,35 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
       const read=async()=>{const r=await app.inject({url:'/api/v1/models',headers:userHeaders});expect(r.statusCode).toBe(200);return r.json().data;};
       expect(await read()).not.toContainEqual(expect.objectContaining({publicId:model.publicId}));
       await db.insert(planModelAccess).values({planId:ids.plan,modelId:model.id});
-      expect(await read()).toContainEqual(expect.objectContaining({publicId:model.publicId,availability:'SETUP_REQUIRED',capabilities:expect.objectContaining({responsesProfile:'openai',reasoningModes:['thinking','auto']})}));
+      expect(await read()).not.toContainEqual(expect.objectContaining({publicId:model.publicId}));
       await db.insert(userModelAccess).values({userId:user.id,modelId:model.id,access:'DENY'});
       expect(await read()).not.toContainEqual(expect.objectContaining({publicId:model.publicId}));
       expect(fetcher).not.toHaveBeenCalled();
+    }finally{vi.unstubAllGlobals();await app.close();}
+  });
+
+  it('imports the authenticated relay catalog without expanding access, preserves URLs, and archives old management rows',async()=>{
+    const {db,providers,models,modelInstances}=dbModule;
+    const [provider]=await db.insert(providers).values({code:'OPENAI_DD0011223344',name:'Relay fixture',baseUrl:'https://relay.example/v1'}).returning();
+    const app=await(await import('./server.js')).createServer(),headers=await testCookieHeaders(dbModule,ids.admin),userHeaders=await testCookieHeaders(dbModule,ids.user);
+    const terminal={id:'u',object:'response',status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:'OK'}]}],usage:{input_tokens:2,output_tokens:1}};
+    const fetcher=vi.fn(async(url:string,options?:{body?:string})=>{
+      expect(url.startsWith('https://relay.example/v1/')).toBe(true);
+      if(url.endsWith('/models'))return Response.json({data:[{id:'gpt-relay-fixture'}]});
+      const body=JSON.parse(options!.body!);if(!body.stream){expect(body.tool_choice).toBe('none');return Response.json(terminal);}
+      return new Response(`data: ${JSON.stringify({type:'response.created',response:{id:'u',status:'in_progress'}})}\n\ndata: ${JSON.stringify({type:'response.completed',response:{...terminal,output:[{type:'function_call',name:'bridge_probe',call_id:'c',arguments:'{"value":1}'}]}})}\n\n`);
+    });vi.stubGlobal('fetch',fetcher);
+    try{
+      const url=`/api/v1/admin/providers/${provider.id}/sync-openai`,payload={baseUrl:'https://relay.example/v1',apiKey:'synthetic-relay-key',emptyToolsWorkaround:true};
+      expect((await app.inject({method:'POST',url,headers:userHeaders,payload})).statusCode).toBe(403);
+      const imported=await app.inject({method:'POST',url,headers,payload});expect(imported.statusCode).toBe(200);expect(imported.body).not.toContain(payload.apiKey);
+      const model=imported.json().models[0];expect(model.enabled).toBe(false);
+      const check=await app.inject({method:'POST',url:`/api/v1/admin/providers/${provider.id}/connect-openai`,headers,payload:{modelId:'gpt-relay-fixture',verifyGeneration:true}});expect(check.statusCode).toBe(200);expect(check.json().ready).toBe(true);
+      const [saved]=await db.select().from(providers).where((await import('drizzle-orm')).eq(providers.id,provider.id));expect(saved.baseUrl).toBe(payload.baseUrl);
+      const removed=await app.inject({method:'DELETE',url:`/api/v1/admin/models/${model.id}`,headers});expect(removed.statusCode).toBe(200);
+      const listed=await app.inject({url:'/api/v1/admin/models',headers});expect(listed.json().data.some((m:{id:string})=>m.id===model.id)).toBe(false);
+      const [retained]=await db.select().from(models).where((await import('drizzle-orm')).eq(models.id,model.id));expect(retained.enabled).toBe(false);
+      const [instance]=await db.select().from(modelInstances).where((await import('drizzle-orm')).eq(modelInstances.modelId,model.id));expect(instance.enabled).toBe(false);
     }finally{vi.unstubAllGlobals();await app.close();}
   });
 

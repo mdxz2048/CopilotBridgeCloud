@@ -1,5 +1,7 @@
 # GPT 接入与目录同步
 
+本文记录 0.3.13 的历史行为。0.3.14 已接入真实 GPT 中转，并取消向客户端展示待配置模型，当前流程见 [GPT 中转与模型开放](RELAY_MODELS_0_3_14.md)。
+
 后台 OpenAI 连接支持先保存配置，不要求 API 充值或真实生成。`POST /api/v1/admin/providers/:id/connect-openai` 默认 `verifyGeneration=false`，API Key 可稍后添加，留空保留已有加密凭据。模型 ID 必填；预置 gpt-6.1-sol、gpt-6-astra、gpt-6-luna，也可填写其他真实 API 型号。保存无模型或目录网络调用，不扩大用户权限，不创建费率。
 
 仅显式勾选生成检查时执行模型目录和两次受限原生 Responses 请求，该操作消耗供应商额度。检查成功后实例仍需显式启用，并配置正式费率和用户/套餐权限。预置型号的声明能力来自 [OpenAI 官方模型目录](https://developers.openai.com/api/docs/models)，不是用户 API Key 的权限或真实生成验证。Sol/Astra 不显示不受支持的 none 普通模式。
