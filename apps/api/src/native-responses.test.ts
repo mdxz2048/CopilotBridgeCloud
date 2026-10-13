@@ -4,6 +4,60 @@ import { executeNativeResponses, nativeInput, nativeReasoning, nativeResult, pro
 afterEach(()=>vi.unstubAllGlobals());
 const terminal = {id:'upstream',object:'response',model:'deepseek-flash',status:'completed',output:[{id:'rs_1',type:'reasoning',content:[{type:'reasoning_text',text:'fixture reasoning'}]},{id:'fc_1',type:'function_call',call_id:'call_1',name:'probe',arguments:'{}'}],usage:{input_tokens:20,input_tokens_details:{cached_tokens:4},output_tokens:8,output_tokens_details:{reasoning_tokens:3},total_tokens:28},provider_extension:{keep:true}};
 describe('native Responses protocol',()=>{
+  it('replays client discovery and an empty result before ordinary tools without losing history',async()=>{
+    const discovery={type:'tool_search_call',call_id:'search_1',status:'completed',execution:'client',arguments:'{"query":"probe"}',extension:{retained:true}};
+    const empty={type:'tool_search_output',call_id:'search_1',execution:'client',status:'completed',tools:[]};
+    const input=[{type:'message',role:'user',content:'synthetic task'},discovery,{...terminal.output[1]},empty,{type:'function_call_output',call_id:'call_1',output:'synthetic result'}];
+    const original=JSON.stringify(input),sent:Array<Record<string,unknown>>=[];
+    vi.stubGlobal('fetch',vi.fn(async(_url,init)=>{
+      const body=JSON.parse(init.body);sent.push(body);
+      expect(body.input.some((item:Record<string,unknown>)=>String(item.type).startsWith('tool_search'))).toBe(false);
+      expect(body.input[0].type).toBe('message');expect(body.input[0].role).toBe('user');
+      expect(JSON.parse(body.input[0].content[0].text.split('\n').slice(1).join('\n')).records).toEqual([{index:1,item:discovery},{index:3,item:empty}]);
+      expect(body.input[2].call_id).toBe('call_1');expect(body.input[3].output).toBe('synthetic result');
+      return Response.json({...terminal,output:[{type:'message',role:'assistant',content:[{type:'output_text',text:'done'}]}]});
+    }));
+    const request={model:'logical',input,tools:[{type:'function',name:'probe'}],reasoning:{mode:'normal'}};
+    expect(()=>validateNativeRequest(request)).not.toThrow();
+    await executeNativeResponses('https://fixture.test','fixture',request,'fixture',new AbortController().signal);
+    await executeNativeResponses('https://fixture.test','fixture',{...request,input:[...input,{type:'message',role:'user',content:'continue'}]},'fixture',new AbortController().signal);
+    expect(sent).toHaveLength(2);expect((sent[1].input as unknown[]).length).toBe(input.length);expect(JSON.stringify(input)).toBe(original);
+  });
+  it('retains nonempty discovered definitions while using only desktop-advertised executable tools',async()=>{
+    const tools=[{type:'function',name:'functions__probe',parameters:{type:'object',properties:{}}}];
+    const item={type:'tool_search_output',id:'search_output',call_id:'search_2',execution:'client',tools:[{type:'namespace',name:'functions',tools:[{type:'function',name:'probe',parameters:{type:'object',properties:{}}}]}]};
+    vi.stubGlobal('fetch',vi.fn(async(_url,init)=>{
+      const wire=JSON.parse(init.body);expect(wire.tools).toEqual(tools);
+      expect(JSON.parse(wire.input[0].content[0].text.split('\n').slice(1).join('\n')).records).toEqual([{index:0,item}]);
+      return new Response(`data: ${JSON.stringify({type:'response.completed',response:terminal})}\n\n`);
+    }));
+    await executeNativeResponses('https://fixture.test','fixture',{model:'logical',input:[item],tools,stream:true},'fixture',new AbortController().signal);
+    expect(nativeInput([item],'openai')).toEqual([item]);expect(validateNativeRequest({model:'logical',input:[item]},'openai')).toEqual({ignoredFields:[],ignoredToolTypes:[]});
+  });
+  it('keeps policy first and compacts interleaved discovery without breaking tool-result adjacency',()=>{
+    const policy={type:'message',role:'developer',content:'fixture policy'};
+    const first={type:'tool_search_call',execution:'client',call_id:'search_a',arguments:'{}'};
+    const result={type:'tool_search_output',execution:'client',call_id:'search_a',tools:[]};
+    const second={...first,call_id:'search_b'};
+    const call=terminal.output[1],output={type:'function_call_output',call_id:call.call_id,output:'fixture'};
+    const input=[policy,first,call,result,second,output];
+    const normalized=nativeInput(input) as Array<Record<string,unknown>>;
+    expect(normalized[0]).toEqual(policy);expect(normalized.slice(2)).toEqual([call,output]);
+    const content=normalized[1].content as Array<{text:string}>;
+    expect(JSON.parse(content[0].text.split('\n').slice(1).join('\n')).records).toEqual([{index:1,item:first},{index:3,item:result},{index:4,item:second}]);
+    expect(input).toEqual([policy,first,call,result,second,output]);
+  });
+  it('rejects server discovery and malformed client records without calling upstream',async()=>{
+    const fetch=vi.fn();vi.stubGlobal('fetch',fetch);
+    for(const item of[
+      {type:'tool_search_call',call_id:'s',execution:'server'},
+      {type:'tool_search_call',call_id:'',execution:'client'},
+      {type:'tool_search_output',call_id:'s',execution:'client'},
+      {type:'tool_search_output',call_id:'s',execution:'client',tools:[null]},
+      {type:'compaction',encrypted_content:'fixture'}
+    ])await expect(executeNativeResponses('https://fixture.test','fixture',{model:'logical',input:[item]},'fixture',new AbortController().signal)).rejects.toMatchObject({status:422});
+    expect(fetch).not.toHaveBeenCalled();
+  });
   it('preserves collaboration envelope content and routing in DeepSeek history',async()=>{
     const item={type:'agent_message',id:'message',author:{agent_id:'child'},recipient:{agent_id:'parent'},content:'fixture result',internal_chat_message_metadata_passthrough:{keep:true}};
     const request={model:'logical',input:[item]};

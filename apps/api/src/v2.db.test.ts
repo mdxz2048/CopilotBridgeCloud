@@ -698,13 +698,25 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
     await db.insert(planModelAccess).values({modelId:model.id,planId:plan.id});
     await db.transaction(tx=>walletModule.applyWalletChange(tx,{userId:user.id,points:200000,type:'PURCHASE',referenceType:'TEST',referenceId:'native-quota',idempotencyKey:`native-quota-${user.id}`}));
     await db.insert(systemSettings).values({key:'rate_policy',value:{accountRpm:2,deviceRpm:1,publicIpRpm:120,authIpRpm:120}}).onConflictDoUpdate({target:systemSettings.key,set:{value:{accountRpm:2,deviceRpm:1,publicIpRpm:120,authIpRpm:120}}});
+    const discoveryHistory=[{role:'user',content:'private fixture prompt'},
+      {type:'tool_search_call',call_id:'search_history',execution:'client',arguments:'{"query":"probe"}'},
+      {type:'function_call',call_id:'historical_probe',name:'probe',arguments:'{}'},
+      {type:'tool_search_output',call_id:'search_history',execution:'client',tools:[]},
+      {type:'function_call_output',call_id:'historical_probe',output:'synthetic historical result'}];
     let executions=0;
     vi.stubGlobal('fetch',vi.fn(async(url,init)=>{
       if(String(url).endsWith('/user/balance'))return Response.json({is_available:true,balance_infos:[{currency:'CNY',total_balance:'100',granted_balance:'0',topped_up_balance:'100'}]});
       expect(String(url)).toBe('https://api.deepseek.com/responses');const request=JSON.parse(init.body);expect(request.max_output_tokens).toBeLessThanOrEqual(64);expect(request.reasoning.effort).toBe('low');
       executions++;if(executions===3)throw new (await import('./native-timeouts.js')).NativeTimeoutError('total');
+      if(executions<=2){
+        expect(request.input.some((item:{type:string})=>['tool_search_call','tool_search_output'].includes(item.type))).toBe(false);
+        const envelope=JSON.parse(request.input[0].content[0].text.split('\n').slice(1).join('\n'));
+        expect(envelope.records.map((record:{item:{call_id:string}})=>record.item.call_id)).toEqual(['search_history','search_history']);
+        const callIndex=request.input.findIndex((item:{call_id:string;type:string})=>item.type==='function_call'&&item.call_id==='historical_probe');
+        expect(request.input[callIndex+1]).toMatchObject({type:'function_call_output',call_id:'historical_probe'});
+      }
       if(executions===2)expect(request.input.find((item:{type:string})=>item.type==='reasoning')).toMatchObject({id:'rs_native',content:[{type:'reasoning_text',text:'private fixture reasoning'}],summary:[],encrypted_content:'opaque-fixture',internal_chat_message_metadata_passthrough:{fixture:true}});
-      if(executions===2)expect(request.input.filter((item:{type:string})=>item.type==='function_call_output').map((item:{call_id:string})=>item.call_id)).toEqual(['call_native','call_native_2']);
+      if(executions===2)expect(request.input.filter((item:{type:string})=>item.type==='function_call_output').map((item:{call_id:string})=>item.call_id)).toEqual(['historical_probe','call_native','call_native_2']);
       const output=executions===1?[{id:'rs_native',type:'reasoning',status:'completed',content:[{type:'reasoning_text',text:'private fixture reasoning'}],summary:[],encrypted_content:'opaque-fixture'},{id:'fc_native',type:'function_call',call_id:'call_native',name:'probe',arguments:'{}'},{id:'fc_native_2',type:'function_call',call_id:'call_native_2',name:'probe',arguments:'{}'}]:[{id:'msg_native',type:'message',role:'assistant',content:[{type:'output_text',text:'done'}]}];
       return Response.json({id:`upstream_${executions}`,object:'response',status:'completed',model:'deepseek-flash',output,usage:{input_tokens:20,input_tokens_details:{cached_tokens:4},output_tokens:8,output_tokens_details:{reasoning_tokens:3},total_tokens:28}});
     }));
@@ -723,13 +735,13 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
       const previousNative=process.env.NATIVE_RESPONSES_ENABLED;process.env.NATIVE_RESPONSES_ENABLED='false';
       try {const closed=await send('private fixture prompt');expect(closed.statusCode).toBe(503);expect(executions).toBe(0);expect(await db.select().from(aiRequests).where(eq(aiRequests.userId,user.id))).toHaveLength(0);expect((await walletModule.walletSummary(user.id)).balance).toBe(before);}
       finally {if(previousNative===undefined)delete process.env.NATIVE_RESPONSES_ENABLED;else process.env.NATIVE_RESPONSES_ENABLED=previousNative;}
-      const first=await send('private fixture prompt');expect(first.statusCode).toBe(200);expect(first.json().output[1].id).toBe('fc_native');
+      const first=await send(discoveryHistory);expect(first.statusCode).toBe(200);expect(first.json().output[1].id).toBe('fc_native');
       expect(first.json().output.filter((item:{type:string})=>item.type==='function_call').map((item:{call_id:string})=>item.call_id)).toEqual(['call_native','call_native_2']);
       const [healthy]=await db.select().from(modelInstances).where(eq(modelInstances.id,instance.id));expect(healthy).toMatchObject({healthStatus:'READY',cooldownUntil:null});
       const [session]=await db.select().from(modelSessions).where(eq(modelSessions.userId,user.id));expect(JSON.stringify(session.state)).not.toContain('private fixture');expect(session.state.encryptedHistory).toBeTruthy();expect(session.instanceId).toBe(instance.id);
       const foreign=await send([{type:'function_call_output',call_id:'call_native',output:'done'}],first.json().id,true);expect(foreign.statusCode).toBe(409);expect(foreign.json().error.code).toBe('CONVERSATION_NOT_FOUND');
       const replayOutput=first.json().output.map((item:Record<string,unknown>)=>{if(item.type!=='reasoning')return item;const {status:_status,...rest}=item;return {...rest,internal_chat_message_metadata_passthrough:{fixture:true}};});
-      const second=await send([{role:'user',content:'private fixture prompt'},...replayOutput,{type:'function_call_output',call_id:'call_native',output:'done'},{type:'function_call_output',call_id:'call_native_2',output:'done two'}]);expect(second.statusCode).toBe(200);
+      const second=await send([...discoveryHistory,...replayOutput,{type:'function_call_output',call_id:'call_native',output:'done'},{type:'function_call_output',call_id:'call_native_2',output:'done two'}]);expect(second.statusCode).toBe(200);
       const requests=await db.select().from(aiRequests).where(eq(aiRequests.userId,user.id));expect(requests).toHaveLength(2);expect(requests.every(r=>r.instanceId===instance.id&&r.protocolMode==='native')).toBe(true);expect(requests.map(r=>r.responseId)).toContain(first.json().id);
       const events=await db.select().from(usageEvents).where(eq(usageEvents.userId,user.id));expect(events).toHaveLength(2);expect(events.every(e=>e.cachedInputTokens===4&&e.reasoningTokens===3&&e.billingStatus==='SETTLED')).toBe(true);
       expect(before-(await walletModule.walletSummary(user.id)).balance).toBe(events.reduce((sum,e)=>sum+e.pointsCharged,0));

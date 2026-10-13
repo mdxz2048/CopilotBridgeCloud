@@ -12,6 +12,21 @@ const answer = (ids: string[]) => ({
 const initial = { model: 'mock/mock-chat', tools, input: 'Read and write' };
 
 describe('authenticated tool continuation', () => {
+  it('keeps discovery history separate from pending executable calls during sequential results',()=>{
+    const now=Date.now();
+    const input=[{type:'tool_search_call',call_id:'search',execution:'client',arguments:'{}'},
+      {type:'tool_search_output',call_id:'search',execution:'client',tools:[]}];
+    const request={...initial,input};
+    const output=[call('first').output[0],call('second').output[0]];
+    const state=nextContinuationState(request,{...call('unused'),output,nativeResponse:{output}},null,now);
+    expect(state.pendingCallIds).toEqual(['first','second']);
+    const follow={...request,input:[...input,...output,{type:'function_call_output',call_id:'first',output:'one'}]};
+    const claim=pendingContinuation(state,follow,now+1);
+    expect(claim?.satisfiedCallIds).toEqual(['first']);
+    const next=nextContinuationState(follow,{...call('unused'),output:[]},claim,now+1);
+    expect(pendingContinuation(next,{...follow,input:[...follow.input,{type:'function_call_output',call_id:'second',output:'two'}]},now+2)?.satisfiedCallIds).toEqual(['second']);
+    expect(pendingContinuation(state,{...follow,input:[{...input[0],arguments:'tampered'},...follow.input.slice(1)]},now+1)).toBeNull();
+  });
   it('keeps a signed-history tool result rate exemption after a one-hour local operation, bounded to 65 minutes',()=>{
     const now=Date.now();const state=nextContinuationState(initial,call('long'),null,now);
     expect(pendingContinuation(state,answer(['long']),now+60*60000)).not.toBeNull();

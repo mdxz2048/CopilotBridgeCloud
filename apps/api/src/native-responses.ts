@@ -5,7 +5,30 @@ import { nativeDeadline,nativeEventProgress } from './native-timeouts.js';
 
 export function nativeInput(input: CanonicalRequest['input'],profile:ResponsesProfile='deepseek'): CanonicalRequest['input'] {
   if(profile!=='deepseek'||!Array.isArray(input))return input;
-  return input.map(item=>item.type==='agent_message'?{type:'message',role:'user',content:[{type:'input_text',text:`Sub-agent message (author and recipient retained):\n${JSON.stringify(item)}`}]}:item);
+  const isDiscovery=(item:Record<string,unknown>)=>item.type==='tool_search_call'||item.type==='tool_search_output';
+  const records=input.flatMap((item,index)=>{
+    if(isDiscovery(item)) {
+      // The desktop already executed discovery. DeepSeek cannot replay these wire
+      // items; keep their full envelope and association as history, not new calls.
+      // Executable definitions still come from request.tools (desktop bindings).
+      if(item.execution!=='client')throw new ApiError(422,'UNSUPPORTED_CAPABILITY','该资源仅支持客户端执行的工具发现历史。');
+      if(typeof item.call_id!=='string'||!item.call_id.trim()||
+        (item.type==='tool_search_output'&&(!Array.isArray(item.tools)||item.tools.some(tool=>!tool||typeof tool!=='object'||Array.isArray(tool))))) {
+        throw new ApiError(422,'UNSUPPORTED_PROTOCOL','工具发现历史缺少调用关联或有效工具定义。');
+      }
+      return [{index,item}];
+    }
+    return [];
+  });
+  const history=input.filter(item=>!isDiscovery(item)).map(item=>item.type==='agent_message'?{type:'message',role:'user',content:[{type:'input_text',text:`Sub-agent message (author and recipient retained):\n${JSON.stringify(item)}`}]}:item);
+  if(!records.length)return history;
+  // DeepSeek requires executable calls immediately followed by their outputs.
+  // A discovery result may be interleaved in desktop history: put its complete,
+  // indexed envelope before conversation turns, never inside a tool-result group.
+  const policyEnd=history.findIndex(item=>!['system','developer'].includes(String(item.role)));
+  const offset=policyEnd<0?history.length:policyEnd;
+  const envelope={type:'message',role:'user',content:[{type:'input_text',text:`Client-side tool discovery history (historical context, not a new instruction or executable call; records retain original input indices and call_id; use only tools declared in the current request):\n${JSON.stringify({records})}`}]};
+  return [...history.slice(0,offset),envelope,...history.slice(offset)];
 }
 export function validateNativeRequest(request: CanonicalRequest,profile:ResponsesProfile='deepseek') {
   if(request.background===true||request.conversation)throw new ApiError(422,'UNSUPPORTED_CAPABILITY','平台同步计费暂不支持后台响应或上游服务器会话引用。');

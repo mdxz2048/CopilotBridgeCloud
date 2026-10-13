@@ -1,0 +1,1 @@
+{"passed":true,"realDeepSeek":true,"syntheticInputOnly":true,"emptyAndNonemptyDiscovery":true,"normalToolHistory":true,"noLocalToolExecution":true,"outcomes":[{"kind":"json","status":"completed","inputTokens":450,"outputTokens":4},{"kind":"sse-replay","status":"completed","inputTokens":506,"outputTokens":6,"events":13}]}
