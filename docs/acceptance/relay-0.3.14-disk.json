@@ -1,0 +1,16 @@
+{
+  "verified": true,
+  "systemDiskGB": 23,
+  "beforeUsedPercent": 97,
+  "beforeFreeMB": 785,
+  "afterUsedPercent": 83,
+  "afterFreeGB": 3.9,
+  "tmpFreeMB": 471,
+  "imagesBefore": 65,
+  "imagesAfter": 34,
+  "databasePreserved": true,
+  "publishedInstallerPreserved": true,
+  "officialOfflineInstallerPreserved": true,
+  "siteStatus": 200,
+  "apiHealthStatus": 200
+}
