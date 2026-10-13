@@ -1,0 +1,52 @@
+{
+  "passed": true,
+  "realBuiltPages": true,
+  "fixtureApi": true,
+  "results": [
+    {
+      "width": 375,
+      "path": "/",
+      "overflow": false
+    },
+    {
+      "width": 375,
+      "path": "/download",
+      "overflow": false
+    },
+    {
+      "width": 375,
+      "path": "/pricing",
+      "overflow": false
+    },
+    {
+      "width": 768,
+      "path": "/",
+      "overflow": false
+    },
+    {
+      "width": 768,
+      "path": "/download",
+      "overflow": false
+    },
+    {
+      "width": 768,
+      "path": "/pricing",
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "path": "/",
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "path": "/download",
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "path": "/pricing",
+      "overflow": false
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "passed": true,
+  "health": 200,
+  "latestBridge": "0.3.13",
+  "checks": [
+    {
+      "width": 375,
+      "path": "/",
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "width": 375,
+      "path": "/download",
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "width": 375,
+      "path": "/pricing",
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "width": 768,
+      "path": "/",
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "width": 768,
+      "path": "/download",
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "width": 768,
+      "path": "/pricing",
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "path": "/",
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "path": "/download",
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "path": "/pricing",
+      "status": 200,
+      "overflow": false
+    }
+  ]
+}

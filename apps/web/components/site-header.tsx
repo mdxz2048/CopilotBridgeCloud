@@ -55,9 +55,9 @@ export function SiteHeader() {
   }, []);
   return <header className="site-header"><div className="container header-inner">
     <Link href="/" className="brand"><span className="brand-mark"><Layers3 size={19} strokeWidth={2.2} /></span><span>Copilot Bridge <span className="brand-light">Cloud</span></span></Link>
-    <nav aria-label="主导航"><Link href="/#how-it-works">产品</Link><Link href="/pricing">套餐</Link><Link href="/download">下载</Link></nav>
+    <nav aria-label="主导航"><Link href="/#how-it-works">产品</Link><Link href="/pricing">套餐与余额</Link><Link href="/download">下载</Link></nav>
     <div className="header-actions" aria-live="polite">{loading ? <span className="header-auth-loading" role="status">正在检查登录状态…</span> : identity ? <>
       <Link className="header-account" href={roleHome(identity.role)} aria-label={`${identity.role === 'ADMIN' ? '管理后台' : '账号中心'}：${identity.email}`}><span className="header-avatar" aria-hidden="true">{identity.email.charAt(0).toUpperCase()}</span><span className="header-email">{identity.email}</span></Link>
-    </> : <><Link className="text-link" href="/login">登录</Link><Link className="button button-small" href="/register">开始使用 <ArrowUpRight size={15}/></Link></>}</div>
+    </> : <><Link className="text-link" href="/login">登录</Link><Link className="button button-small" href="/download">下载 Bridge <ArrowUpRight size={15}/></Link></>}</div>
   </div></header>;
 }
