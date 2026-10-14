@@ -44,8 +44,8 @@ export class DeepSeekProvider implements ProviderAdapter {
     try { await this.listModels(); return { ready: true }; }
     catch (error) { return { ready: false, reason: error instanceof Error ? error.message : 'UNREACHABLE' }; }
   }
-  async balance() {
-    const response = await fetch(this.url('user/balance'), { headers: { Authorization: `Bearer ${this.key}` }, signal: AbortSignal.timeout(10000) });
+  async balance(signal?: AbortSignal) {
+    const response = await fetch(this.url('user/balance'), { headers: { Authorization: `Bearer ${this.key}` }, signal: signal ? AbortSignal.any([signal,AbortSignal.timeout(10000)]) : AbortSignal.timeout(10000) });
     if (!response.ok) throw new Error(`HTTP_${response.status}`);
     const body = await response.json() as { is_available: boolean; balance_infos: Array<{currency:string;total_balance:string;granted_balance:string;topped_up_balance:string}> };
     return { isAvailable: body.is_available, balances: body.balance_infos.map(item => ({ currency:item.currency,total:item.total_balance,granted:item.granted_balance,toppedUp:item.topped_up_balance })), checkedAt: new Date().toISOString() };

@@ -1,0 +1,30 @@
+{
+  "passed": true,
+  "version": "0.3.15",
+  "releaseNotesPresent": true,
+  "sha256": "9dc1b667e83a642dfbac095cc62b64f6b164045a4209e9a24b10e30989ff9fd4",
+  "customerReportExcludesTests": true,
+  "storedCostAuditReadable": true,
+  "gptUnknownCostsReadable": true,
+  "activeAcceptanceUsers": 0,
+  "enabledModels": [
+    {
+      "id": "deepseek/deepseek-flash",
+      "maxOutputTokens": 393216,
+      "vision": true
+    },
+    {
+      "id": "openai/gpt-6-sol",
+      "maxOutputTokens": 128000,
+      "vision": true
+    }
+  ],
+  "hashes": {
+    "cost-observation.ts": "f6594c37ba5e217ea44df49b968b3caf174bb72ec95c7aa82ebcfb8592c23833",
+    "v2-admin.ts": "51c184b721fadc5141bdaaf28528bc8fa4fe754deba5cc03e00556817a6d2185",
+    "metering.ts": "02ddab1c4e4f44fec38aff2524ab8f2924bc8a7593a5a533405ce5b74ca6631c",
+    "instance-router.ts": "a2de470762ed058cff8445f42162b0f79b318a5fb339c4fc10226711c8bc20ef",
+    "gateway.ts": "accd6460444aa9979a2920d91dcc84953c5726b33ed26ac9727c3c835ba4531a",
+    "routes.ts": "b407e586633cf3dfef46848a2cee3c740029d6577005bb3f3f96c7c71b41ad5c"
+  }
+}

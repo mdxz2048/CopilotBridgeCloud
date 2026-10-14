@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "widths": [
+    480,
+    1000
+  ],
+  "unknownNotZero": true,
+  "accountWindowLabel": true,
+  "grouping": true,
+  "pagination": true,
+  "noHorizontalOverflow": true,
+  "realComponent": true
+}

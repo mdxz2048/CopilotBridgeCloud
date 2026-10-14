@@ -1,0 +1,16 @@
+{
+  "models": [
+    {
+      "id": "deepseek/deepseek-flash",
+      "contextWindow": 1048576,
+      "maxOutputTokens": 393216,
+      "supportsVision": true
+    },
+    {
+      "id": "openai/gpt-6-sol",
+      "contextWindow": 1050000,
+      "maxOutputTokens": 128000,
+      "supportsVision": true
+    }
+  ]
+}

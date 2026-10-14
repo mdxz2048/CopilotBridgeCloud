@@ -37,7 +37,11 @@ export function instanceHealthAfterFailure(code:string,now=Date.now()){
   const auth=['PROVIDER_AUTH_REQUIRED','AUTHENTICATION_ERROR','INVALID_API_KEY','PROVIDER_BALANCE_EXHAUSTED','INSUFFICIENT_QUOTA'];
   const transient=['PROVIDER_UNAVAILABLE','PROVIDER_RATE_LIMITED','GATEWAY_TIMEOUT','SERVER_ERROR','INTERNAL_ERROR','RATE_LIMIT_EXCEEDED','SERVICE_UNAVAILABLE','OVERLOADED'];
   if(!auth.includes(code)&&!transient.includes(code))return null;
-  return {healthStatus:auth.includes(code)?'UNAVAILABLE' as const:'DEGRADED' as const,healthCheckedAt:new Date(now),cooldownUntil:new Date(now+60000)};
+  // A request timeout/5xx must not quarantine unrelated new conversations.
+  // Only explicit upstream throttling needs a shared retry delay. Invalid
+  // credentials/exhausted upstream balance remain unavailable until repaired.
+  const throttled=['PROVIDER_RATE_LIMITED','RATE_LIMIT_EXCEEDED'].includes(code);
+  return {healthStatus:auth.includes(code)?'UNAVAILABLE' as const:'DEGRADED' as const,healthCheckedAt:new Date(now),cooldownUntil:throttled?new Date(now+60000):null};
 }
 export function instanceHealthAfterResult(result:CanonicalResult,now=Date.now()){
   if(result.status==='failed'){const error=result.nativeResponse?.error as {code?:unknown}|undefined;return typeof error?.code==='string'?instanceHealthAfterFailure(error.code,now):null;}

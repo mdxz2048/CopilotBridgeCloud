@@ -1,3 +1,4 @@
+import {beginCostObservation} from './cost-observation.js';
 import type { FastifyInstance } from 'fastify';
 import { aiRequests, db, deviceSessions, devices, modelSessions, modelInstances, providerAccounts, usageRecords, users } from '@bridge/db';
 import { and, eq, gte, lt, sql } from 'drizzle-orm';
@@ -152,6 +153,7 @@ export async function registerGateway(app: FastifyInstance) {
     let copilotStreamOpened = false;
     let observedTextDelta = false;
     let upstreamAttempted = false;
+    let costObservation:Awaited<ReturnType<typeof beginCostObservation>>|null=null;
     reply.raw.on('close', () => {
       if (!ended && !reply.raw.writableEnded) {
         clientDisconnected = true; controller.abort();
@@ -161,6 +163,7 @@ export async function registerGateway(app: FastifyInstance) {
       }
     });
     try {
+      costObservation=v2RequestId&&!connection?await beginCostObservation(adapter,ent.model.providerModelId,isDeepSeekProvider(ent.provider.code)):null;
       const [existing] = await db.select().from(modelSessions).where(and(eq(modelSessions.userId, a.user.id), eq(modelSessions.deviceId, a.device!.id), eq(modelSessions.clientThreadId, threadId), gte(modelSessions.expiresAt, new Date()))).limit(1);
       if (body.stream && (native || ent.provider.code === 'COPILOT' || isDeepSeekProvider(ent.provider.code))) {
         reply.hijack();
@@ -210,6 +213,7 @@ export async function registerGateway(app: FastifyInstance) {
       const total = result.inputTokens + result.outputTokens;
       const credit = usageCredit(total, weight);
       const event = v2RequestId && settlementMode ? await settleAiRequest(v2RequestId, clientDisconnected ? 'CLIENT_DISCONNECTED' : result.status==='failed'?'PROVIDER_ERROR':'COMPLETED', {
+        costAudit:await costObservation?.finish(result),
         usageUnavailable:result.usageUnavailable,
         usage: { inputTokens: result.inputTokens, outputTokens: result.outputTokens, cachedInputTokens: result.cachedInputTokens,
           reasoningTokens: result.reasoningTokens, imageInput: result.imageInput, imageOutput: result.imageOutput, toolCalls: result.toolCalls },
@@ -284,11 +288,12 @@ export async function registerGateway(app: FastifyInstance) {
           : clientDisconnected ? 'CLIENT_DISCONNECTED' : controller.signal.aborted ? 'GATEWAY_TIMEOUT' : 'PROVIDER_UNAVAILABLE' }, 'provider request failed');
       if (v2RequestId) {
         try {
+          const failureAudit=await costObservation?.finish(observedResult);
           await settleAiRequest(v2RequestId, clientDisconnected ? 'CLIENT_DISCONNECTED' : 'PROVIDER_ERROR', observedResult ? {
             usage: { inputTokens: observedResult.inputTokens, outputTokens: observedResult.outputTokens, cachedInputTokens: observedResult.cachedInputTokens,
               reasoningTokens: observedResult.reasoningTokens, imageInput: observedResult.imageInput, imageOutput: observedResult.imageOutput, toolCalls: observedResult.toolCalls },
-            providerReportedUsage: observedResult.providerReportedUsage,
-          } : { usageUnavailable: interruptedStreamUsageUnavailable(observedTextDelta, Boolean(observedResult))
+            providerReportedUsage: observedResult.providerReportedUsage,costAudit:failureAudit,
+          } : { costAudit:failureAudit, usageUnavailable: interruptedStreamUsageUnavailable(observedTextDelta, Boolean(observedResult))
             || (error instanceof ApiError && error.code==='PROVIDER_USAGE_UNAVAILABLE')
             || (upstreamAttempted && (controller.signal.aborted || (error instanceof ApiError && (error.code==='GATEWAY_TIMEOUT'||(error.code==='PROTOCOL_INVALID' && error.status>=500))) || (!(error instanceof ApiError) && !(error instanceof CopilotFailure)))) }, settlementMode!);
         } catch (settlementError) { req.log.error({ settlementErrorType: settlementError instanceof Error ? settlementError.name : 'UnknownError', requestId: v2RequestId }, 'V2 settlement failed'); }

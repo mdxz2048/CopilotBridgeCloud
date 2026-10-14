@@ -194,6 +194,13 @@ export async function registerRoutes(app: FastifyInstance) {
   }
   app.get('/api/v1/client/config', async () => {const version=(await latestRelease())?.version??'0.1.0';return { minimumVersion: version, latestVersion:version, maintenance:false, features:{cloudGateway:true} };});
   app.get('/api/v1/releases', async () => ({ data: await db.select().from(releases).where(eq(releases.published, true)).orderBy(desc(releases.createdAt)) }));
+  app.get('/api/v1/releases/download', async (_req, reply) => {
+    const release=await latestRelease();
+    if(!release)throw new ApiError(404,'NOT_FOUND','平台暂无可下载的正式版本。');
+    const target=new URL(release.downloadUrl),base=new URL(config.PUBLIC_BASE_URL);
+    if(target.origin!==base.origin||!['https:','http:'].includes(target.protocol)||target.username||target.password)throw new ApiError(503,'RELEASE_UNAVAILABLE');
+    return reply.header('Cache-Control','no-store').redirect(target.toString());
+  });
   app.get('/api/v1/releases/latest', async () => {
     return { release: await latestRelease() };
   });

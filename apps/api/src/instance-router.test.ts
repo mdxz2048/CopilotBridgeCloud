@@ -25,10 +25,22 @@ describe('logical instance routing',()=>{
     const result={status:'failed' as const,output:[],inputTokens:0,outputTokens:0,costKind:'UNKNOWN' as const};
     for(const code of ['UNSUPPORTED_CAPABILITY','invalid_request_error','PROTOCOL_INVALID','content_filter'])expect(instanceHealthAfterResult({...result,nativeResponse:{error:{code}}})).toBeNull();
     expect(instanceHealthAfterResult(result)).toBeNull();
-    expect(instanceHealthAfterResult({...result,nativeResponse:{error:{code:'server_error'}}},1000)).toMatchObject({healthStatus:'DEGRADED',cooldownUntil:new Date(61000)});
+    expect(instanceHealthAfterResult({...result,nativeResponse:{error:{code:'server_error'}}},1000)).toMatchObject({healthStatus:'DEGRADED',cooldownUntil:null});
     expect(instanceHealthAfterFailure('PROVIDER_RATE_LIMITED')).toMatchObject({healthStatus:'DEGRADED'});
     expect(instanceHealthAfterFailure('PROVIDER_AUTH_REQUIRED')).toMatchObject({healthStatus:'UNAVAILABLE'});
     expect(instanceHealthAfterResult({...result,status:'completed'})).toMatchObject({healthStatus:'READY',cooldownUntil:null});
+  });
+  it.each(['GATEWAY_TIMEOUT','SERVER_ERROR','INTERNAL_ERROR','PROVIDER_UNAVAILABLE','SERVICE_UNAVAILABLE','OVERLOADED'])('keeps new and pinned conversations routable after one %s',code=>{
+    const state=instanceHealthAfterFailure(code)!;
+    const resource=candidate('current',state);
+    expect(catalogPresentation([resource]).availability).toBe('READY');
+    expect(chooseInstance([resource],request).instance.id).toBe('current');
+    expect(chooseInstance([resource],request,'current').instance.id).toBe('current');
+  });
+  it('preserves actual supplier throttling and unusable credentials without account-wide billing blocks',()=>{
+    for(const code of ['PROVIDER_RATE_LIMITED','RATE_LIMIT_EXCEEDED'])expect(()=>chooseInstance([candidate('limited',instanceHealthAfterFailure(code)!)],request)).toThrow();
+    for(const code of ['PROVIDER_AUTH_REQUIRED','INVALID_API_KEY','PROVIDER_BALANCE_EXHAUSTED'])expect(()=>chooseInstance([candidate('unauthorized',instanceHealthAfterFailure(code)!)],request)).toThrow();
+    expect(instanceHealthAfterFailure('BILLING_REVIEW_REQUIRED')).toBeNull();
   });
   it('fails closed for disabled native, unrecognized adapters and mixed profiles',()=>{
     const unsupported=candidate('unsupported');unsupported.provider.code='UNIMPLEMENTED';

@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "app": 210,
+  "apiUnit": 143,
+  "dedicatedPostgresql": 30,
+  "web": 15,
+  "integrationTestBudgetMs": 30000,
+  "appPublishedVersion": "0.3.15",
+  "officialHostRestarted": false
+}

@@ -350,10 +350,16 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
     expect(partialEvent.pointsCharged).toBe(10);
     const [overrun] = await db.insert(aiRequests).values({ responseId: `resp_${randomUUID().replaceAll('-', '')}`, userId: ids.secondUser,
       deviceId: ids.secondDevice, providerId: ids.provider, modelId: ids.model, billingPolicy: 'MANAGED_USAGE', rateCardVersionId: ids.rateVersion, status: 'STARTED' }).returning();
+    const availableBeforeOverrun = (await walletModule.walletSummary(ids.secondUser)).balance;
     const unpaid = await meterModule.settleAiRequest(overrun.id, 'COMPLETED', { usage: { inputTokens: 100000 } });
     expect(unpaid.billingStatus).toBe('UNPAID');
-    expect(unpaid.pointsCharged).toBe(0);
-    await expect(meterModule.preflightPoints(ids.secondUser, ids.provider, ids.model, 'MANAGED_USAGE')).resolves.toMatchObject({rate:expect.anything()});
+    expect(availableBeforeOverrun).toBeGreaterThan(0);
+    expect(unpaid.pointsCharged).toBe(availableBeforeOverrun);
+    expect((await walletModule.walletSummary(ids.secondUser)).balance).toBe(0);
+    const duplicate = await meterModule.settleAiRequest(overrun.id, 'COMPLETED', { usage: { inputTokens: 100000 } });
+    expect(duplicate.id).toBe(unpaid.id);
+    expect(await db.select().from(walletTransactions).where((await import('drizzle-orm')).eq(walletTransactions.referenceId,overrun.id))).toHaveLength(1);
+    await expect(meterModule.preflightPoints(ids.secondUser, ids.provider, ids.model, 'MANAGED_USAGE')).rejects.toMatchObject({status:402,code:'INSUFFICIENT_POINTS'});
     const [invalid] = await db.insert(aiRequests).values({ responseId: `resp_${randomUUID().replaceAll('-', '')}`, userId: ids.user,
       deviceId: ids.device, providerId: ids.provider, modelId: ids.model, billingPolicy: 'MANAGED_USAGE', rateCardVersionId: ids.rateVersion, status: 'STARTED' }).returning();
     const invalidEvent = await meterModule.settleAiRequest(invalid.id, 'COMPLETED', { usage: { inputTokens: -1 }, providerReportedUsage: { input_tokens: -1 } });
@@ -733,6 +739,8 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
       if(String(url).endsWith('/user/balance'))return Response.json({is_available:true,balance_infos:[{currency:'CNY',total_balance:'100',granted_balance:'0',topped_up_balance:'100'}]});
       expect(String(url)).toBe('https://api.deepseek.com/responses');const request=JSON.parse(init.body);expect(request.max_output_tokens).toBeLessThanOrEqual(64);expect(request.reasoning.effort).toBe('low');
       executions++;if(executions===3)throw new (await import('./native-timeouts.js')).NativeTimeoutError('total');
+      if(executions===5)throw new (await import('./native-timeouts.js')).NativeTimeoutError('idle');
+      if(executions===7)return new Response('',{status:500});
       if(executions<=2){
         expect(request.input.some((item:{type:string})=>['tool_search_call','tool_search_output'].includes(item.type))).toBe(false);
         const envelope=JSON.parse(request.input[0].content[0].text.split('\n').slice(1).join('\n'));
@@ -777,22 +785,31 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
       expect(failed.response.error).toMatchObject({code:'GATEWAY_TIMEOUT',request_id:expect.any(String),timeout_phase:'total'});expect(failed.error).toEqual(failed.response.error);
       const [timeoutEvent]=await db.select().from(usageEvents).where(eq(usageEvents.requestId,failed.response.error.request_id));expect(timeoutEvent.billingStatus).toBe('METERING_ERROR');expect(timeoutEvent.providerCost).toBeNull();
       const [afterPlatformLimit]=await db.select().from(modelInstances).where(eq(modelInstances.id,instance.id));expect(afterPlatformLimit).toMatchObject({healthStatus:'READY',cooldownUntil:null});
-      // A fresh conversation survives the previous metering anomaly even with no balance,
-      // a zero period limit and more running requests than the plan permits.
+      // An exhausted wallet blocks before calling the supplier. After crediting,
+      // the prior metering anomaly and legacy period/concurrency limits do not block.
       const available=(await walletModule.walletSummary(user.id)).balance;
       await db.transaction(tx=>walletModule.applyWalletChange(tx,{userId:user.id,points:-available,type:'TEST',referenceType:'TEST',referenceId:user.id,idempotencyKey:`empty-${user.id}`}));
       await db.insert(systemSettings).values({key:`user_quota:${user.id}`,value:{rmbLimit:0}});
-      const fresh=await send('new conversation with an empty wallet',undefined,true);expect(fresh.statusCode,fresh.body).toBe(200);expect(fresh.json().usage).toMatchObject({billing_status:'UNPAID',balance_warning:true,settlement_pending:true});expect(executions).toBe(4);
+      const fresh=await send('new conversation with an empty wallet',undefined,true);expect(fresh.statusCode,fresh.body).toBe(402);expect(fresh.json().error.code).toBe('INSUFFICIENT_POINTS');expect(executions).toBe(3);
       const adminHeaders=await testCookieHeaders(dbModule,ids.admin);
+      const firstEvent=(await db.select().from(usageEvents).where(eq(usageEvents.userId,user.id)))[0];
+      const audit=firstEvent.providerReportedUsage?.bridge_cost_audit as Record<string,unknown>;
+      expect(audit).toMatchObject({costSource:'OFFICIAL_RATE_ESTIMATE',balanceScope:'UPSTREAM_ACCOUNT_WINDOW_NOT_REQUEST',balanceStatus:'OBSERVED',userChargedRmb:firstEvent.pointsCharged/10000});
+      expect(Number(audit.walletBeforeRmb)-Number(audit.walletAfterRmb)).toBeCloseTo(firstEvent.pointsCharged/10000,8);
+      const costList=await app.inject({url:'/api/v1/admin/cost-requests?includeTest=true',headers:adminHeaders});expect(costList.statusCode).toBe(200);expect(costList.json().data.some((r:{requestId:string})=>r.requestId===firstEvent.requestId)).toBe(true);
+      expect((await app.inject({url:'/api/v1/admin/cost-requests?includeTest=true',headers:await testCookieHeaders(dbModule,user.id)})).statusCode).toBe(403);
+      const costs=await app.inject({url:'/api/v1/admin/cost-analytics?groupBy=model&includeTest=true',headers:adminHeaders});expect(costs.statusCode,costs.body).toBe(200);const summary=costs.json().data.find((r:{group:string})=>r.group===model.publicId);expect(summary.pricedRequests).toBe(2);expect(summary.unpricedCostRows).toBe(1);expect(summary.estimatedCostRmb).toBeGreaterThan(0);expect(summary.estimatedGrossMarginRmb).not.toBeNull();
+      expect((await app.inject({url:'/api/v1/admin/cost-requests',headers:adminHeaders})).json().data).toHaveLength(0);
+      expect((await app.inject({url:'/api/v1/admin/cost-analytics',headers:adminHeaders})).json().data).toHaveLength(0);
       const lockPath=`/api/v1/admin/users/${user.id}`;
       expect((await app.inject({method:'PATCH',url:lockPath,headers:adminHeaders,payload:{status:'DISABLED'}})).statusCode).toBe(200);
-      const locked=await send('locked user',undefined,true);expect(locked.statusCode).toBe(403);expect(locked.json().error.code).toBe('ACCOUNT_DISABLED');expect(executions).toBe(4);
+      const locked=await send('locked user',undefined,true);expect(locked.statusCode).toBe(403);expect(locked.json().error.code).toBe('ACCOUNT_DISABLED');expect(executions).toBe(3);
       expect((await app.inject({method:'PATCH',url:lockPath,headers:adminHeaders,payload:{status:'ACTIVE'}})).statusCode).toBe(200);
       const topup={points:10000,reason:'Administrator immediate balance adjustment',idempotencyKey:randomUUID()};
       const adjustPath=`${lockPath}/wallet/adjust`;
       const credited=await app.inject({method:'POST',url:adjustPath,headers:adminHeaders,payload:topup});expect(credited.statusCode,credited.body).toBe(200);expect(credited.json().transaction.balanceAfter).toBe(10000);
       expect((await app.inject({method:'POST',url:adjustPath,headers:adminHeaders,payload:topup})).json().duplicate).toBe(true);expect((await walletModule.walletSummary(user.id)).balance).toBe(10000);
-      const resumed=await send('unlocked account',undefined,true);expect(resumed.statusCode,resumed.body).toBe(200);expect(resumed.json().usage.billing_status).toBe('SETTLED');expect(executions).toBe(5);
+      const resumed=await send('unlocked account',undefined,true);expect(resumed.statusCode,resumed.body).toBe(200);expect(resumed.json().usage.billing_status).toBe('SETTLED');expect(executions).toBe(4);
       const reduced=await app.inject({method:'POST',url:adjustPath,headers:adminHeaders,payload:{points:-1000,reason:'Administrator decreases available balance',idempotencyKey:randomUUID()}});expect(reduced.statusCode,reduced.body).toBe(200);
       const beforeReduction=(await walletModule.walletSummary(user.id)).balance;
       const invalidReduction=await app.inject({method:'POST',url:adjustPath,headers:adminHeaders,payload:{points:-(beforeReduction+1),reason:'Administrator tries to exceed available balance',idempotencyKey:randomUUID()}});expect(invalidReduction.statusCode).toBe(402);expect((await walletModule.walletSummary(user.id)).balance).toBe(beforeReduction);
@@ -807,10 +824,19 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
       const overLimit=await app.inject({method:'POST',url:'/api/v1/auth/login',payload:{email:user.email,password:'FixturePassword123!',device:{...newDevicePayload,deviceId:randomUUID()}}});expect(overLimit.statusCode).toBe(409);expect(overLimit.json().error.code).toBe('DEVICE_LIMIT_REACHED');
       const thirdId=registered.json().device.id;expect((await app.inject({method:'PATCH',url:`/api/v1/admin/devices/${thirdId}`,headers:adminHeaders,payload:{status:'REVOKED'}})).statusCode).toBe(200);
       const restore=await app.inject({method:'PATCH',url:`/api/v1/admin/devices/${thirdId}`,headers:adminHeaders,payload:{status:'ACTIVE'}});expect(restore.statusCode).toBe(409);
-      const detail=(await app.inject({url:lockPath,headers:adminHeaders})).json();expect(Number(detail.billingRisks.pendingReview)).toBe(1);expect(Number(detail.billingRisks.unpaidRequests)).toBe(1);expect(detail.limits.maxDevices).toBe(2);expect(detail.wallet.balance).toBe(beforeReduction);
+      const detail=(await app.inject({url:lockPath,headers:adminHeaders})).json();expect(Number(detail.billingRisks.pendingReview)).toBe(1);expect(Number(detail.billingRisks.unpaidRequests)).toBe(0);expect(detail.limits.maxDevices).toBe(2);expect(detail.wallet.balance).toBe(beforeReduction);
 
+      // With one usable supplier, a single idle timeout/500 still permits the
+      // next fresh conversation immediately; no alternate masks quarantine.
+      await db.update(modelInstances).set({enabled:false}).where(eq(modelInstances.providerId,alternate.id));
+      for(const failure of ['idle timeout','supplier 500']){
+        const failedRequest=await send(failure,undefined,true);expect(failedRequest.statusCode).toBeGreaterThanOrEqual(500);
+        const [degraded]=await db.select().from(modelInstances).where(eq(modelInstances.id,instance.id));expect(degraded).toMatchObject({healthStatus:'DEGRADED',cooldownUntil:null});
+        const newConversation=await send('fresh conversation after '+failure,undefined,true);expect(newConversation.statusCode,newConversation.body).toBe(200);
+      }
+      expect(executions).toBe(8);
       for(const row of held)await db.delete(usageRecords).where(eq(usageRecords.id,row.id));
-      await db.update(modelInstances).set({enabled:false}).where(eq(modelInstances.id,instance.id));const disabled=await send('new turn',second.json().id);expect(disabled.statusCode).toBe(409);expect(disabled.json().error.code).toBe('MODEL_UNAVAILABLE');expect(executions).toBe(5);
+      await db.update(modelInstances).set({enabled:false}).where(eq(modelInstances.id,instance.id));const disabled=await send('new turn',second.json().id);expect(disabled.statusCode).toBe(409);expect(disabled.json().error.code).toBe('MODEL_UNAVAILABLE');expect(executions).toBe(8);
     } finally {await app.close();vi.unstubAllGlobals();}
   });
 

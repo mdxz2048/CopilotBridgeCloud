@@ -1,14 +1,14 @@
-import { aiRequests, db, rateCards, rateCardVersions, usageEvents } from '@bridge/db';
+import { aiRequests, db, rateCards, rateCardVersions, usageEvents, wallets } from '@bridge/db';
 import { and, desc, eq, gt, isNull, lte, or } from 'drizzle-orm';
 import { ApiError } from './core.js';
 import { normalizeUsage, ratePoints, type BillingPolicy, type NormalizedUsage, type PointRates } from './rating.js';
-import { applyWalletChange } from './wallet.js';
+import { applyWalletChange, walletSummary } from './wallet.js';
 import type { BillingMode } from './billing-mode.js';
 
 export type RequestState = 'COMPLETED' | 'CLIENT_DISCONNECTED' | 'PROVIDER_ERROR';
 export type MeteredResult = {
   usage?: Partial<NormalizedUsage>; usageUnavailable?: boolean; providerReportedUsage?: Record<string, unknown>;
-  providerCost?: string; providerCurrency?: string; completedAt?: Date;
+  providerCost?: string; providerCurrency?: string; completedAt?: Date;costAudit?:Record<string,unknown>;
 };
 
 export function hasObservedUpstreamTextDelta(previous: boolean, delta: string) {
@@ -49,8 +49,10 @@ export async function preflightPoints(userId: string, providerId: string, modelI
   if (policy === 'LOCAL_USAGE') return { rate: null };
   const rate = await activeRateVersion(providerId, modelId, policy);
   if (!rate) throw new ApiError(503, 'RATE_CARD_UNAVAILABLE');
-  // Usage anomalies and an empty wallet are advisory. Only an administrator
-  // explicitly disabling the account may stop unrelated conversations.
+  // Metering anomalies never block unrelated conversations. An exhausted wallet
+  // blocks new billed requests; an administrator credit takes effect immediately.
+  if ((await walletSummary(userId)).balance <= 0)
+    throw new ApiError(402, 'INSUFFICIENT_POINTS', '余额不足，请联系管理员增加余额后继续使用。');
   return { rate };
 }
 
@@ -74,20 +76,32 @@ export async function settleAiRequest(requestId: string, state: RequestState, re
     const { usage, rated, meteringError, ratingError, billingStatus: initialStatus } = evaluateMeteredUsage(
       result, request.billingPolicy as BillingPolicy, version ?? undefined, mode);
     let charged = 0;
+    let walletAfter:number|null=null;
     let billingStatus = initialStatus;
     if (rated > 0 && mode === 'ENFORCED') {
       try {
-        await applyWalletChange(tx, { userId: request.userId, points: -rated, type: 'USAGE', referenceType: 'AI_REQUEST', referenceId: request.id, idempotencyKey: `usage:${request.id}` });
-        charged = rated;
+        const debit=await applyWalletChange(tx, { userId: request.userId, points: -rated, type: 'USAGE', referenceType: 'AI_REQUEST', referenceId: request.id, idempotencyKey: `usage:${request.id}` });
+        charged = rated;walletAfter=debit.transaction.balanceAfter;
       } catch (error) {
         if (!(error instanceof ApiError && error.code === 'INSUFFICIENT_POINTS')) throw error;
+        // The full debit failed before writing a ledger entry and still holds
+        // the wallet lock. Consume only the available balance, preserving the
+        // unpaid difference and preventing repeated requests on a tiny balance.
+        const [wallet] = await tx.select().from(wallets).where(eq(wallets.userId, request.userId)).for('update').limit(1);
+        const available = wallet?.balance ?? 0;
+        if (available > 0) {
+          const debit=await applyWalletChange(tx, { userId: request.userId, points: -available, type: 'USAGE', referenceType: 'AI_REQUEST', referenceId: request.id, idempotencyKey: `usage:${request.id}` });
+          charged = available;walletAfter=debit.transaction.balanceAfter;
+        }
         billingStatus = 'UNPAID';
       }
     }
+    const reported=result.providerReportedUsage ?? (meteringError && result.usage ? result.usage as Record<string, unknown> : null);
+    const providerReportedUsage=result.costAudit?{...reported,bridge_cost_audit:{...result.costAudit,userChargedRmb:charged/10000,walletBeforeRmb:walletAfter===null?null:(walletAfter+charged)/10000,walletAfterRmb:walletAfter===null?null:walletAfter/10000}}:reported;
     const [event] = await tx.insert(usageEvents).values({
       requestId, eventKey: `final:${requestId}`, userId: request.userId, deviceId: request.deviceId,
       providerId: request.providerId, modelId: request.modelId, ...usage,
-      providerReportedUsage: result.providerReportedUsage ?? (meteringError && result.usage ? result.usage as Record<string, unknown> : null), providerCost: result.providerCost ?? null, providerCurrency: result.providerCurrency ?? null,
+      providerReportedUsage, providerCost: result.providerCost ?? null, providerCurrency: result.providerCurrency ?? null,
       rateCardVersionId: request.rateCardVersionId, pointsRated: rated, pointsCharged: charged, billingStatus,
       billingPolicy: request.billingPolicy, startedAt: request.startedAt ?? request.createdAt, completedAt: result.completedAt ?? new Date(),
     }).returning();

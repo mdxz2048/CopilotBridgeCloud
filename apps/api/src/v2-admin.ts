@@ -155,18 +155,38 @@ export async function registerV2Admin(app: FastifyInstance) {
       return final;
     });
   });
+
+  app.get('/api/v1/admin/cost-requests', async req => {
+    await admin(req);
+    const {page,limit,includeTest}=z.object({includeTest:z.enum(['true','false']).default('false').transform(value=>value==='true'),page:z.coerce.number().int().min(1).max(100000).default(1),limit:z.coerce.number().int().min(1).max(100).default(50)}).parse(req.query);
+    const customerFilter=includeTest?sql`true`:sql`lower(${users.email}) not like '%@example.test'`;
+    const [total]=await db.select({count:sql<number>`count(*)`}).from(usageEvents).innerJoin(users,eq(users.id,usageEvents.userId)).where(customerFilter);
+    const data=await db.select({id:usageEvents.id,requestId:usageEvents.requestId,user:users.email,model:models.publicId,provider:providers.code,
+      inputTokens:usageEvents.inputTokens,outputTokens:usageEvents.outputTokens,cachedInputTokens:usageEvents.cachedInputTokens,reasoningTokens:usageEvents.reasoningTokens,
+      pointsCharged:usageEvents.pointsCharged,billingStatus:usageEvents.billingStatus,createdAt:usageEvents.createdAt,
+      audit:sql<Record<string,unknown>|null>`${usageEvents.providerReportedUsage}->'bridge_cost_audit'`}).from(usageEvents)
+      .innerJoin(users,eq(users.id,usageEvents.userId)).innerJoin(models,eq(models.id,usageEvents.modelId)).innerJoin(providers,eq(providers.id,usageEvents.providerId))
+      .where(customerFilter).orderBy(desc(usageEvents.createdAt),desc(usageEvents.id)).limit(limit).offset((page-1)*limit);
+    return {page,limit,includeTest,total:Number(total.count),data:data.map(row=>({...row,userChargedRmb:row.pointsCharged/10000}))};
+  });
   app.get('/api/v1/admin/cost-analytics', async req => {
     await admin(req);
-    const { groupBy } = z.object({ groupBy: z.enum(['day', 'model', 'provider', 'user']).default('day') }).parse(req.query);
-    const grouping = {
-      day: sql<string>`date_trunc('day', ${usageEvents.createdAt})::text`, model: sql<string>`${models.publicId}`,
-      provider: sql<string>`${providers.code}`, user: sql<string>`${users.email}`,
-    }[groupBy];
-    const rows = await db.select({ group: grouping, currency: usageEvents.providerCurrency, requests: sql<number>`count(*)`, pointsCharged: sql<number>`coalesce(sum(${usageEvents.pointsCharged}), 0)`,
-      providerCost: sql<string>`coalesce(sum(${usageEvents.providerCost}), 0)::text`, unpricedCostRows: sql<number>`count(*) filter (where ${usageEvents.providerCost} is null)` })
-      .from(usageEvents).innerJoin(models, eq(usageEvents.modelId, models.id)).innerJoin(providers, eq(usageEvents.providerId, providers.id))
-      .innerJoin(users, eq(usageEvents.userId, users.id)).groupBy(grouping, usageEvents.providerCurrency).limit(200);
-    return { groupBy, data: rows.map(row => ({ ...row, requests: Number(row.requests), pointsCharged: Number(row.pointsCharged), unpricedCostRows: Number(row.unpricedCostRows),
-      estimatedRevenue: null, grossMargin: null })) };
+    const {groupBy,includeTest}=z.object({includeTest:z.enum(['true','false']).default('false').transform(value=>value==='true'),groupBy:z.enum(['day','model','provider','user']).default('day')}).parse(req.query);
+    const grouping={day:sql<string>`date_trunc('day',${usageEvents.createdAt} at time zone 'Asia/Shanghai')::text`,model:sql<string>`${models.publicId}`,provider:sql<string>`${providers.code}`,user:sql<string>`${users.email}`}[groupBy];
+    const reported=sql`(${usageEvents.providerReportedUsage}->'bridge_cost_audit'->>'reportedCostRmb')::numeric`;
+    const estimated=sql`(${usageEvents.providerReportedUsage}->'bridge_cost_audit'->>'estimatedCostRmb')::numeric`;
+    const cost=sql`coalesce(${reported},${estimated})`;
+    const rows=await db.select({group:grouping,requests:sql<number>`count(*)`,inputTokens:sql<number>`coalesce(sum(${usageEvents.inputTokens}),0)`,outputTokens:sql<number>`coalesce(sum(${usageEvents.outputTokens}),0)`,cachedInputTokens:sql<number>`coalesce(sum(${usageEvents.cachedInputTokens}),0)`,reasoningTokens:sql<number>`coalesce(sum(${usageEvents.reasoningTokens}),0)`,
+      pointsCharged:sql<number>`coalesce(sum(${usageEvents.pointsCharged}),0)`,revenueRmb:sql<number>`coalesce(sum(${usageEvents.pointsCharged}),0)/10000.0`,
+      reportedRequests:sql<number>`count(*) filter(where ${reported} is not null)`,estimatedRequests:sql<number>`count(*) filter(where ${reported} is null and ${estimated} is not null)`,
+      reportedCostRmb:sql<number>`coalesce(sum(${reported}),0)`,estimatedCostRmb:sql<number>`coalesce(sum(${estimated}) filter(where ${reported} is null),0)`,
+      knownCostRmb:sql<number>`coalesce(sum(${cost}),0)`,pricedRevenueRmb:sql<number>`coalesce(sum(${usageEvents.pointsCharged}/10000.0) filter(where ${cost} is not null),0)`,
+      pricedRequests:sql<number>`count(*) filter(where ${cost} is not null)`,unpricedCostRows:sql<number>`count(*) filter(where ${cost} is null)`})
+      .from(usageEvents).innerJoin(models,eq(usageEvents.modelId,models.id)).innerJoin(providers,eq(usageEvents.providerId,providers.id)).innerJoin(users,eq(usageEvents.userId,users.id))
+      .where(includeTest?sql`true`:sql`lower(${users.email}) not like '%@example.test'`).groupBy(grouping).orderBy(desc(grouping)).limit(200);
+    return {groupBy,includeTest,currency:'CNY',balanceScope:'UPSTREAM_ACCOUNT_WINDOW_NOT_REQUEST',data:rows.map(raw=>{
+      const row=Object.fromEntries(Object.entries(raw).map(([key,value])=>[key,key==='group'?value:Number(value)])) as typeof raw;
+      return {...row,estimatedGrossMarginRmb:row.pricedRequests?Number((row.pricedRevenueRmb-row.knownCostRmb).toFixed(8)):null};
+    })};
   });
 }
