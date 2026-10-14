@@ -37,10 +37,14 @@ export async function pruneFailureDiagnostics(tx:Pick<typeof db,'execute'>) {
 export async function cleanFailureDiagnostics(){
   await db.transaction(async tx=>{await tx.execute(sql`select pg_advisory_xact_lock(81903317)`);await pruneFailureDiagnostics(tx);});
 }
+export function diagnosticModelNames(payload:{request?:{forwarded?:{model?:unknown};desktop?:{model?:unknown}}}){
+  const model=payload.request?.forwarded?.model,clientModel=payload.request?.desktop?.model;
+  return {model:typeof model==='string'?model.slice(0,200):null,clientModel:typeof clientModel==='string'?clientModel.slice(0,200):null};
+}
 function metadata(row:typeof failureDiagnostics.$inferSelect){
   const payload=JSON.parse(decryptSecret(row.payload));
   return {id:row.id,userId:row.userId,userEmail:row.userEmail,deviceId:row.deviceId,appVersion:row.appVersion,traceId:row.traceId,stage:row.stage,errorCode:row.errorCode,
-    error:payload.error,model:typeof (payload.request?.forwarded?.model??payload.request?.desktop?.model)==='string'?(payload.request?.forwarded?.model??payload.request?.desktop?.model).slice(0,200):null,requestId:payload.requestId??null,responseId:payload.responseId??null,threadId:payload.threadId??null,
+    error:payload.error,...diagnosticModelNames(payload),requestId:payload.requestId??null,responseId:payload.responseId??null,threadId:payload.threadId??null,
     occurredAt:row.occurredAt,receivedAt:row.createdAt,truncated:Boolean(payload.truncated),payloadBytes:row.payloadBytes};
 }
 export async function registerDiagnostics(app:FastifyInstance){

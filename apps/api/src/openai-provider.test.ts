@@ -45,10 +45,21 @@ describe('OpenAI native Responses adapter',()=>{
     const adapter=new OpenAIProvider('https://api.openai.com/v1','fixture-key',10000);expect(await adapter.listModels()).toEqual(['fixture-native']);expect(fetchMock.mock.calls[0][0]).toBe('https://api.openai.com/v1/models');
     fetchMock.mockImplementation(async()=>new Response('private upstream detail',{status:401}));expect(await adapter.health()).toEqual({ready:false,reason:'PROVIDER_CONNECTION_UNAVAILABLE'});
   });
-  it('administrator capability check invokes two bounded native requests without a tool executor',async()=>{
+  it('administrator capability check invokes bounded native text, tool and image requests without a tool executor',async()=>{
     const tool={...output,output:[{type:'function_call',call_id:'c',name:'bridge_probe',arguments:'{"value":1}'}]};
     const fetchMock=vi.fn(async(_url,init)=>{const body=JSON.parse(init.body);if(!body.stream)return Response.json(output);return new Response(`event: response.created\ndata: ${JSON.stringify({type:'response.created',response:{id:'u',status:'in_progress'}})}\n\nevent: response.completed\ndata: ${JSON.stringify({type:'response.completed',response:tool})}\n\n`);});vi.stubGlobal('fetch',fetchMock);
     const checked=await probeOpenAIResponses(new OpenAIProvider('https://api.openai.com/v1','fixture-key',10000),'fixture-native',false);
-    expect(checked.capabilities).toMatchObject({responsesProfile:'openai',tools:true,streaming:true,reasoning:false,vision:false});expect(fetchMock).toHaveBeenCalledTimes(2);expect(checked.inputTokens).toBe(8);
+    expect(checked.capabilities).toMatchObject({responsesProfile:'openai',tools:true,streaming:true,reasoning:false,vision:false});expect(fetchMock).toHaveBeenCalledTimes(3);expect(checked.inputTokens).toBe(12);
+  });
+  it.each([['red',true],['blue',false],['unsupported',false]])('records vision only after successful synthetic image recognition: %s',async(color,vision)=>{
+    const tool={...output,output:[{type:'function_call',call_id:'c',name:'bridge_probe',arguments:'{"value":1}'}]};
+    vi.stubGlobal('fetch',vi.fn(async(_url,init)=>{
+      const body=JSON.parse(init.body),image=Array.isArray(body.input)&&body.input[0]?.content?.find((p:{type:string})=>p.type==='input_image');
+      if(image){expect(Buffer.from(image.image_url.split(',')[1],'base64').subarray(0,8)).toEqual(Buffer.from([137,80,78,71,13,10,26,10]));if(color==='unsupported')return new Response('',{status:422});return Response.json({...output,output:[{type:'message',id:'m',role:'assistant',content:[{type:'output_text',text:color}]}]});}
+      if(!body.stream)return Response.json(output);
+      return new Response(`event: response.created\ndata: ${JSON.stringify({type:'response.created',response:{id:'u',status:'in_progress'}})}\n\nevent: response.completed\ndata: ${JSON.stringify({type:'response.completed',response:tool})}\n\n`);
+    }));
+    const checked=await probeOpenAIResponses(new OpenAIProvider('https://relay.example/v1','fixture',10000),'fixture-native',false);
+    expect(checked.capabilities).toMatchObject({vision,visionProbe:vision?'passed':'unverified',tools:true,streaming:true});
   });
 });

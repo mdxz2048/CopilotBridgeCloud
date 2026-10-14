@@ -1,0 +1,45 @@
+{
+  "passed": true,
+  "appVersion": "0.3.14",
+  "catalog": [
+    "gpt-6.1-sol",
+    "gpt-5.6-terra",
+    "gpt-5.5",
+    "gpt-5.6-sol",
+    "gpt-6-sol"
+  ],
+  "results": [
+    {
+      "model": "openai/gpt-6-sol",
+      "stream": false,
+      "completed": true,
+      "colorCorrect": true,
+      "inputTokens": 4454,
+      "outputTokens": 5
+    },
+    {
+      "model": "openai/gpt-6-sol",
+      "stream": true,
+      "completed": true,
+      "colorCorrect": true,
+      "inputTokens": 4454,
+      "outputTokens": 5
+    }
+  ],
+  "billing": {
+    "settledRequests": 2,
+    "gptPriceVerified": true,
+    "models": [
+      "openai/gpt-6-sol"
+    ]
+  },
+  "pricing": {
+    "currency": "CNY",
+    "perMillionTokens": {
+      "input": 14,
+      "output": 70,
+      "cachedInput": 0.7
+    },
+    "usdExchangeRate": 7
+  }
+}

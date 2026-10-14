@@ -1,0 +1,41 @@
+{
+  "visionVerified": true,
+  "health": "READY",
+  "capabilities": {
+    "tools": true,
+    "vision": true,
+    "evidence": "openai-native-capability-probe",
+    "reasoning": false,
+    "streaming": true,
+    "visionProbe": "passed",
+    "reasoningModes": [
+      "normal"
+    ],
+    "responsesProfile": "openai",
+    "generationVerified": true,
+    "defaultReasoningMode": "normal"
+  },
+  "reports": [
+    {
+      "id": "94f22a0e-516a-4e29-a8a7-0597240a95db",
+      "model": "openai/gpt-6-sol",
+      "clientModel": "gpt-5.5",
+      "code": "UNSUPPORTED_CAPABILITY",
+      "occurredAt": "2026-10-14T03:03:23.634Z"
+    },
+    {
+      "id": "21002ea7-2ef3-465a-afbb-30b62b38c94b",
+      "model": null,
+      "clientModel": "gpt-6-luna",
+      "code": "CLIENT_UPGRADE_REQUIRED",
+      "occurredAt": "2026-10-14T02:23:12.858Z"
+    },
+    {
+      "id": "b760253f-5aba-4c0d-9cd1-851ec183958c",
+      "model": null,
+      "clientModel": "gpt-5.5",
+      "code": "CLIENT_UPGRADE_REQUIRED",
+      "occurredAt": "2026-10-14T02:23:12.783Z"
+    }
+  ]
+}
