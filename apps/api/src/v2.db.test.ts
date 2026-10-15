@@ -1044,4 +1044,51 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
     expect(await walletModule.walletSummary(randomUUID())).toMatchObject({balance:0,regularBalance:0,rewardBalance:0});
   },30000);
 
+  it('rewards only new invited registrations, atomically grants both expiring rewards and permanent access, and supports pending review',async()=>{
+    const {db,users,plans,referrals,referralRewards,subscriptions}=dbModule;const {eq,and}=await import('drizzle-orm');
+    const {engagementPolicy}=await import('./engagement-policy.js');const {fulfillSignupReward}=await import('./signup-rewards.js');
+    const [host]=await db.insert(users).values({email:`campaign-host-${randomUUID()}@example.test`,passwordHash:'test'}).returning();const code=await referralModule.referralCodeFor(host.id);
+    const app=await(await import('./server.js')).createServer();let ip=40;
+    try{
+      const headers=await testCookieHeaders(dbModule,ids.admin),userHeaders=await testCookieHeaders(dbModule,ids.user);
+      const settings={revision:0,campaign:{enabled:true},notices:[{id:randomUUID(),text:'维护完成，欢迎使用',enabled:false}]};
+      expect((await app.inject({url:'/api/v1/admin/engagement',headers:userHeaders})).statusCode).toBe(403);
+      const save=(value:unknown,h=headers)=>app.inject({method:'PUT',url:'/api/v1/admin/engagement',headers:h,payload:value as object});
+      expect((await save(settings)).statusCode).toBe(400);
+      const [plan]=await db.insert(plans).values({code:'PAYG',name:'Campaign PAYG',monthlyPrice:'0',currency:'CNY',enabled:true,maxDevices:3,monthlyTokenLimit:1000000000,monthlyUsageCreditLimit:'1000000000',maxConcurrentRequests:10,requestsPerMinute:100,monthlyPoints:0,rolloverPolicy:'UNLIMITED'}).onConflictDoUpdate({target:plans.code,set:{enabled:true}}).returning();
+      expect((await save(settings,{...headers,origin:'https://other.invalid'})).statusCode).toBe(403);
+      const saved=await save(settings);expect(saved.statusCode,saved.body).toBe(200);expect((await save(settings)).statusCode).toBe(409);
+      expect((await app.inject({url:'/api/v1/client/config'})).json()).toMatchObject({announcements:[{action:'INVITE'}],inviteCampaign:{referrerRmb:5,referredRmb:5,rewardDays:7,accountNeverExpires:true}});
+      const create=(email:string,referralCode?:string)=>app.inject({method:'POST',url:'/api/v1/auth/register',remoteAddress:`192.0.2.${ip++}`,payload:{email,password:'FixturePassword123!',...(referralCode?{referralCode}:{})}});
+      const email=`campaign-new-${randomUUID()}@example.test`,created=await create(email,code.code);expect(created.statusCode,created.body).toBe(201);const child=created.json().user;
+      expect(await walletModule.walletSummary(host.id)).toMatchObject({balance:50000,rewardBalance:50000,regularBalance:0});expect(await walletModule.walletSummary(child.id)).toMatchObject({balance:50000,rewardBalance:50000,regularBalance:0});
+      const [sub]=await db.select().from(subscriptions).where(eq(subscriptions.userId,child.id));expect(sub.planId).toBe(plan.id);expect(sub.status).toBe('ACTIVE');
+      const initialWallet=await walletModule.walletSummary(child.id);expect(initialWallet.rewardExpiringBalance).toBe(50000);expect(Math.abs(new Date(initialWallet.rewardExpiresAt!).getTime()-sub.startedAt.getTime()-7*86400000)).toBeLessThan(1000);
+      const childHeaders=await testCookieHeaders(dbModule,child.id);await db.update(subscriptions).set({currentPeriodEnd:new Date(Date.now()-86400000)}).where(eq(subscriptions.id,sub.id));
+      const permanent=await app.inject({url:'/api/v1/me',headers:childHeaders});expect(permanent.statusCode,permanent.body).toBe(200);expect(permanent.json().subscription.expiresAt).toBeNull();
+      const {publicKey}=proofKey();const login=await app.inject({method:'POST',url:'/api/v1/auth/login',remoteAddress:`192.0.2.${ip++}`,payload:{email,password:'FixturePassword123!',device:{deviceId:randomUUID(),deviceName:'Permanent access test',platform:'Windows',appVersion:'999.0.0',publicKeyJwk:publicKey.export({format:'jwk'})}}});expect(login.statusCode,login.body).toBe(200);
+      expect(await(await import('./core.js')).currentSubscription(child.id)).not.toBeNull();
+      const [entry]=await db.select().from(referrals).where(eq(referrals.referredUserId,child.id));expect(entry.status).toBe('REWARDED');expect(await db.select().from(referralRewards).where(eq(referralRewards.referralId,entry.id))).toHaveLength(2);
+      await db.transaction(tx=>fulfillSignupReward(tx,entry.id));await db.transaction(tx=>referralModule.qualifyReferralFromPaidOrder(tx,child.id,100));expect((await walletModule.walletSummary(host.id)).balance).toBe(50000);
+      expect((await create(email,code.code)).statusCode).toBe(409);expect((await walletModule.walletSummary(host.id)).balance).toBe(50000);
+      const invalid=`campaign-invalid-${randomUUID()}@example.test`;expect((await create(invalid,'INVALIDCODE')).statusCode).toBe(404);expect(await db.select().from(users).where(eq(users.email,invalid))).toHaveLength(0);
+      const plain=await create(`campaign-plain-${randomUUID()}@example.test`);expect(plain.statusCode).toBe(201);expect((await walletModule.walletSummary(plain.json().user.id)).balance).toBe(0);
+      const [old]=await db.insert(users).values({email:`campaign-old-${randomUUID()}@example.test`,passwordHash:'test'}).returning();await referralModule.registerReferral(old.id,code.code);expect((await walletModule.walletSummary(old.id)).rewardBalance).toBe(0);
+      const rollbackEmail=`campaign-rollback-${randomUUID()}@example.test`;
+      await db.execute(sql.raw("create function fail_campaign_second_reward() returns trigger language plpgsql as $$ begin if new.type='REFERRAL_REWARD' and exists(select 1 from wallets w join users u on u.id=w.user_id where w.id=new.wallet_id and u.email like 'campaign-rollback-%') then raise exception 'TEST_SECOND_REWARD_FAILED'; end if; return new; end $$"));
+      await db.execute(sql.raw('create trigger fail_campaign_second_reward before insert on wallet_transactions for each row execute function fail_campaign_second_reward()'));
+      try{expect((await create(rollbackEmail,code.code)).statusCode).toBe(500);expect(await db.select().from(users).where(eq(users.email,rollbackEmail))).toHaveLength(0);expect((await walletModule.walletSummary(host.id)).balance).toBe(50000);}finally{await db.execute(sql.raw('drop trigger fail_campaign_second_reward on wallet_transactions'));await db.execute(sql.raw('drop function fail_campaign_second_reward()'));}
+      await db.update(users).set({status:'DISABLED'}).where(eq(users.id,host.id));const pending=await create(`campaign-pending-${randomUUID()}@example.test`,code.code);expect(pending.statusCode,pending.body).toBe(201);const pendingId=pending.json().user.id;
+      expect((await walletModule.walletSummary(pendingId)).balance).toBe(0);const [pendingEntry]=await db.select().from(referrals).where(eq(referrals.referredUserId,pendingId));expect(pendingEntry.status).toBe('PENDING');
+      await dbModule.db.insert(dbModule.systemSettings).values({key:'referral_policy',value:{enabled:true,minPaidAmount:0,referrerPoints:100,referredPoints:100}}).onConflictDoUpdate({target:dbModule.systemSettings.key,set:{value:{enabled:true,minPaidAmount:0,referrerPoints:100,referredPoints:100}}});
+      await db.transaction(tx=>referralModule.qualifyReferralFromPaidOrder(tx,pendingId,100));expect((await walletModule.walletSummary(pendingId)).balance).toBe(0);
+      await db.update(users).set({status:'ACTIVE'}).where(eq(users.id,host.id));const review=await app.inject({method:'POST',url:`/api/v1/admin/referrals/${pendingEntry.id}/review`,headers,payload:{decision:'APPROVE',reason:'Verified new invitation registration'}});expect(review.statusCode,review.body).toBe(200);expect(review.json().status).toBe('REWARDED');expect((await walletModule.walletSummary(pendingId)).rewardBalance).toBe(50000);
+      await db.transaction(tx=>walletModule.applyWalletChange(tx,{userId:child.id,points:10000,type:'PURCHASE',referenceType:'TEST',referenceId:child.id,idempotencyKey:`campaign:regular:${child.id}`}));
+      await walletModule.expireDueWalletLots(child.id,new Date(new Date(initialWallet.rewardExpiresAt!).getTime()+1));
+      expect(await walletModule.walletSummary(child.id)).toMatchObject({balance:10000,regularBalance:10000,rewardBalance:0,rewardExpiresAt:null,rewardExpiringBalance:0});expect(await(await import('./core.js')).currentSubscription(child.id)).not.toBeNull();
+      const current=await engagementPolicy();expect((await save({...current,campaign:{...current.campaign,enabled:false}})).statusCode).toBe(200);const off=(await app.inject({url:'/api/v1/client/config'})).json();expect(off.announcements).toEqual([]);expect(off.inviteCampaign).toBeNull();
+      const after=await create(`campaign-off-${randomUUID()}@example.test`,code.code);expect(after.statusCode).toBe(201);expect((await walletModule.walletSummary(after.json().user.id)).rewardBalance).toBe(0);
+    }finally{await app.close();}
+  },30000);
+
 });

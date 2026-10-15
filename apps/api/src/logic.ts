@@ -1,5 +1,6 @@
 export function subscriptionActive(status: string, end: Date, now = new Date()) {
-  return ['ACTIVE', 'TRIAL', 'CANCELED'].includes(status) && end.getTime() > now.getTime();
+  // Active account access does not expire; a canceled service keeps only its remaining period.
+  return ['ACTIVE','TRIAL'].includes(status) || status === 'CANCELED' && end.getTime() > now.getTime();
 }
 export function modelAllowed(enabled: boolean, planAccess: boolean, override?: string) {
   return enabled && (override === 'DENY' ? false : override === 'ALLOW' ? true : planAccess);

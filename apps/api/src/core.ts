@@ -91,6 +91,8 @@ export async function currentDeviceLimit(userId: string, fallback: number) {
 export async function currentSubscription(userId: string) {
   const [subscription] = await db.select().from(subscriptions).where(eq(subscriptions.userId, userId)).orderBy(desc(subscriptions.createdAt)).limit(1);
   if (!subscription || !subscriptionActive(subscription.status, subscription.currentPeriodEnd)) return null;
+  // Period dates remain usage-reporting windows, not an active account's expiration.
+  if(['ACTIVE','TRIAL'].includes(subscription.status)&&subscription.currentPeriodEnd<=new Date()){const beijing=new Date(Date.now()+8*3600000);subscription.currentPeriodStart=new Date(Date.UTC(beijing.getUTCFullYear(),beijing.getUTCMonth(),1)-8*3600000);subscription.currentPeriodEnd=new Date(Date.UTC(beijing.getUTCFullYear(),beijing.getUTCMonth()+1,1)-8*3600000);}
   const [plan] = await db.select().from(plans).where(eq(plans.id, subscription.planId)).limit(1);
   if (!plan) return null;
   plan.maxDevices = await currentDeviceLimit(userId,plan.maxDevices);
@@ -103,7 +105,7 @@ export async function currentSubscription(userId: string) {
 }
 export async function subscriptionError(userId: string): Promise<ApiError> {
   const [latest] = await db.select().from(subscriptions).where(eq(subscriptions.userId, userId)).orderBy(desc(subscriptions.createdAt)).limit(1);
-  return latest && (latest.currentPeriodEnd <= new Date() || latest.status === 'EXPIRED')
+  return latest && !['ACTIVE','TRIAL'].includes(latest.status) && (latest.currentPeriodEnd <= new Date() || latest.status === 'EXPIRED')
     ? new ApiError(403, 'SUBSCRIPTION_EXPIRED') : new ApiError(403, 'SUBSCRIPTION_REQUIRED');
 }
 export async function currentUsage(userId: string, subscription: typeof subscriptions.$inferSelect, plan: typeof plans.$inferSelect) {

@@ -11,6 +11,8 @@ type Overview = {
   balance: number;
   regularBalance?:number;
   rewardBalance?:number;
+  rewardExpiresAt?:string|null;
+  rewardExpiringBalance?:number;
   referral: { code: string; registered: number };
 };
 
@@ -31,10 +33,10 @@ export default function Dashboard() {
       if (user.role === 'ADMIN') { router.replace('/admin'); return; }
       const [account, wallet, referral] = await Promise.all([
         api<Account>('/api/v1/account', { signal }),
-        api<{ balance: number;regularBalance?:number;rewardBalance?:number }>('/api/v1/me/wallet', { signal }),
+        api<{ balance: number;regularBalance?:number;rewardBalance?:number;rewardExpiresAt?:string|null;rewardExpiringBalance?:number }>('/api/v1/me/wallet', { signal }),
         api<{ code: string; registered: number }>('/api/v1/referral/stats', { signal }),
       ]);
-      if (!signal?.aborted) setOverview({ account, balance: wallet.balance, regularBalance:wallet.regularBalance, rewardBalance:wallet.rewardBalance,referral });
+      if (!signal?.aborted) setOverview({ account, balance: wallet.balance, regularBalance:wallet.regularBalance, rewardBalance:wallet.rewardBalance,rewardExpiresAt:wallet.rewardExpiresAt,rewardExpiringBalance:wallet.rewardExpiringBalance,referral });
     } catch (reason) {
       if (signal?.aborted) return;
       const authError = reason as { status?: number; code?: string };
@@ -84,7 +86,7 @@ export default function Dashboard() {
 
   if (loading && !overview) return <div className="auth-wrap" role="status">正在读取账号状态…</div>;
   if (!overview) return <div className="auth-wrap"><div className="auth-card"><h1>暂时无法加载</h1><p role="alert">{error}</p><button className="button" onClick={() => void load()}>重试</button></div></div>;
-  const { account, balance,regularBalance,rewardBalance,referral } = overview;
+  const { account, balance,regularBalance,rewardBalance,rewardExpiresAt,rewardExpiringBalance,referral } = overview;
   const activeDevices = account.devices.filter(device => device.status === 'ACTIVE');
   return <AppShell title="我的账号" description="这里只显示你自己的账号和设备信息。" items={items} active="overview" onChange={() => {}} email={account.user.email}>
     {error && <p className="error-text" role="alert">{error} <button className="mini-button" onClick={() => void load()}>重试</button></p>}
@@ -92,11 +94,11 @@ export default function Dashboard() {
     <div className="stat-grid">
       <div className="stat"><span className="stat-label">账号状态</span><strong>{account.user.status === 'ACTIVE' ? account.subscription ? '已开通' : '待开通' : '不可用'}</strong><small>{account.user.email}</small></div>
       <div className="stat"><span className="stat-label">已邀请人数</span><strong>{referral.registered}</strong><small>注册不代表奖励已入账</small></div>
-      <div className="stat"><span className="stat-label">人民币余额</span><strong>¥{(balance/10000).toFixed(4)}</strong><small>{regularBalance!=null&&rewardBalance!=null?`正常余额 ¥${(regularBalance/10000).toFixed(4)} · 奖励余额 ¥${(rewardBalance/10000).toFixed(4)}`:"以服务端钱包为准，调用后自动结算"}</small></div>
+      <div className="stat"><span className="stat-label">人民币余额</span><strong>¥{(balance/10000).toFixed(4)}</strong><small>{regularBalance!=null&&rewardBalance!=null?`正常余额 ¥${(regularBalance/10000).toFixed(4)} · 奖励余额 ¥${(rewardBalance/10000).toFixed(4)}`:"以服务端钱包为准，调用后自动结算"}</small>{rewardExpiresAt&&<small>其中 ¥{((rewardExpiringBalance??0)/10000).toFixed(4)} 奖励于 {new Date(rewardExpiresAt).toLocaleString("zh-CN")} 到期</small>}</div>
       <div className="stat"><span className="stat-label">已绑定设备</span><strong>{activeDevices.length}</strong><small>{account.plan ? `当前上限 ${account.plan.maxDevices} 台` : '待开通后可绑定'}</small></div>
     </div>
     <section className="panel"><h2>下载客户端</h2><p>在 Windows 客户端登录后，已绑定设备会显示在这里。尚未发布安装包时，下载页会明确提示。</p><Link className="button button-small" href="/download">前往下载页面</Link></section>
-    <section className="panel"><h2>我的邀请</h2><p>邀请码：<code>{referral.code}</code>。只有符合规则的邀请才可能获得点数；目前没有在线支付或自动奖励承诺。</p><Link className="mini-button" href={`/register?ref=${encodeURIComponent(referral.code)}`}>打开邀请注册链接</Link></section>
+    <section className="panel"><h2>我的邀请</h2><p>邀请码：<code>{referral.code}</code>。活动及奖励以邀请注册页面的当前规则为准；正常余额与已到账奖励余额均可用于模型消费。</p><Link className="mini-button" href={`/register?ref=${encodeURIComponent(referral.code)}`}>打开邀请注册链接</Link></section>
     <section className="panel"><h2>我的设备</h2>{account.devices.length ? <div className="table-wrap"><table className="data-table"><thead><tr><th>设备</th><th>状态</th><th>上次活动</th><th>操作</th></tr></thead><tbody>{account.devices.map(device => <tr key={device.id}><td>{device.deviceName}</td><td>{device.status}</td><td>{device.lastSeenAt ? new Date(device.lastSeenAt).toLocaleString('zh-CN') : '—'}</td><td>{device.status === 'ACTIVE' && <button className="mini-button danger" onClick={() => void revoke(device)}>停用</button>}</td></tr>)}</tbody></table></div> : <p>还没有绑定设备。</p>}</section>
   </AppShell>;
 }

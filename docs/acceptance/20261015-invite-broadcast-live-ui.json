@@ -1,0 +1,9 @@
+{
+  "passed": true,
+  "actualProduction": true,
+  "adminActivity": true,
+  "registrationCurrentRules": true,
+  "rewardDays7": true,
+  "no30DayTrial": true,
+  "noPageErrors": true
+}

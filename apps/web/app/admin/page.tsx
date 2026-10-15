@@ -1,4 +1,5 @@
 'use client';
+import {EngagementManager} from "../../components/engagement-manager";
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppShell, type NavItem } from '../../components/app-shell';
@@ -20,6 +21,7 @@ const items: NavItem[] = [
   {id:'money-plans',label:'套餐与计费',icon:'Boxes'},
   {id:'v2-rates',label:'模型售价',icon:'Boxes'},
 
+  {id:'engagement',label:'活动与通知',icon:'BadgeCheck'},
   {id:'failures',label:'失败反馈',icon:'Activity'},
   {id:'audit',label:'操作记录',icon:'ScrollText'},
 ];
@@ -71,7 +73,7 @@ export default function AdminPage() {
       if (version !== loadVersion.current) return false;
       if (me.user.role !== 'ADMIN') { router.replace('/dashboard'); return false; }
       setEmail(me.user.email);
-      if (active.startsWith('v2-') || active === 'website-settings' || active === 'money-plans' || active === 'failures') return true;
+      if (active === 'engagement' || active.startsWith('v2-') || active === 'website-settings' || active === 'money-plans' || active === 'failures') return true;
       if (active === 'dashboard') {
         const result = await api<Record<string, number>>('/api/v1/admin/dashboard');
         if (version !== loadVersion.current) return false;
@@ -143,6 +145,7 @@ export default function AdminPage() {
     {active === 'money-plans' && <MoneyPlanManager/>}
     {!loading && active === 'failures' && <FailureFeedback/>}
     {active === 'models' && <><DeepSeekConnectionCard onReady={() => void load()}/><ModelInstanceManager refreshKey={providers.map(p=>`${p.id}:${p.enabled}`).join(',')+models.map(m=>m.id).join(',')}/></> }
+    {!loading && active === 'engagement' && <><EngagementManager/><V2AdminPanel section="v2-referrals"/></>}
     {!loading && active === 'website-settings' && <WebsiteSettings/>}
     {!loading && active.startsWith('v2-') && <V2AdminPanel section={active as 'v2-wallets' | 'v2-rates' | 'v2-referrals' | 'v2-costs'}/>}
     {!loading && active === 'dashboard' && <AdminInsights totals={dashboard}/>}

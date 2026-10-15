@@ -1,0 +1,35 @@
+{
+  "passed": true,
+  "cloudLive": true,
+  "appUploaded": false,
+  "releaseVersion": "0.3.16",
+  "campaign": {
+    "id": "invite-welcome-5",
+    "referrerRmb": 5,
+    "referredRmb": 5,
+    "rewardDays": 7,
+    "accountNeverExpires": true,
+    "rules": "活动期间通过邀请注册的新账号，双方各得 ¥5 奖励余额。账号长期有效；双方奖励自到账起 7 天有效，正常余额不受本活动到期规则影响。异常邀请需核对。"
+  },
+  "awards": {
+    "automatic": true,
+    "bothRewards5": true,
+    "rewardDays7": true,
+    "rows": 2
+  },
+  "newDeviceLoginAfterOldPeriodEnd": true,
+  "permanentAccess": true,
+  "deepseekGeneration": true,
+  "rewardDebited": true,
+  "models": [
+    "deepseek/deepseek-flash",
+    "openai/gpt-6-sol"
+  ],
+  "testAccountsCleaned": true,
+  "health": {
+    "status": "ok",
+    "version": "0.1.0"
+  },
+  "serverHash": "4038ab902c175a6b4f9a422066a9d20daac689ddfb558840e1da79677bccde92",
+  "engagementRevision": 1
+}

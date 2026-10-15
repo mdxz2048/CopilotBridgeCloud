@@ -1,3 +1,4 @@
+import {registerEngagementAdmin} from './engagement-admin.js';
 import Fastify from 'fastify';
 import { registerMoneyAdmin } from './money-policy.js';
 import {registerModelPricingAdmin} from './model-pricing-admin.js';
@@ -49,6 +50,7 @@ export async function createServer() {
   await registerRoutes(app);
   await registerAdmin(app);
   registerMoneyAdmin(app);
+  registerEngagementAdmin(app);
   await registerModelPricingAdmin(app);
   registerReleaseFiles(app);
   registerSiteVisits(app);

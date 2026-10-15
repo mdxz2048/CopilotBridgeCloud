@@ -1,6 +1,7 @@
+import {fulfillSignupReward} from './signup-rewards.js';
 import type { FastifyInstance } from 'fastify';
 import { aiRequests, auditLogs, billingOrders, db, devices, models, modelInstances, providers, rateCards, rateCardVersions, referralRewards, referrals, systemSettings, usageEvents, users, walletTransactions, wallets } from '@bridge/db';
-import { and, desc, eq, gte, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { admin, ApiError } from './core.js';
 import { applyWalletChange } from './wallet.js';
@@ -124,7 +125,7 @@ export async function registerV2Admin(app: FastifyInstance) {
     });
   });
   app.get('/api/v1/admin/referrals', async req => {
-    await admin(req); return { data: await db.select().from(referrals).orderBy(desc(referrals.registeredAt)).limit(200) };
+    await admin(req);const rows=await db.select().from(referrals).orderBy(desc(referrals.registeredAt)).limit(200);const ids=[...new Set(rows.flatMap(row=>[row.referrerUserId,row.referredUserId]))];const people=ids.length?await db.select({id:users.id,email:users.email}).from(users).where(inArray(users.id,ids)):[];return {data:rows.map(row=>({...row,referrerEmail:people.find(u=>u.id===row.referrerUserId)?.email,referredEmail:people.find(u=>u.id===row.referredUserId)?.email}))};
   });
   app.get('/api/v1/admin/referral-policy', async req => {
     await admin(req);
@@ -147,6 +148,7 @@ export async function registerV2Admin(app: FastifyInstance) {
       if (!referral || !['PENDING', 'REGISTERED'].includes(referral.status)) throw new ApiError(409, 'REFERRAL_NOT_REVIEWABLE');
       await tx.update(referrals).set({ status: decision === 'REJECT' ? 'REJECTED' : 'REGISTERED', riskFlags: decision === 'APPROVE' ? [] : referral.riskFlags }).where(eq(referrals.id, id));
       if (decision === 'APPROVE') {
+        await fulfillSignupReward(tx,id);
         const [paid] = await tx.select().from(billingOrders).where(and(eq(billingOrders.userId, referral.referredUserId), eq(billingOrders.status, 'PAID'))).orderBy(desc(billingOrders.paidAt)).limit(1);
         if (paid) await qualifyReferralFromPaidOrder(tx, referral.referredUserId, Number(paid.amount));
       }

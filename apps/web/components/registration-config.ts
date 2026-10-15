@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 
 export type RegistrationConfig = {
+  inviteCampaign?:{id:string;referrerRmb:number;referredRmb:number;rewardDays:number;accountNeverExpires:boolean;rules:string}|null;
   verificationRequired: boolean;
   registrationAvailable: boolean;
   turnstileSiteKey: string | null;

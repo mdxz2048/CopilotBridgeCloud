@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import { FailureDiagnosticSchema,PlanSchema, ResponseRequestSchema, ResponseSchema, SubscriptionSchema, UserSchema } from './schemas.js';
 import {
-  AccountSummaryV2Schema, BillingModeV2Schema, DeviceCredentialV2Schema, DeviceV2Schema, ErrorResponseV2Schema,
+  ClientConfigV2Schema,AccountSummaryV2Schema, BillingModeV2Schema, DeviceCredentialV2Schema, DeviceV2Schema, ErrorResponseV2Schema,
   ModelV2Schema, ProviderConnectionV2Schema, ProviderV2Schema, ReferralRecordV2Schema, ReferralSummaryV2Schema,
   DeviceInfoV23Schema, RegisterRequestV2Schema, RegisterRequestV24Schema, RegistrationConfigV24Schema, RequestEmailCodeV24Schema,
   WebLoginRequestV24Schema, SubscriptionSummaryV2Schema, UsageRecordV2Schema, UsageSummaryV2Schema, WalletSummaryV2Schema,
@@ -67,6 +67,7 @@ for (const [name, schema] of Object.entries({ AccountSummary: AccountSummaryV2Sc
 }
 registry.registerComponent('securitySchemes', 'DesktopBearer', { type: 'http', scheme: 'bearer', bearerFormat: 'JWT', description: 'Desktop bearer requests also require a DPoP compact ES256 JWT bound to the installation public P-256 JWK. Browser cookies remain exempt.' });
 
+route('get','/api/v1/client/config',ClientConfigV2Schema,undefined,200,false);
 route('get', '/api/v1/auth/registration-config', RegistrationConfigV24Schema, undefined, 200, false);
 route('post', '/api/v1/auth/email-code', z.object({ accepted: z.literal(true) }), RequestEmailCodeV24Schema, 202, false);
 route('post', '/api/v1/auth/register', z.object({ user: UserSchema }),
@@ -142,6 +143,9 @@ route('patch','/api/v1/admin/model-instances/{id}',adminResponse,z.object({enabl
 route('post','/api/v1/admin/model-instances/{id}/check',adminResponse);
 route('post','/api/v1/admin/providers',adminResponse,z.object({name:z.string().trim().min(1).max(120),kind:z.enum(['DEEPSEEK','OPENAI']).default('DEEPSEEK')}),201);
 route('post','/api/v1/admin/providers/{id}/connect-openai',adminResponse,z.object({apiKey:z.string().trim().min(10).max(512),modelId:z.string().trim().min(1).max(120),reasoning:z.boolean().default(false)}));
+
+route('get','/api/v1/admin/engagement',adminResponse);
+route('put','/api/v1/admin/engagement',adminResponse,generic);
 
 export function buildOpenApiV2(): Record<string, unknown> {
   const base = JSON.parse(readFileSync(new URL('../../../docs/protocol/openapi.v1.json', import.meta.url), 'utf8')) as Record<string, any>;

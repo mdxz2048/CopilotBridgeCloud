@@ -109,9 +109,9 @@ The V1 production provider catalog exposes only the managed `Copilot Bridge Clou
 | `GET /api/v1/referral` | None | `ReferralSummary` | Stable alias of `/api/v1/referral/stats` |
 | `GET /api/v1/referral/history` | None | `{data: [{id,status,registeredAt,qualifiedAt}]}` | No referred user's email disclosed |
 
-Status: `REGISTERED → PENDING` if flagged, then Admin review; a paid order meeting the configured threshold can move it to `QUALIFIED → REWARDED`; Admin may set `REJECTED`. Registration never awards points. A user can apply one code, before a subscription exists. The server stores an HMAC of the registration IP, not the raw address in the referral row.
+Status: `REGISTERED → PENDING` if flagged, then Admin review; a paid order meeting the configured threshold can move it to `QUALIFIED → REWARDED`; Admin may set `REJECTED`. By default registration does not award points; the separately enabled invite-signup campaign credits both parties and a new-account trial atomically. A user can apply one code, before a subscription exists. The server stores an HMAC of the registration IP, not the raw address in the referral row.
 
-New accounts may provide `referralCode` in the registration request; the web form accepts manual entry or prefills it from `/register?ref=...`. Code validation, user creation, referral creation and the registration audit row commit in one database transaction. An invalid code rejects the registration. No points are granted at registration; qualification and reward still require the paid-order policy. The `/referral/apply` route remains for accounts registered without a code. The test-only QR on the website links to the same site's `/pricing` information page: it never initiates a payment, creates or marks an order paid, activates a subscription, or qualifies a referral. Test subscriptions require separate Admin action after verification; no live payment channel is offered.
+New accounts may provide `referralCode` in the registration request; the web form accepts manual entry or prefills it from `/register?ref=...`. Code validation, user creation, referral creation and the registration audit row commit in one database transaction. An invalid code rejects the registration. When the invite-signup campaign is enabled, an eligible new invited registration credits each party RMB 5 in reward balance and grants the new account 30 days of PAYG service. Risk-flagged referrals remain pending for administrator review. The legacy paid-order policy remains separate and cannot pay a rewarded signup twice. The `/referral/apply` route remains for accounts registered without a code. The test-only QR on the website links to the same site's `/pricing` information page: it never initiates a payment, creates or marks an order paid, activates a subscription, or qualifies a referral. Test subscriptions require separate Admin action after verification; no live payment channel is offered.
 
 `ReferralRecord` is the exact item shape in `/history`.
 
@@ -146,3 +146,11 @@ The shared V1 authentication middleware currently emits `UNAUTHORIZED` for a mis
 ### 2026-10-15 钱包余额拆分（兼容新增字段）
 
 WalletSummary 增加可选整数 `regularBalance`、`rewardBalance`，单位仍为万分之一人民币。balance = regularBalance + rewardBalance；奖励余额为邀请奖励批次中尚未消费、未过期的余额，其余充值、管理员增加、套餐额度归正常余额。总余额继续用于消费与余额不足判断，扣款顺序沿用最早到期优先、其次创建时间；不重复赠送、不重算账单。旧服务缺字段时客户端不假定奖励为零。
+
+### 2026-10-15 活动与轻量广播
+
+管理员 GET/PUT `/api/v1/admin/engagement` 读取/保存 `{revision,campaign:{enabled},notices:[{id,text,enabled}]}`。保存受同源、管理员鉴权和事务版本校验保护；邀请码活动固定双方各50000点（人民币5元），双方奖励自到账起7天有效，账号和按量使用资格长期有效。启用要求PAYG套餐可用。通知为纯文本，最多10条、每条160字符，不能提供跳转URL。
+
+`/api/v1/client/config` 和 `/api/v1/auth/registration-config` 兼容新增 `inviteCampaign` 与 `announcements`。无有效活动/通知时返回空列表；客户端不渲染额外区域。App广告低优先级、10秒轮播，悬停/焦点/隐藏/减弱动态时暂停，维护/强制更新/安装/切换/异常时隐藏，不自动弹窗或发送邀请。邀请文案生成时重新读取活动配置。
+
+仅新账号注册事务能创建本次活动资格快照，老账号补绑、管理员创建、无邀请码或活动关闭后的注册均不发注册奖励。不补发历史邀请；已产生的待核对资格和已到账奖励不因活动关闭消失。正常注册双方7天奖励、长期有效的新用户按量资格和注册记录一起提交；一方奖励失败则整笔回滚。异常待核对通过既有管理员审核入口兑现当时快照，使用统一referral幂等键，付款奖励不能重复发放。奖励按到账时间逐笔设置7天到期，优先消费最先到期的余额，过期仅清理该笔剩余奖励；充值余额不受活动有效期影响。钱包返回rewardExpiresAt和rewardExpiringBalance提示最近一批奖励到期。ACTIVE/TRIAL资格不受currentPeriodEnd限制（仅为用量统计周期），V2订阅expiresAt:null表示长期有效；锁定、取消/停用资格和余额不足仍按原规则阻止调用。

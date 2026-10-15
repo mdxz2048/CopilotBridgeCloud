@@ -1,3 +1,6 @@
+import {subscriptionActive} from './logic.js';
+import {engagementPolicy,publicEngagement} from './engagement-policy.js';
+import {enrollSignupReward} from './signup-rewards.js';
 import type { FastifyInstance } from 'fastify';
 import { latestWindowsRelease } from './latest-release.js';
 import { db, auditLogs, billingOrders, devices, models, plans, refreshTokens, releases, subscriptions, usageRecords, users, webSessions } from '@bridge/db';
@@ -37,7 +40,7 @@ async function registerDevice(userId: string, info: z.infer<typeof deviceSchema>
     }
     const [sub] = await tx.select().from(subscriptions).where(eq(subscriptions.userId, userId)).orderBy(desc(subscriptions.createdAt)).limit(1);
     if (!sub) throw new ApiError(403, 'SUBSCRIPTION_REQUIRED');
-    if (sub.currentPeriodEnd <= new Date() || sub.status === 'EXPIRED') throw new ApiError(403, 'SUBSCRIPTION_EXPIRED');
+    if (!subscriptionActive(sub.status,sub.currentPeriodEnd) && (sub.currentPeriodEnd<=new Date()||sub.status==='EXPIRED')) throw new ApiError(403, 'SUBSCRIPTION_EXPIRED');
     if (!['ACTIVE', 'TRIAL', 'CANCELED'].includes(sub.status)) throw new ApiError(403, 'SUBSCRIPTION_REQUIRED');
     const [plan] = await tx.select().from(plans).where(eq(plans.id, sub.planId)).limit(1);
     const [{ count }] = await tx.select({ count: sql<number>`count(*)` }).from(devices).where(and(eq(devices.userId, userId), eq(devices.status, 'ACTIVE')));
@@ -61,7 +64,7 @@ function publicV1Device(device: typeof devices.$inferSelect) { return { ...devic
 
 export async function registerRoutes(app: FastifyInstance) {
   app.get('/health', async () => ({ status: 'ok', version: '0.1.0' }));
-  app.get('/api/v1/auth/registration-config', async () => registrationConfig());
+  app.get('/api/v1/auth/registration-config', async () => ({...await registrationConfig(),...publicEngagement(await engagementPolicy())}));
   app.post('/api/v1/auth/email-code', { config: { rateLimit: { max: 8, timeWindow: '1 hour' } } }, async (req, reply) => {
     if (config.STAGED_EMAIL_REGISTRATION_ENABLED !== 'true') throw new ApiError(404, 'FEATURE_DISABLED');
     if (req.headers.origin !== config.PUBLIC_BASE_URL) throw new ApiError(403, 'CSRF_REJECTED');
@@ -80,7 +83,7 @@ export async function registerRoutes(app: FastifyInstance) {
       if (data.referralCode) await validateReferralCode(tx, data.referralCode);
       const [created] = await tx.insert(users).values({ email: data.email.toLowerCase(), passwordHash }).onConflictDoNothing().returning();
       if (!created) throw new ApiError(409, 'EMAIL_IN_USE');
-      if (data.referralCode) await registerReferralInTransaction(tx, created.id, data.referralCode, undefined, req.ip);
+      if (data.referralCode) {const referral=await registerReferralInTransaction(tx, created.id, data.referralCode, undefined, req.ip);await enrollSignupReward(tx,referral);}
       await tx.insert(auditLogs).values({ actorId: created.id, action: 'USER_REGISTERED', targetType: 'USER', targetId: created.id });
       return created;
     });
@@ -192,7 +195,7 @@ export async function registerRoutes(app: FastifyInstance) {
   async function latestRelease() {
     return latestWindowsRelease(await db.select().from(releases).where(and(eq(releases.published, true), eq(releases.channel, 'stable'), eq(releases.platform, 'windows'), eq(releases.arch, 'x64'))));
   }
-  app.get('/api/v1/client/config', async () => {const version=(await latestRelease())?.version??'0.1.0';return { minimumVersion: version, latestVersion:version, maintenance:false, features:{cloudGateway:true} };});
+  app.get('/api/v1/client/config', async () => {const version=(await latestRelease())?.version??'0.1.0';return { minimumVersion: version, latestVersion:version, maintenance:false, features:{cloudGateway:true},...publicEngagement(await engagementPolicy()) };});
   app.get('/api/v1/releases', async () => ({ data: await db.select().from(releases).where(eq(releases.published, true)).orderBy(desc(releases.createdAt)) }));
   app.get('/api/v1/releases/download', async (_req, reply) => {
     const release=await latestRelease();

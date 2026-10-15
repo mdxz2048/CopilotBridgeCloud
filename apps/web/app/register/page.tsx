@@ -79,7 +79,7 @@ export default function Register() {
   if (checkingAuth) return <><SiteHeader/><main className="auth-wrap"><p role="status">正在检查登录状态…</p></main></>;
   return <><SiteHeader/><main className="auth-wrap"><form className="auth-card" onSubmit={submit}>
     <span className="eyebrow">GET STARTED</span><h1>创建你的账号</h1>
-    <p>仅需邮箱和密码创建账号；邮箱用于登录与账号安全通知，不对其他用户公开。请保护邮箱和密码，不要将邮件验证码告诉任何人。{staged ? '注册时会发送验证码确认邮箱。' : !loading && !unavailable ? '当前未启用邮箱验证码，注册不代表邮箱已核验。' : ''}待管理员手工开通后才能绑定 Desktop 设备。</p>
+    <p>仅需邮箱和密码创建账号；邮箱用于登录与账号安全通知，不对其他用户公开。请保护邮箱和密码，不要将邮件验证码告诉任何人。{staged ? '注册时会发送验证码确认邮箱。' : !loading && !unavailable ? '当前未启用邮箱验证码，注册不代表邮箱已核验。' : ''}符合邀请活动的新账号会自动开通长期有效的按量使用资格，其他账号由管理员开通。</p>
     {identityError && <p className="auth-unavailable" role="alert">暂时无法确认登录状态；你仍可尝试注册，或稍后刷新重试。</p>}
     {loading ? <p role="status">正在检查注册方式…</p> : unavailable ? <p className="auth-unavailable" role="alert">注册验证暂不可用：邮件或人机验证可能尚未完成配置，或服务暂时无法连接。请稍后重试或联系管理员；不会跳过验证直接注册。</p> : <>
       {staged && <div className="auth-step" aria-live="polite">{sent ? '第 2 步：输入邮箱验证码并创建账号' : '第 1 步：验证邮箱'}</div>}
@@ -87,7 +87,7 @@ export default function Register() {
       {sent && <button type="button" className="mini-button" onClick={() => { setSent(false); setEmailCode(''); setRetryAt(0); setSeconds(0); setToken(''); setWidgetKey(key => key + 1); setError(''); setNotice(''); }}>更换邮箱</button>}
       <div className="field"><label htmlFor="password">密码（至少 12 位）</label><input id="password" type="password" autoComplete="new-password" minLength={12} maxLength={256} required value={password} onChange={e => { setPassword(e.target.value); setError(''); }}/></div>
       <div className="field"><label htmlFor="referralCode">邀请码（可选）</label><input id="referralCode" value={referralCode} onChange={e => { setReferralCode(e.target.value); setError(''); }} minLength={8} maxLength={24} autoComplete="off" placeholder="可由分享链接预填，也可手动输入"/></div>
-      <p className="auth-note">邀请码在注册时绑定；注册不赠送点数。仅在符合已核实的付款资格、奖励规则和风控审核后才可能入账；测试占位二维码不会触发奖励。</p>
+      <p className="auth-note">{capabilities?.inviteCampaign?capabilities.inviteCampaign.rules:'邀请码在注册时绑定。当前没有邀请注册奖励活动；其他奖励按平台规则执行。'}</p>
       {staged && sent && <div className="field"><label htmlFor="emailCode">邮箱验证码</label><input id="emailCode" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required value={emailCode} onChange={e => { setEmailCode(e.target.value); setError(''); }} placeholder="6 位验证码"/><span className="auth-note">验证码 10 分钟内有效。若未收到邮件，请检查垃圾邮件文件夹。</span></div>}
       {staged && <><Turnstile key={widgetKey} siteKey={capabilities!.turnstileSiteKey!} action="registration_email_code" onToken={setToken} resetKey={widgetKey}/>{sent && <div className="auth-resend"><button type="button" className="mini-button" disabled={busy || seconds > 0} onClick={sendCode}>重新发送验证码</button>{seconds > 0 && <span role="status">{seconds} 秒后可重发</span>}</div>}</>}
       {notice && <div className="auth-note" role="status">{notice}</div>}

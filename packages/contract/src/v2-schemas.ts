@@ -18,7 +18,11 @@ export const DeviceInfoV23Schema = z.object({
 export const RegisterRequestV2Schema = z.object({
   email: z.email(), password: z.string().min(12).max(256), referralCode: z.string().trim().min(8).max(24).optional(),
 });
+export const InviteCampaignSchema=z.object({id:z.string(),referrerRmb:z.literal(5),referredRmb:z.literal(5),rewardDays:z.literal(7),accountNeverExpires:z.literal(true),rules:z.string()});
+export const AnnouncementSchema=z.object({id:z.string().min(1).max(80),text:z.string().min(1).max(160),action:z.enum(['INVITE','NONE'])});
+export const ClientConfigV2Schema=z.object({minimumVersion:z.string(),latestVersion:z.string(),maintenance:z.boolean(),features:z.object({cloudGateway:z.boolean()}),inviteCampaign:InviteCampaignSchema.nullable().optional(),announcements:z.array(AnnouncementSchema).max(11).optional()});
 export const RegistrationConfigV24Schema = z.object({
+  inviteCampaign:InviteCampaignSchema.nullable().optional(),announcements:z.array(AnnouncementSchema).max(11).optional(),
   verificationRequired: z.boolean(), turnstileSiteKey: z.string().nullable(), registrationAvailable: z.boolean(),
   configurationStatus: z.enum(['DISABLED', 'READY', 'MISSING_CONFIG']),
 });
@@ -33,11 +37,11 @@ export const WebLoginRequestV24Schema = z.object({
 export const AccountSummaryV2Schema = z.object({ id, email: z.email(), status: z.enum(['ACTIVE', 'DISABLED', 'EXPIRED']) });
 export const SubscriptionSummaryV2Schema = z.object({
   id, status: z.enum(['TRIAL', 'ACTIVE', 'PAST_DUE', 'CANCELED', 'EXPIRED', 'SUSPENDED']),
-  planCode: z.string(), periodStart: instant, periodEnd: instant,
+  planCode: z.string(), periodStart: instant, periodEnd: instant, expiresAt:instant.nullable().optional(),
   monthlyPoints: z.number().int().nonnegative(), maxDevices: z.number().int().nonnegative(),
   rolloverPolicy: z.enum(['NONE', 'UNLIMITED']),
 }).nullable();
-export const WalletSummaryV2Schema = z.object({ balance: z.number().int().nonnegative(), regularBalance:z.number().int().nonnegative().optional(), rewardBalance:z.number().int().nonnegative().optional(), unit: z.literal('AI_POINT') });
+export const WalletSummaryV2Schema = z.object({ balance: z.number().int().nonnegative(), regularBalance:z.number().int().nonnegative().optional(), rewardBalance:z.number().int().nonnegative().optional(), rewardExpiresAt:instant.nullable().optional(),rewardExpiringBalance:z.number().int().nonnegative().optional(), unit: z.literal('AI_POINT') });
 export const DeviceV2Schema = z.object({
   id, userId: id, deviceId: id, deviceName: z.string(), platform: z.string(), osVersion: z.string(), appVersion: z.string(),
   status: z.enum(['ACTIVE', 'REVOKED', 'BLOCKED']), activatedAt: instant, lastSeenAt: instant.nullable(), updatedAt: instant,

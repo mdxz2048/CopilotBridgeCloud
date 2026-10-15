@@ -1,5 +1,5 @@
 import { db, plans, subscriptions, walletLots, walletLotSpends, walletTransactions, wallets } from '@bridge/db';
-import { and, asc, eq, gt, lte, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, isNotNull, lte, sql } from 'drizzle-orm';
 import { ApiError } from './core.js';
 
 export type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -41,7 +41,7 @@ export async function expireDueWalletLotsForAll(batchSize = 200, at = new Date()
 export async function walletSummary(userId: string) {
   return db.transaction(async tx => {
     const [wallet]=await tx.select().from(wallets).where(eq(wallets.userId,userId)).for('update').limit(1);
-    if(!wallet)return {balance:0,regularBalance:0,rewardBalance:0,unit:'AI_POINT' as const};
+    if(!wallet)return {balance:0,regularBalance:0,rewardBalance:0,rewardExpiresAt:null,rewardExpiringBalance:0,unit:'AI_POINT' as const};
     const balance=await expireLocked(tx,wallet,new Date());
     const [parts]=await tx.select({
       regular:sql<number>`coalesce(sum(${walletLots.remainingPoints}) filter(where ${walletTransactions.type} <> 'REFERRAL_REWARD'),0)`,
@@ -49,7 +49,8 @@ export async function walletSummary(userId: string) {
     }).from(walletLots).innerJoin(walletTransactions,eq(walletTransactions.id,walletLots.sourceTransactionId)).where(eq(walletLots.walletId,wallet.id));
     const regularBalance=Number(parts.regular),rewardBalance=Number(parts.reward);
     if(regularBalance+rewardBalance!==balance)throw new ApiError(500,'WALLET_LEDGER_MISMATCH');
-    return {balance,regularBalance,rewardBalance,unit:'AI_POINT' as const};
+    const [expiry]=await tx.select({expiresAt:walletLots.expiresAt,points:sql<number>`sum(${walletLots.remainingPoints})`}).from(walletLots).innerJoin(walletTransactions,eq(walletTransactions.id,walletLots.sourceTransactionId)).where(and(eq(walletLots.walletId,wallet.id),eq(walletTransactions.type,'REFERRAL_REWARD'),gt(walletLots.remainingPoints,0),isNotNull(walletLots.expiresAt))).groupBy(walletLots.expiresAt).orderBy(asc(walletLots.expiresAt)).limit(1);
+    return {balance,regularBalance,rewardBalance,rewardExpiresAt:expiry?.expiresAt?.toISOString()??null,rewardExpiringBalance:Number(expiry?.points??0),unit:'AI_POINT' as const};
   });
 }
 

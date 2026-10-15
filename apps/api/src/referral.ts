@@ -66,6 +66,9 @@ export async function referralPolicy(tx: DbTransaction): Promise<ReferralPolicy 
 export async function qualifyReferralFromPaidOrder(tx: DbTransaction, userId: string, amount: number) {
   const [referral] = await tx.select().from(referrals).where(eq(referrals.referredUserId, userId)).for('update').limit(1);
   if (!referral || referral.status === 'REJECTED' || referral.status === 'REWARDED' || referral.riskFlags.length) return null;
+  // Signup campaigns settle only through their captured policy and review flow.
+  const [signup] = await tx.select({key:systemSettings.key}).from(systemSettings).where(eq(systemSettings.key, `signup_invite:${referral.id}`)).limit(1);
+  if (signup) return null;
   const policy = await referralPolicy(tx);
   if (!policy?.enabled || amount < policy.minPaidAmount) return null;
   await tx.update(referrals).set({ status: 'QUALIFIED', qualifiedAt: new Date() }).where(eq(referrals.id, referral.id));

@@ -13,9 +13,11 @@ describe('domain rules', () => {
     expect(integrationMockAllowed('MOCK', 'production-integration@example.test', true, 'production-integration@example.test')).toBe(true);
     expect(integrationMockAllowed('DEEPSEEK', 'other@example.test', false)).toBe(true);
   });
-  it('uses subscription anniversary and expiration', () => {
+  it('keeps active accounts valid while honoring explicit canceled service expiration', () => {
     expect(nextPeriod(new Date('2026-01-31T00:00:00Z')).toISOString()).toBe('2026-02-28T00:00:00.000Z');
-    expect(subscriptionActive('ACTIVE', new Date('2026-01-01'), new Date('2026-02-01'))).toBe(false);
+    expect(subscriptionActive('ACTIVE', new Date('2026-01-01'), new Date('2026-02-01'))).toBe(true);
+    expect(subscriptionActive('CANCELED',new Date('2026-01-01'),new Date('2026-02-01'))).toBe(false);
+    expect(subscriptionActive('SUSPENDED',new Date('2027-01-01'),new Date('2026-02-01'))).toBe(false);
   });
   it('tracks usage boundaries', () => {
     expect(usageState(70, 100).threshold).toBe(70);

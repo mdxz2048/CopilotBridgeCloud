@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useEffect, useId, useState } from 'react';
-import { api, post, put } from '../lib/api';
+import { api, post } from '../lib/api';
 import {ModelPricingPanel} from './model-pricing-panel';
 import {CostAnalyticsPanel} from './cost-analytics-panel';
 
@@ -22,9 +22,7 @@ export function V2AdminPanel({ section }: { section: V2Section }) {
     try {
       if (section === 'v2-wallets') setRows((await api<{data:Row[]}>('/api/v1/admin/wallets')).data);
       if (section === 'v2-referrals') {
-        const [list, settings] = await Promise.all([api<{data:Row[]}>('/api/v1/admin/referrals'), api<{policy:{enabled:boolean;minPaidAmount:number;referrerPoints:number;referredPoints:number}}>('/api/v1/admin/referral-policy')]);
-        setRows(list.data); setForm(previous => ({ ...previous, policyEnabled: String(settings.policy.enabled), minPaidAmount: String(settings.policy.minPaidAmount),
-          referrerPoints: String(settings.policy.referrerPoints), referredPoints: String(settings.policy.referredPoints) }));
+        setRows((await api<{data:Row[]}>('/api/v1/admin/referrals')).data);
       }
     } catch (error) { setMessage((error as {message?:string}).message ?? '加载失败'); }
     finally { setLoading(false); }
@@ -46,9 +44,9 @@ export function V2AdminPanel({ section }: { section: V2Section }) {
     </>}
     {section === 'v2-rates' && <ModelPricingPanel/>}
     {!loading && section === 'v2-referrals' && <>
-      <section className="panel"><h2>邀请资格与风控</h2><div className="table-wrap"><table className="data-table"><thead><tr><th>邀请人</th><th>受邀人</th><th>状态</th><th>风险标记</th><th>操作</th></tr></thead><tbody>{rows.map(row => <tr key={row.id}><td>{show(row.referrerUserId)}</td><td>{show(row.referredUserId)}</td><td>{show(row.status)}</td><td>{Array.isArray(row.riskFlags) ? row.riskFlags.join(', ') || '—' : '—'}</td><td>{['PENDING','REGISTERED'].includes(String(row.status)) && <button className="mini-button" onClick={() => { setSelected(row); setForm({}); }}>审核</button>}</td></tr>)}</tbody></table></div></section>
+      <section className="panel"><h2>邀请记录与待核对</h2><p>正常邀请自动到账；异常邀请由管理员核对。若账号已锁定，请先在用户管理中处理状态，再审核奖励。</p><div className="table-wrap"><table className="data-table"><thead><tr><th>邀请人</th><th>受邀人</th><th>状态</th><th>风险标记</th><th>操作</th></tr></thead><tbody>{rows.map(row => <tr key={row.id}><td>{show(row.referrerEmail??row.referrerUserId)}</td><td>{show(row.referredEmail??row.referredUserId)}</td><td>{show(({PENDING:'待核对',REGISTERED:'已绑定',QUALIFIED:'符合条件',REWARDED:'奖励已到账',REJECTED:'已拒绝'} as Record<string,string>)[String(row.status)]??row.status)}</td><td>{Array.isArray(row.riskFlags) ? row.riskFlags.join(', ') || '—' : '—'}</td><td>{['PENDING','REGISTERED'].includes(String(row.status)) && <button className="mini-button" onClick={() => { setSelected(row); setForm({}); }}>审核</button>}</td></tr>)}</tbody></table></div></section>
       {selected && <section className="panel"><h2>审核邀请</h2><p>{show(selected.id)}</p><CellInput label="审核原因" value={form.reviewReason ?? ''} set={value => update('reviewReason', value)}/><div className="inline-actions"><button disabled={busy} className="mini-button" onClick={() => run(() => post(`/api/v1/admin/referrals/${selected.id}/review`, {decision:'APPROVE',reason:form.reviewReason}))}>批准</button><button disabled={busy} className="mini-button danger" onClick={() => run(() => post(`/api/v1/admin/referrals/${selected.id}/review`, {decision:'REJECT',reason:form.reviewReason}))}>拒绝</button></div></section>}
-      <section className="panel"><h2>邀请奖励规则</h2><p>默认关闭；仅符合已付款订单门槛的邀请可发奖。</p><div className="form-grid"><div className="field"><label>状态</label><select value={form.policyEnabled ?? 'false'} onChange={event => update('policyEnabled',event.target.value)}><option value="false">关闭</option><option value="true">开启</option></select></div><CellInput label="最低付款金额" value={form.minPaidAmount ?? '0'} set={value => update('minPaidAmount',value)} type="number"/><CellInput label="邀请人点数" value={form.referrerPoints ?? '0'} set={value => update('referrerPoints',value)} type="number"/><CellInput label="受邀人点数" value={form.referredPoints ?? '0'} set={value => update('referredPoints',value)} type="number"/></div><button disabled={busy} className="button button-small" onClick={() => run(() => put('/api/v1/admin/referral-policy', {enabled: form.policyEnabled === 'true',minPaidAmount:Number(form.minPaidAmount ?? 0),referrerPoints:Number(form.referrerPoints ?? 0),referredPoints:Number(form.referredPoints ?? 0)}))}>保存规则</button></section>
+
     </>}
     {!loading && section === 'v2-costs' && <CostAnalyticsPanel/>}
   </>;

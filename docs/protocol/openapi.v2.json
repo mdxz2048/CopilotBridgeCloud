@@ -1451,6 +1451,13 @@
             "type": "string",
             "format": "date-time"
           },
+          "expiresAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
           "monthlyPoints": {
             "type": "integer",
             "minimum": 0
@@ -1490,6 +1497,17 @@
             "minimum": 0
           },
           "rewardBalance": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "rewardExpiresAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "rewardExpiringBalance": {
             "type": "integer",
             "minimum": 0
           },
@@ -1962,6 +1980,83 @@
       "RegistrationConfig": {
         "type": "object",
         "properties": {
+          "inviteCampaign": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "referrerRmb": {
+                "type": "number",
+                "enum": [
+                  5
+                ]
+              },
+              "referredRmb": {
+                "type": "number",
+                "enum": [
+                  5
+                ]
+              },
+              "rewardDays": {
+                "type": "number",
+                "enum": [
+                  7
+                ]
+              },
+              "accountNeverExpires": {
+                "type": "boolean",
+                "enum": [
+                  true
+                ]
+              },
+              "rules": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "referrerRmb",
+              "referredRmb",
+              "rewardDays",
+              "accountNeverExpires",
+              "rules"
+            ]
+          },
+          "announcements": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                },
+                "action": {
+                  "type": "string",
+                  "enum": [
+                    "INVITE",
+                    "NONE"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "text",
+                "action"
+              ]
+            },
+            "maxItems": 11
+          },
           "verificationRequired": {
             "type": "boolean"
           },
@@ -7265,7 +7360,7 @@
     },
     "/api/v1/client/config": {
       "get": {
-        "summary": "Desktop configuration",
+        "summary": "GET /api/v1/client/config",
         "responses": {
           "200": {
             "description": "Success",
@@ -7293,6 +7388,83 @@
                       "required": [
                         "cloudGateway"
                       ]
+                    },
+                    "inviteCampaign": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "referrerRmb": {
+                          "type": "number",
+                          "enum": [
+                            5
+                          ]
+                        },
+                        "referredRmb": {
+                          "type": "number",
+                          "enum": [
+                            5
+                          ]
+                        },
+                        "rewardDays": {
+                          "type": "number",
+                          "enum": [
+                            7
+                          ]
+                        },
+                        "accountNeverExpires": {
+                          "type": "boolean",
+                          "enum": [
+                            true
+                          ]
+                        },
+                        "rules": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "referrerRmb",
+                        "referredRmb",
+                        "rewardDays",
+                        "accountNeverExpires",
+                        "rules"
+                      ]
+                    },
+                    "announcements": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 80
+                          },
+                          "text": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 160
+                          },
+                          "action": {
+                            "type": "string",
+                            "enum": [
+                              "INVITE",
+                              "NONE"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "text",
+                          "action"
+                        ]
+                      },
+                      "maxItems": 11
                     }
                   },
                   "required": [
@@ -7318,26 +7490,95 @@
                         "code": {
                           "type": "string",
                           "enum": [
-                            "UNAUTHORIZED",
-                            "TOKEN_EXPIRED",
-                            "DEVICE_NOT_REGISTERED",
-                            "DEVICE_REVOKED",
-                            "DEVICE_LIMIT_REACHED",
+                            "RELEASE_UNAVAILABLE",
+                            "UNSUPPORTED_CAPABILITY",
+                            "UNSUPPORTED_PROTOCOL",
+                            "PROTOCOL_INVALID",
+                            "PROVIDER_RATE_LIMITED",
+                            "PROVIDER_BALANCE_EXHAUSTED",
+                            "PROVIDER_USAGE_UNAVAILABLE",
+                            "CONVERSATION_NOT_FOUND",
+                            "CONVERSATION_MODE_CHANGED",
+                            "RATE_CARD_IDENTITY_MISMATCH",
+                            "INSTANCE_ALREADY_EXISTS",
+                            "INVALID_CONFIG",
+                            "INVALID_RELEASE_FILE",
+                            "INVALID_RELEASE_SIZE",
+                            "RELEASE_FILE_MISSING",
+                            "RELEASE_TOO_LARGE",
+                            "UNSUPPORTED_MEDIA_TYPE",
+                            "PAYLOAD_TOO_LARGE",
                             "ACCOUNT_DISABLED",
-                            "SUBSCRIPTION_REQUIRED",
-                            "SUBSCRIPTION_EXPIRED",
-                            "MODEL_NOT_ALLOWED",
-                            "MONTHLY_QUOTA_EXCEEDED",
-                            "RATE_LIMITED",
-                            "PROVIDER_UNAVAILABLE",
-                            "MODEL_UNAVAILABLE",
-                            "GATEWAY_TIMEOUT",
+                            "AUTH_REQUIRED",
+                            "BILLING_REVIEW_REQUIRED",
+                            "CANNOT_DISABLE_SELF",
                             "CLIENT_THREAD_ID_REQUIRED",
+                            "CLIENT_UPGRADE_REQUIRED",
+                            "COPILOT_AUTH_EXPIRED",
+                            "COPILOT_NOT_ENTITLED",
+                            "COPILOT_USAGE_UNAVAILABLE",
+                            "CSRF_REJECTED",
+                            "DEVICE_LIMIT_REACHED",
+                            "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
+                            "DEVICE_REVOKED",
+                            "EMAIL_IN_USE",
+                            "EMAIL_CODE_INVALID",
+                            "EMAIL_DELIVERY_UNAVAILABLE",
+                            "FEATURE_DISABLED",
+                            "TURNSTILE_INVALID",
+                            "TURNSTILE_UNAVAILABLE",
+                            "FORBIDDEN",
+                            "GATEWAY_TIMEOUT",
+                            "IDEMPOTENCY_CONFLICT",
+                            "INSUFFICIENT_POINTS",
+                            "INTERNAL_ERROR",
+                            "INVALID_CREDENTIALS",
+                            "INVALID_POINTS",
+                            "INVALID_PROVIDER_CONNECTION",
+                            "INVALID_REFERRAL_CODE",
+                            "MODEL_NOT_ALLOWED",
+                            "MODEL_NOT_AVAILABLE",
+                            "MODEL_PROVIDER_MISMATCH",
+                            "MODEL_UNAVAILABLE",
+                            "MONTHLY_QUOTA_EXCEEDED",
+                            "NOT_FOUND",
+                            "ORDER_NOT_PAYABLE",
+                            "PAYMENT_PROVIDER_NOT_CONNECTED",
+                            "PLAN_NOT_FOUND",
+                            "PLAN_REQUIRED",
+                            "PROVIDER_AUTH_REQUIRED",
+                            "PROVIDER_CONNECTION_UNAVAILABLE",
+                            "PROVIDER_UNAVAILABLE",
+                            "PROVIDER_NOT_FOUND",
+                            "PROVIDER_NOT_READY",
+                            "RATE_CARD_EXISTS",
+                            "RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED",
+                            "RATE_CARD_NOT_DRAFT",
+                            "RATE_CARD_UNAVAILABLE",
+                            "PRICE_CHANGED",
+                            "PRICE_REFERENCE_UNAVAILABLE",
+                            "RATE_LIMITED",
+                            "REFERRAL_CODE_UNAVAILABLE",
+                            "REFERRAL_NOT_ELIGIBLE",
+                            "REFERRAL_NOT_REVIEWABLE",
+                            "REQUEST_NOT_FOUND",
+                            "ROLLOVER_POLICY_INVALID",
+                            "SUBSCRIPTION_EXPIRED",
+                            "SUBSCRIPTION_NOT_FOUND",
+                            "SUBSCRIPTION_REQUIRED",
+                            "TOKEN_EXPIRED",
+                            "UNAUTHORIZED",
                             "VALIDATION_ERROR",
-                            "INTERNAL_ERROR"
+                            "WALLET_LEDGER_MISMATCH",
+                            "WALLET_LIMIT_REACHED"
                           ]
                         },
                         "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
                           "type": "string"
                         },
                         "requestId": {
@@ -7347,6 +7588,7 @@
                       "required": [
                         "code",
                         "message",
+                        "request_id",
                         "requestId"
                       ]
                     }
@@ -7359,7 +7601,7 @@
             }
           },
           "401": {
-            "description": "Authentication failed",
+            "description": "Authentication required",
             "content": {
               "application/json": {
                 "schema": {
@@ -7371,26 +7613,95 @@
                         "code": {
                           "type": "string",
                           "enum": [
-                            "UNAUTHORIZED",
-                            "TOKEN_EXPIRED",
-                            "DEVICE_NOT_REGISTERED",
-                            "DEVICE_REVOKED",
-                            "DEVICE_LIMIT_REACHED",
+                            "RELEASE_UNAVAILABLE",
+                            "UNSUPPORTED_CAPABILITY",
+                            "UNSUPPORTED_PROTOCOL",
+                            "PROTOCOL_INVALID",
+                            "PROVIDER_RATE_LIMITED",
+                            "PROVIDER_BALANCE_EXHAUSTED",
+                            "PROVIDER_USAGE_UNAVAILABLE",
+                            "CONVERSATION_NOT_FOUND",
+                            "CONVERSATION_MODE_CHANGED",
+                            "RATE_CARD_IDENTITY_MISMATCH",
+                            "INSTANCE_ALREADY_EXISTS",
+                            "INVALID_CONFIG",
+                            "INVALID_RELEASE_FILE",
+                            "INVALID_RELEASE_SIZE",
+                            "RELEASE_FILE_MISSING",
+                            "RELEASE_TOO_LARGE",
+                            "UNSUPPORTED_MEDIA_TYPE",
+                            "PAYLOAD_TOO_LARGE",
                             "ACCOUNT_DISABLED",
-                            "SUBSCRIPTION_REQUIRED",
-                            "SUBSCRIPTION_EXPIRED",
-                            "MODEL_NOT_ALLOWED",
-                            "MONTHLY_QUOTA_EXCEEDED",
-                            "RATE_LIMITED",
-                            "PROVIDER_UNAVAILABLE",
-                            "MODEL_UNAVAILABLE",
-                            "GATEWAY_TIMEOUT",
+                            "AUTH_REQUIRED",
+                            "BILLING_REVIEW_REQUIRED",
+                            "CANNOT_DISABLE_SELF",
                             "CLIENT_THREAD_ID_REQUIRED",
+                            "CLIENT_UPGRADE_REQUIRED",
+                            "COPILOT_AUTH_EXPIRED",
+                            "COPILOT_NOT_ENTITLED",
+                            "COPILOT_USAGE_UNAVAILABLE",
+                            "CSRF_REJECTED",
+                            "DEVICE_LIMIT_REACHED",
+                            "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
+                            "DEVICE_REVOKED",
+                            "EMAIL_IN_USE",
+                            "EMAIL_CODE_INVALID",
+                            "EMAIL_DELIVERY_UNAVAILABLE",
+                            "FEATURE_DISABLED",
+                            "TURNSTILE_INVALID",
+                            "TURNSTILE_UNAVAILABLE",
+                            "FORBIDDEN",
+                            "GATEWAY_TIMEOUT",
+                            "IDEMPOTENCY_CONFLICT",
+                            "INSUFFICIENT_POINTS",
+                            "INTERNAL_ERROR",
+                            "INVALID_CREDENTIALS",
+                            "INVALID_POINTS",
+                            "INVALID_PROVIDER_CONNECTION",
+                            "INVALID_REFERRAL_CODE",
+                            "MODEL_NOT_ALLOWED",
+                            "MODEL_NOT_AVAILABLE",
+                            "MODEL_PROVIDER_MISMATCH",
+                            "MODEL_UNAVAILABLE",
+                            "MONTHLY_QUOTA_EXCEEDED",
+                            "NOT_FOUND",
+                            "ORDER_NOT_PAYABLE",
+                            "PAYMENT_PROVIDER_NOT_CONNECTED",
+                            "PLAN_NOT_FOUND",
+                            "PLAN_REQUIRED",
+                            "PROVIDER_AUTH_REQUIRED",
+                            "PROVIDER_CONNECTION_UNAVAILABLE",
+                            "PROVIDER_UNAVAILABLE",
+                            "PROVIDER_NOT_FOUND",
+                            "PROVIDER_NOT_READY",
+                            "RATE_CARD_EXISTS",
+                            "RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED",
+                            "RATE_CARD_NOT_DRAFT",
+                            "RATE_CARD_UNAVAILABLE",
+                            "PRICE_CHANGED",
+                            "PRICE_REFERENCE_UNAVAILABLE",
+                            "RATE_LIMITED",
+                            "REFERRAL_CODE_UNAVAILABLE",
+                            "REFERRAL_NOT_ELIGIBLE",
+                            "REFERRAL_NOT_REVIEWABLE",
+                            "REQUEST_NOT_FOUND",
+                            "ROLLOVER_POLICY_INVALID",
+                            "SUBSCRIPTION_EXPIRED",
+                            "SUBSCRIPTION_NOT_FOUND",
+                            "SUBSCRIPTION_REQUIRED",
+                            "TOKEN_EXPIRED",
+                            "UNAUTHORIZED",
                             "VALIDATION_ERROR",
-                            "INTERNAL_ERROR"
+                            "WALLET_LEDGER_MISMATCH",
+                            "WALLET_LIMIT_REACHED"
                           ]
                         },
                         "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
                           "type": "string"
                         },
                         "requestId": {
@@ -7400,6 +7711,7 @@
                       "required": [
                         "code",
                         "message",
+                        "request_id",
                         "requestId"
                       ]
                     }
@@ -7424,26 +7736,95 @@
                         "code": {
                           "type": "string",
                           "enum": [
-                            "UNAUTHORIZED",
-                            "TOKEN_EXPIRED",
-                            "DEVICE_NOT_REGISTERED",
-                            "DEVICE_REVOKED",
-                            "DEVICE_LIMIT_REACHED",
+                            "RELEASE_UNAVAILABLE",
+                            "UNSUPPORTED_CAPABILITY",
+                            "UNSUPPORTED_PROTOCOL",
+                            "PROTOCOL_INVALID",
+                            "PROVIDER_RATE_LIMITED",
+                            "PROVIDER_BALANCE_EXHAUSTED",
+                            "PROVIDER_USAGE_UNAVAILABLE",
+                            "CONVERSATION_NOT_FOUND",
+                            "CONVERSATION_MODE_CHANGED",
+                            "RATE_CARD_IDENTITY_MISMATCH",
+                            "INSTANCE_ALREADY_EXISTS",
+                            "INVALID_CONFIG",
+                            "INVALID_RELEASE_FILE",
+                            "INVALID_RELEASE_SIZE",
+                            "RELEASE_FILE_MISSING",
+                            "RELEASE_TOO_LARGE",
+                            "UNSUPPORTED_MEDIA_TYPE",
+                            "PAYLOAD_TOO_LARGE",
                             "ACCOUNT_DISABLED",
-                            "SUBSCRIPTION_REQUIRED",
-                            "SUBSCRIPTION_EXPIRED",
-                            "MODEL_NOT_ALLOWED",
-                            "MONTHLY_QUOTA_EXCEEDED",
-                            "RATE_LIMITED",
-                            "PROVIDER_UNAVAILABLE",
-                            "MODEL_UNAVAILABLE",
-                            "GATEWAY_TIMEOUT",
+                            "AUTH_REQUIRED",
+                            "BILLING_REVIEW_REQUIRED",
+                            "CANNOT_DISABLE_SELF",
                             "CLIENT_THREAD_ID_REQUIRED",
+                            "CLIENT_UPGRADE_REQUIRED",
+                            "COPILOT_AUTH_EXPIRED",
+                            "COPILOT_NOT_ENTITLED",
+                            "COPILOT_USAGE_UNAVAILABLE",
+                            "CSRF_REJECTED",
+                            "DEVICE_LIMIT_REACHED",
+                            "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
+                            "DEVICE_REVOKED",
+                            "EMAIL_IN_USE",
+                            "EMAIL_CODE_INVALID",
+                            "EMAIL_DELIVERY_UNAVAILABLE",
+                            "FEATURE_DISABLED",
+                            "TURNSTILE_INVALID",
+                            "TURNSTILE_UNAVAILABLE",
+                            "FORBIDDEN",
+                            "GATEWAY_TIMEOUT",
+                            "IDEMPOTENCY_CONFLICT",
+                            "INSUFFICIENT_POINTS",
+                            "INTERNAL_ERROR",
+                            "INVALID_CREDENTIALS",
+                            "INVALID_POINTS",
+                            "INVALID_PROVIDER_CONNECTION",
+                            "INVALID_REFERRAL_CODE",
+                            "MODEL_NOT_ALLOWED",
+                            "MODEL_NOT_AVAILABLE",
+                            "MODEL_PROVIDER_MISMATCH",
+                            "MODEL_UNAVAILABLE",
+                            "MONTHLY_QUOTA_EXCEEDED",
+                            "NOT_FOUND",
+                            "ORDER_NOT_PAYABLE",
+                            "PAYMENT_PROVIDER_NOT_CONNECTED",
+                            "PLAN_NOT_FOUND",
+                            "PLAN_REQUIRED",
+                            "PROVIDER_AUTH_REQUIRED",
+                            "PROVIDER_CONNECTION_UNAVAILABLE",
+                            "PROVIDER_UNAVAILABLE",
+                            "PROVIDER_NOT_FOUND",
+                            "PROVIDER_NOT_READY",
+                            "RATE_CARD_EXISTS",
+                            "RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED",
+                            "RATE_CARD_NOT_DRAFT",
+                            "RATE_CARD_UNAVAILABLE",
+                            "PRICE_CHANGED",
+                            "PRICE_REFERENCE_UNAVAILABLE",
+                            "RATE_LIMITED",
+                            "REFERRAL_CODE_UNAVAILABLE",
+                            "REFERRAL_NOT_ELIGIBLE",
+                            "REFERRAL_NOT_REVIEWABLE",
+                            "REQUEST_NOT_FOUND",
+                            "ROLLOVER_POLICY_INVALID",
+                            "SUBSCRIPTION_EXPIRED",
+                            "SUBSCRIPTION_NOT_FOUND",
+                            "SUBSCRIPTION_REQUIRED",
+                            "TOKEN_EXPIRED",
+                            "UNAUTHORIZED",
                             "VALIDATION_ERROR",
-                            "INTERNAL_ERROR"
+                            "WALLET_LEDGER_MISMATCH",
+                            "WALLET_LIMIT_REACHED"
                           ]
                         },
                         "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
                           "type": "string"
                         },
                         "requestId": {
@@ -7453,6 +7834,130 @@
                       "required": [
                         "code",
                         "message",
+                        "request_id",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "RELEASE_UNAVAILABLE",
+                            "UNSUPPORTED_CAPABILITY",
+                            "UNSUPPORTED_PROTOCOL",
+                            "PROTOCOL_INVALID",
+                            "PROVIDER_RATE_LIMITED",
+                            "PROVIDER_BALANCE_EXHAUSTED",
+                            "PROVIDER_USAGE_UNAVAILABLE",
+                            "CONVERSATION_NOT_FOUND",
+                            "CONVERSATION_MODE_CHANGED",
+                            "RATE_CARD_IDENTITY_MISMATCH",
+                            "INSTANCE_ALREADY_EXISTS",
+                            "INVALID_CONFIG",
+                            "INVALID_RELEASE_FILE",
+                            "INVALID_RELEASE_SIZE",
+                            "RELEASE_FILE_MISSING",
+                            "RELEASE_TOO_LARGE",
+                            "UNSUPPORTED_MEDIA_TYPE",
+                            "PAYLOAD_TOO_LARGE",
+                            "ACCOUNT_DISABLED",
+                            "AUTH_REQUIRED",
+                            "BILLING_REVIEW_REQUIRED",
+                            "CANNOT_DISABLE_SELF",
+                            "CLIENT_THREAD_ID_REQUIRED",
+                            "CLIENT_UPGRADE_REQUIRED",
+                            "COPILOT_AUTH_EXPIRED",
+                            "COPILOT_NOT_ENTITLED",
+                            "COPILOT_USAGE_UNAVAILABLE",
+                            "CSRF_REJECTED",
+                            "DEVICE_LIMIT_REACHED",
+                            "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
+                            "DEVICE_REVOKED",
+                            "EMAIL_IN_USE",
+                            "EMAIL_CODE_INVALID",
+                            "EMAIL_DELIVERY_UNAVAILABLE",
+                            "FEATURE_DISABLED",
+                            "TURNSTILE_INVALID",
+                            "TURNSTILE_UNAVAILABLE",
+                            "FORBIDDEN",
+                            "GATEWAY_TIMEOUT",
+                            "IDEMPOTENCY_CONFLICT",
+                            "INSUFFICIENT_POINTS",
+                            "INTERNAL_ERROR",
+                            "INVALID_CREDENTIALS",
+                            "INVALID_POINTS",
+                            "INVALID_PROVIDER_CONNECTION",
+                            "INVALID_REFERRAL_CODE",
+                            "MODEL_NOT_ALLOWED",
+                            "MODEL_NOT_AVAILABLE",
+                            "MODEL_PROVIDER_MISMATCH",
+                            "MODEL_UNAVAILABLE",
+                            "MONTHLY_QUOTA_EXCEEDED",
+                            "NOT_FOUND",
+                            "ORDER_NOT_PAYABLE",
+                            "PAYMENT_PROVIDER_NOT_CONNECTED",
+                            "PLAN_NOT_FOUND",
+                            "PLAN_REQUIRED",
+                            "PROVIDER_AUTH_REQUIRED",
+                            "PROVIDER_CONNECTION_UNAVAILABLE",
+                            "PROVIDER_UNAVAILABLE",
+                            "PROVIDER_NOT_FOUND",
+                            "PROVIDER_NOT_READY",
+                            "RATE_CARD_EXISTS",
+                            "RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED",
+                            "RATE_CARD_NOT_DRAFT",
+                            "RATE_CARD_UNAVAILABLE",
+                            "PRICE_CHANGED",
+                            "PRICE_REFERENCE_UNAVAILABLE",
+                            "RATE_LIMITED",
+                            "REFERRAL_CODE_UNAVAILABLE",
+                            "REFERRAL_NOT_ELIGIBLE",
+                            "REFERRAL_NOT_REVIEWABLE",
+                            "REQUEST_NOT_FOUND",
+                            "ROLLOVER_POLICY_INVALID",
+                            "SUBSCRIPTION_EXPIRED",
+                            "SUBSCRIPTION_NOT_FOUND",
+                            "SUBSCRIPTION_REQUIRED",
+                            "TOKEN_EXPIRED",
+                            "UNAUTHORIZED",
+                            "VALIDATION_ERROR",
+                            "WALLET_LEDGER_MISMATCH",
+                            "WALLET_LIMIT_REACHED"
+                          ]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id",
                         "requestId"
                       ]
                     }
@@ -7465,7 +7970,7 @@
             }
           },
           "429": {
-            "description": "Quota or rate limit",
+            "description": "Rate limited",
             "content": {
               "application/json": {
                 "schema": {
@@ -7477,26 +7982,95 @@
                         "code": {
                           "type": "string",
                           "enum": [
-                            "UNAUTHORIZED",
-                            "TOKEN_EXPIRED",
-                            "DEVICE_NOT_REGISTERED",
-                            "DEVICE_REVOKED",
-                            "DEVICE_LIMIT_REACHED",
+                            "RELEASE_UNAVAILABLE",
+                            "UNSUPPORTED_CAPABILITY",
+                            "UNSUPPORTED_PROTOCOL",
+                            "PROTOCOL_INVALID",
+                            "PROVIDER_RATE_LIMITED",
+                            "PROVIDER_BALANCE_EXHAUSTED",
+                            "PROVIDER_USAGE_UNAVAILABLE",
+                            "CONVERSATION_NOT_FOUND",
+                            "CONVERSATION_MODE_CHANGED",
+                            "RATE_CARD_IDENTITY_MISMATCH",
+                            "INSTANCE_ALREADY_EXISTS",
+                            "INVALID_CONFIG",
+                            "INVALID_RELEASE_FILE",
+                            "INVALID_RELEASE_SIZE",
+                            "RELEASE_FILE_MISSING",
+                            "RELEASE_TOO_LARGE",
+                            "UNSUPPORTED_MEDIA_TYPE",
+                            "PAYLOAD_TOO_LARGE",
                             "ACCOUNT_DISABLED",
-                            "SUBSCRIPTION_REQUIRED",
-                            "SUBSCRIPTION_EXPIRED",
-                            "MODEL_NOT_ALLOWED",
-                            "MONTHLY_QUOTA_EXCEEDED",
-                            "RATE_LIMITED",
-                            "PROVIDER_UNAVAILABLE",
-                            "MODEL_UNAVAILABLE",
-                            "GATEWAY_TIMEOUT",
+                            "AUTH_REQUIRED",
+                            "BILLING_REVIEW_REQUIRED",
+                            "CANNOT_DISABLE_SELF",
                             "CLIENT_THREAD_ID_REQUIRED",
+                            "CLIENT_UPGRADE_REQUIRED",
+                            "COPILOT_AUTH_EXPIRED",
+                            "COPILOT_NOT_ENTITLED",
+                            "COPILOT_USAGE_UNAVAILABLE",
+                            "CSRF_REJECTED",
+                            "DEVICE_LIMIT_REACHED",
+                            "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
+                            "DEVICE_REVOKED",
+                            "EMAIL_IN_USE",
+                            "EMAIL_CODE_INVALID",
+                            "EMAIL_DELIVERY_UNAVAILABLE",
+                            "FEATURE_DISABLED",
+                            "TURNSTILE_INVALID",
+                            "TURNSTILE_UNAVAILABLE",
+                            "FORBIDDEN",
+                            "GATEWAY_TIMEOUT",
+                            "IDEMPOTENCY_CONFLICT",
+                            "INSUFFICIENT_POINTS",
+                            "INTERNAL_ERROR",
+                            "INVALID_CREDENTIALS",
+                            "INVALID_POINTS",
+                            "INVALID_PROVIDER_CONNECTION",
+                            "INVALID_REFERRAL_CODE",
+                            "MODEL_NOT_ALLOWED",
+                            "MODEL_NOT_AVAILABLE",
+                            "MODEL_PROVIDER_MISMATCH",
+                            "MODEL_UNAVAILABLE",
+                            "MONTHLY_QUOTA_EXCEEDED",
+                            "NOT_FOUND",
+                            "ORDER_NOT_PAYABLE",
+                            "PAYMENT_PROVIDER_NOT_CONNECTED",
+                            "PLAN_NOT_FOUND",
+                            "PLAN_REQUIRED",
+                            "PROVIDER_AUTH_REQUIRED",
+                            "PROVIDER_CONNECTION_UNAVAILABLE",
+                            "PROVIDER_UNAVAILABLE",
+                            "PROVIDER_NOT_FOUND",
+                            "PROVIDER_NOT_READY",
+                            "RATE_CARD_EXISTS",
+                            "RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED",
+                            "RATE_CARD_NOT_DRAFT",
+                            "RATE_CARD_UNAVAILABLE",
+                            "PRICE_CHANGED",
+                            "PRICE_REFERENCE_UNAVAILABLE",
+                            "RATE_LIMITED",
+                            "REFERRAL_CODE_UNAVAILABLE",
+                            "REFERRAL_NOT_ELIGIBLE",
+                            "REFERRAL_NOT_REVIEWABLE",
+                            "REQUEST_NOT_FOUND",
+                            "ROLLOVER_POLICY_INVALID",
+                            "SUBSCRIPTION_EXPIRED",
+                            "SUBSCRIPTION_NOT_FOUND",
+                            "SUBSCRIPTION_REQUIRED",
+                            "TOKEN_EXPIRED",
+                            "UNAUTHORIZED",
                             "VALIDATION_ERROR",
-                            "INTERNAL_ERROR"
+                            "WALLET_LEDGER_MISMATCH",
+                            "WALLET_LIMIT_REACHED"
                           ]
                         },
                         "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
                           "type": "string"
                         },
                         "requestId": {
@@ -7506,6 +8080,7 @@
                       "required": [
                         "code",
                         "message",
+                        "request_id",
                         "requestId"
                       ]
                     }
@@ -9182,6 +9757,83 @@
                 "schema": {
                   "type": "object",
                   "properties": {
+                    "inviteCampaign": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "referrerRmb": {
+                          "type": "number",
+                          "enum": [
+                            5
+                          ]
+                        },
+                        "referredRmb": {
+                          "type": "number",
+                          "enum": [
+                            5
+                          ]
+                        },
+                        "rewardDays": {
+                          "type": "number",
+                          "enum": [
+                            7
+                          ]
+                        },
+                        "accountNeverExpires": {
+                          "type": "boolean",
+                          "enum": [
+                            true
+                          ]
+                        },
+                        "rules": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "referrerRmb",
+                        "referredRmb",
+                        "rewardDays",
+                        "accountNeverExpires",
+                        "rules"
+                      ]
+                    },
+                    "announcements": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 80
+                          },
+                          "text": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 160
+                          },
+                          "action": {
+                            "type": "string",
+                            "enum": [
+                              "INVITE",
+                              "NONE"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "text",
+                          "action"
+                        ]
+                      },
+                      "maxItems": 11
+                    },
                     "verificationRequired": {
                       "type": "boolean"
                     },
@@ -12685,6 +13337,13 @@
                           "type": "string",
                           "format": "date-time"
                         },
+                        "expiresAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
                         "monthlyPoints": {
                           "type": "integer",
                           "minimum": 0
@@ -12724,6 +13383,17 @@
                           "minimum": 0
                         },
                         "rewardBalance": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "rewardExpiresAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "rewardExpiringBalance": {
                           "type": "integer",
                           "minimum": 0
                         },
@@ -14179,6 +14849,17 @@
                       "minimum": 0
                     },
                     "rewardBalance": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "rewardExpiresAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "rewardExpiringBalance": {
                       "type": "integer",
                       "minimum": 0
                     },
@@ -17686,6 +18367,17 @@
                           "type": "integer",
                           "minimum": 0
                         },
+                        "rewardExpiresAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "rewardExpiringBalance": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
                         "unit": {
                           "type": "string",
                           "enum": [
@@ -18474,6 +19166,17 @@
                           "minimum": 0
                         },
                         "rewardBalance": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "rewardExpiresAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "rewardExpiringBalance": {
                           "type": "integer",
                           "minimum": 0
                         },
@@ -47162,6 +47865,1293 @@
                   "apiKey",
                   "modelId"
                 ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {},
+                  "additionalProperties": {}
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "RELEASE_UNAVAILABLE",
+                            "UNSUPPORTED_CAPABILITY",
+                            "UNSUPPORTED_PROTOCOL",
+                            "PROTOCOL_INVALID",
+                            "PROVIDER_RATE_LIMITED",
+                            "PROVIDER_BALANCE_EXHAUSTED",
+                            "PROVIDER_USAGE_UNAVAILABLE",
+                            "CONVERSATION_NOT_FOUND",
+                            "CONVERSATION_MODE_CHANGED",
+                            "RATE_CARD_IDENTITY_MISMATCH",
+                            "INSTANCE_ALREADY_EXISTS",
+                            "INVALID_CONFIG",
+                            "INVALID_RELEASE_FILE",
+                            "INVALID_RELEASE_SIZE",
+                            "RELEASE_FILE_MISSING",
+                            "RELEASE_TOO_LARGE",
+                            "UNSUPPORTED_MEDIA_TYPE",
+                            "PAYLOAD_TOO_LARGE",
+                            "ACCOUNT_DISABLED",
+                            "AUTH_REQUIRED",
+                            "BILLING_REVIEW_REQUIRED",
+                            "CANNOT_DISABLE_SELF",
+                            "CLIENT_THREAD_ID_REQUIRED",
+                            "CLIENT_UPGRADE_REQUIRED",
+                            "COPILOT_AUTH_EXPIRED",
+                            "COPILOT_NOT_ENTITLED",
+                            "COPILOT_USAGE_UNAVAILABLE",
+                            "CSRF_REJECTED",
+                            "DEVICE_LIMIT_REACHED",
+                            "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
+                            "DEVICE_REVOKED",
+                            "EMAIL_IN_USE",
+                            "EMAIL_CODE_INVALID",
+                            "EMAIL_DELIVERY_UNAVAILABLE",
+                            "FEATURE_DISABLED",
+                            "TURNSTILE_INVALID",
+                            "TURNSTILE_UNAVAILABLE",
+                            "FORBIDDEN",
+                            "GATEWAY_TIMEOUT",
+                            "IDEMPOTENCY_CONFLICT",
+                            "INSUFFICIENT_POINTS",
+                            "INTERNAL_ERROR",
+                            "INVALID_CREDENTIALS",
+                            "INVALID_POINTS",
+                            "INVALID_PROVIDER_CONNECTION",
+                            "INVALID_REFERRAL_CODE",
+                            "MODEL_NOT_ALLOWED",
+                            "MODEL_NOT_AVAILABLE",
+                            "MODEL_PROVIDER_MISMATCH",
+                            "MODEL_UNAVAILABLE",
+                            "MONTHLY_QUOTA_EXCEEDED",
+                            "NOT_FOUND",
+                            "ORDER_NOT_PAYABLE",
+                            "PAYMENT_PROVIDER_NOT_CONNECTED",
+                            "PLAN_NOT_FOUND",
+                            "PLAN_REQUIRED",
+                            "PROVIDER_AUTH_REQUIRED",
+                            "PROVIDER_CONNECTION_UNAVAILABLE",
+                            "PROVIDER_UNAVAILABLE",
+                            "PROVIDER_NOT_FOUND",
+                            "PROVIDER_NOT_READY",
+                            "RATE_CARD_EXISTS",
+                            "RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED",
+                            "RATE_CARD_NOT_DRAFT",
+                            "RATE_CARD_UNAVAILABLE",
+                            "PRICE_CHANGED",
+                            "PRICE_REFERENCE_UNAVAILABLE",
+                            "RATE_LIMITED",
+                            "REFERRAL_CODE_UNAVAILABLE",
+                            "REFERRAL_NOT_ELIGIBLE",
+                            "REFERRAL_NOT_REVIEWABLE",
+                            "REQUEST_NOT_FOUND",
+                            "ROLLOVER_POLICY_INVALID",
+                            "SUBSCRIPTION_EXPIRED",
+                            "SUBSCRIPTION_NOT_FOUND",
+                            "SUBSCRIPTION_REQUIRED",
+                            "TOKEN_EXPIRED",
+                            "UNAUTHORIZED",
+                            "VALIDATION_ERROR",
+                            "WALLET_LEDGER_MISMATCH",
+                            "WALLET_LIMIT_REACHED"
+                          ]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "RELEASE_UNAVAILABLE",
+                            "UNSUPPORTED_CAPABILITY",
+                            "UNSUPPORTED_PROTOCOL",
+                            "PROTOCOL_INVALID",
+                            "PROVIDER_RATE_LIMITED",
+                            "PROVIDER_BALANCE_EXHAUSTED",
+                            "PROVIDER_USAGE_UNAVAILABLE",
+                            "CONVERSATION_NOT_FOUND",
+                            "CONVERSATION_MODE_CHANGED",
+                            "RATE_CARD_IDENTITY_MISMATCH",
+                            "INSTANCE_ALREADY_EXISTS",
+                            "INVALID_CONFIG",
+                            "INVALID_RELEASE_FILE",
+                            "INVALID_RELEASE_SIZE",
+                            "RELEASE_FILE_MISSING",
+                            "RELEASE_TOO_LARGE",
+                            "UNSUPPORTED_MEDIA_TYPE",
+                            "PAYLOAD_TOO_LARGE",
+                            "ACCOUNT_DISABLED",
+                            "AUTH_REQUIRED",
+                            "BILLING_REVIEW_REQUIRED",
+                            "CANNOT_DISABLE_SELF",
+                            "CLIENT_THREAD_ID_REQUIRED",
+                            "CLIENT_UPGRADE_REQUIRED",
+                            "COPILOT_AUTH_EXPIRED",
+                            "COPILOT_NOT_ENTITLED",
+                            "COPILOT_USAGE_UNAVAILABLE",
+                            "CSRF_REJECTED",
+                            "DEVICE_LIMIT_REACHED",
+                            "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
+                            "DEVICE_REVOKED",
+                            "EMAIL_IN_USE",
+                            "EMAIL_CODE_INVALID",
+                            "EMAIL_DELIVERY_UNAVAILABLE",
+                            "FEATURE_DISABLED",
+                            "TURNSTILE_INVALID",
+                            "TURNSTILE_UNAVAILABLE",
+                            "FORBIDDEN",
+                            "GATEWAY_TIMEOUT",
+                            "IDEMPOTENCY_CONFLICT",
+                            "INSUFFICIENT_POINTS",
+                            "INTERNAL_ERROR",
+                            "INVALID_CREDENTIALS",
+                            "INVALID_POINTS",
+                            "INVALID_PROVIDER_CONNECTION",
+                            "INVALID_REFERRAL_CODE",
+                            "MODEL_NOT_ALLOWED",
+                            "MODEL_NOT_AVAILABLE",
+                            "MODEL_PROVIDER_MISMATCH",
+                            "MODEL_UNAVAILABLE",
+                            "MONTHLY_QUOTA_EXCEEDED",
+                            "NOT_FOUND",
+                            "ORDER_NOT_PAYABLE",
+                            "PAYMENT_PROVIDER_NOT_CONNECTED",
+                            "PLAN_NOT_FOUND",
+                            "PLAN_REQUIRED",
+                            "PROVIDER_AUTH_REQUIRED",
+                            "PROVIDER_CONNECTION_UNAVAILABLE",
+                            "PROVIDER_UNAVAILABLE",
+                            "PROVIDER_NOT_FOUND",
+                            "PROVIDER_NOT_READY",
+                            "RATE_CARD_EXISTS",
+                            "RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED",
+                            "RATE_CARD_NOT_DRAFT",
+                            "RATE_CARD_UNAVAILABLE",
+                            "PRICE_CHANGED",
+                            "PRICE_REFERENCE_UNAVAILABLE",
+                            "RATE_LIMITED",
+                            "REFERRAL_CODE_UNAVAILABLE",
+                            "REFERRAL_NOT_ELIGIBLE",
+                            "REFERRAL_NOT_REVIEWABLE",
+                            "REQUEST_NOT_FOUND",
+                            "ROLLOVER_POLICY_INVALID",
+                            "SUBSCRIPTION_EXPIRED",
+                            "SUBSCRIPTION_NOT_FOUND",
+                            "SUBSCRIPTION_REQUIRED",
+                            "TOKEN_EXPIRED",
+                            "UNAUTHORIZED",
+                            "VALIDATION_ERROR",
+                            "WALLET_LEDGER_MISMATCH",
+                            "WALLET_LIMIT_REACHED"
+                          ]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "RELEASE_UNAVAILABLE",
+                            "UNSUPPORTED_CAPABILITY",
+                            "UNSUPPORTED_PROTOCOL",
+                            "PROTOCOL_INVALID",
+                            "PROVIDER_RATE_LIMITED",
+                            "PROVIDER_BALANCE_EXHAUSTED",
+                            "PROVIDER_USAGE_UNAVAILABLE",
+                            "CONVERSATION_NOT_FOUND",
+                            "CONVERSATION_MODE_CHANGED",
+                            "RATE_CARD_IDENTITY_MISMATCH",
+                            "INSTANCE_ALREADY_EXISTS",
+                            "INVALID_CONFIG",
+                            "INVALID_RELEASE_FILE",
+                            "INVALID_RELEASE_SIZE",
+                            "RELEASE_FILE_MISSING",
+                            "RELEASE_TOO_LARGE",
+                            "UNSUPPORTED_MEDIA_TYPE",
+                            "PAYLOAD_TOO_LARGE",
+                            "ACCOUNT_DISABLED",
+                            "AUTH_REQUIRED",
+                            "BILLING_REVIEW_REQUIRED",
+                            "CANNOT_DISABLE_SELF",
+                            "CLIENT_THREAD_ID_REQUIRED",
+                            "CLIENT_UPGRADE_REQUIRED",
+                            "COPILOT_AUTH_EXPIRED",
+                            "COPILOT_NOT_ENTITLED",
+                            "COPILOT_USAGE_UNAVAILABLE",
+                            "CSRF_REJECTED",
+                            "DEVICE_LIMIT_REACHED",
+                            "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
+                            "DEVICE_REVOKED",
+                            "EMAIL_IN_USE",
+                            "EMAIL_CODE_INVALID",
+                            "EMAIL_DELIVERY_UNAVAILABLE",
+                            "FEATURE_DISABLED",
+                            "TURNSTILE_INVALID",
+                            "TURNSTILE_UNAVAILABLE",
+                            "FORBIDDEN",
+                            "GATEWAY_TIMEOUT",
+                            "IDEMPOTENCY_CONFLICT",
+                            "INSUFFICIENT_POINTS",
+                            "INTERNAL_ERROR",
+                            "INVALID_CREDENTIALS",
+                            "INVALID_POINTS",
+                            "INVALID_PROVIDER_CONNECTION",
+                            "INVALID_REFERRAL_CODE",
+                            "MODEL_NOT_ALLOWED",
+                            "MODEL_NOT_AVAILABLE",
+                            "MODEL_PROVIDER_MISMATCH",
+                            "MODEL_UNAVAILABLE",
+                            "MONTHLY_QUOTA_EXCEEDED",
+                            "NOT_FOUND",
+                            "ORDER_NOT_PAYABLE",
+                            "PAYMENT_PROVIDER_NOT_CONNECTED",
+                            "PLAN_NOT_FOUND",
+                            "PLAN_REQUIRED",
+                            "PROVIDER_AUTH_REQUIRED",
+                            "PROVIDER_CONNECTION_UNAVAILABLE",
+                            "PROVIDER_UNAVAILABLE",
+                            "PROVIDER_NOT_FOUND",
+                            "PROVIDER_NOT_READY",
+                            "RATE_CARD_EXISTS",
+                            "RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED",
+                            "RATE_CARD_NOT_DRAFT",
+                            "RATE_CARD_UNAVAILABLE",
+                            "PRICE_CHANGED",
+                            "PRICE_REFERENCE_UNAVAILABLE",
+                            "RATE_LIMITED",
+                            "REFERRAL_CODE_UNAVAILABLE",
+                            "REFERRAL_NOT_ELIGIBLE",
+                            "REFERRAL_NOT_REVIEWABLE",
+                            "REQUEST_NOT_FOUND",
+                            "ROLLOVER_POLICY_INVALID",
+                            "SUBSCRIPTION_EXPIRED",
+                            "SUBSCRIPTION_NOT_FOUND",
+                            "SUBSCRIPTION_REQUIRED",
+                            "TOKEN_EXPIRED",
+                            "UNAUTHORIZED",
+                            "VALIDATION_ERROR",
+                            "WALLET_LEDGER_MISMATCH",
+                            "WALLET_LIMIT_REACHED"
+                          ]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "RELEASE_UNAVAILABLE",
+                            "UNSUPPORTED_CAPABILITY",
+                            "UNSUPPORTED_PROTOCOL",
+                            "PROTOCOL_INVALID",
+                            "PROVIDER_RATE_LIMITED",
+                            "PROVIDER_BALANCE_EXHAUSTED",
+                            "PROVIDER_USAGE_UNAVAILABLE",
+                            "CONVERSATION_NOT_FOUND",
+                            "CONVERSATION_MODE_CHANGED",
+                            "RATE_CARD_IDENTITY_MISMATCH",
+                            "INSTANCE_ALREADY_EXISTS",
+                            "INVALID_CONFIG",
+                            "INVALID_RELEASE_FILE",
+                            "INVALID_RELEASE_SIZE",
+                            "RELEASE_FILE_MISSING",
+                            "RELEASE_TOO_LARGE",
+                            "UNSUPPORTED_MEDIA_TYPE",
+                            "PAYLOAD_TOO_LARGE",
+                            "ACCOUNT_DISABLED",
+                            "AUTH_REQUIRED",
+                            "BILLING_REVIEW_REQUIRED",
+                            "CANNOT_DISABLE_SELF",
+                            "CLIENT_THREAD_ID_REQUIRED",
+                            "CLIENT_UPGRADE_REQUIRED",
+                            "COPILOT_AUTH_EXPIRED",
+                            "COPILOT_NOT_ENTITLED",
+                            "COPILOT_USAGE_UNAVAILABLE",
+                            "CSRF_REJECTED",
+                            "DEVICE_LIMIT_REACHED",
+                            "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
+                            "DEVICE_REVOKED",
+                            "EMAIL_IN_USE",
+                            "EMAIL_CODE_INVALID",
+                            "EMAIL_DELIVERY_UNAVAILABLE",
+                            "FEATURE_DISABLED",
+                            "TURNSTILE_INVALID",
+                            "TURNSTILE_UNAVAILABLE",
+                            "FORBIDDEN",
+                            "GATEWAY_TIMEOUT",
+                            "IDEMPOTENCY_CONFLICT",
+                            "INSUFFICIENT_POINTS",
+                            "INTERNAL_ERROR",
+                            "INVALID_CREDENTIALS",
+                            "INVALID_POINTS",
+                            "INVALID_PROVIDER_CONNECTION",
+                            "INVALID_REFERRAL_CODE",
+                            "MODEL_NOT_ALLOWED",
+                            "MODEL_NOT_AVAILABLE",
+                            "MODEL_PROVIDER_MISMATCH",
+                            "MODEL_UNAVAILABLE",
+                            "MONTHLY_QUOTA_EXCEEDED",
+                            "NOT_FOUND",
+                            "ORDER_NOT_PAYABLE",
+                            "PAYMENT_PROVIDER_NOT_CONNECTED",
+                            "PLAN_NOT_FOUND",
+                            "PLAN_REQUIRED",
+                            "PROVIDER_AUTH_REQUIRED",
+                            "PROVIDER_CONNECTION_UNAVAILABLE",
+                            "PROVIDER_UNAVAILABLE",
+                            "PROVIDER_NOT_FOUND",
+                            "PROVIDER_NOT_READY",
+                            "RATE_CARD_EXISTS",
+                            "RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED",
+                            "RATE_CARD_NOT_DRAFT",
+                            "RATE_CARD_UNAVAILABLE",
+                            "PRICE_CHANGED",
+                            "PRICE_REFERENCE_UNAVAILABLE",
+                            "RATE_LIMITED",
+                            "REFERRAL_CODE_UNAVAILABLE",
+                            "REFERRAL_NOT_ELIGIBLE",
+                            "REFERRAL_NOT_REVIEWABLE",
+                            "REQUEST_NOT_FOUND",
+                            "ROLLOVER_POLICY_INVALID",
+                            "SUBSCRIPTION_EXPIRED",
+                            "SUBSCRIPTION_NOT_FOUND",
+                            "SUBSCRIPTION_REQUIRED",
+                            "TOKEN_EXPIRED",
+                            "UNAUTHORIZED",
+                            "VALIDATION_ERROR",
+                            "WALLET_LEDGER_MISMATCH",
+                            "WALLET_LIMIT_REACHED"
+                          ]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "RELEASE_UNAVAILABLE",
+                            "UNSUPPORTED_CAPABILITY",
+                            "UNSUPPORTED_PROTOCOL",
+                            "PROTOCOL_INVALID",
+                            "PROVIDER_RATE_LIMITED",
+                            "PROVIDER_BALANCE_EXHAUSTED",
+                            "PROVIDER_USAGE_UNAVAILABLE",
+                            "CONVERSATION_NOT_FOUND",
+                            "CONVERSATION_MODE_CHANGED",
+                            "RATE_CARD_IDENTITY_MISMATCH",
+                            "INSTANCE_ALREADY_EXISTS",
+                            "INVALID_CONFIG",
+                            "INVALID_RELEASE_FILE",
+                            "INVALID_RELEASE_SIZE",
+                            "RELEASE_FILE_MISSING",
+                            "RELEASE_TOO_LARGE",
+                            "UNSUPPORTED_MEDIA_TYPE",
+                            "PAYLOAD_TOO_LARGE",
+                            "ACCOUNT_DISABLED",
+                            "AUTH_REQUIRED",
+                            "BILLING_REVIEW_REQUIRED",
+                            "CANNOT_DISABLE_SELF",
+                            "CLIENT_THREAD_ID_REQUIRED",
+                            "CLIENT_UPGRADE_REQUIRED",
+                            "COPILOT_AUTH_EXPIRED",
+                            "COPILOT_NOT_ENTITLED",
+                            "COPILOT_USAGE_UNAVAILABLE",
+                            "CSRF_REJECTED",
+                            "DEVICE_LIMIT_REACHED",
+                            "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
+                            "DEVICE_REVOKED",
+                            "EMAIL_IN_USE",
+                            "EMAIL_CODE_INVALID",
+                            "EMAIL_DELIVERY_UNAVAILABLE",
+                            "FEATURE_DISABLED",
+                            "TURNSTILE_INVALID",
+                            "TURNSTILE_UNAVAILABLE",
+                            "FORBIDDEN",
+                            "GATEWAY_TIMEOUT",
+                            "IDEMPOTENCY_CONFLICT",
+                            "INSUFFICIENT_POINTS",
+                            "INTERNAL_ERROR",
+                            "INVALID_CREDENTIALS",
+                            "INVALID_POINTS",
+                            "INVALID_PROVIDER_CONNECTION",
+                            "INVALID_REFERRAL_CODE",
+                            "MODEL_NOT_ALLOWED",
+                            "MODEL_NOT_AVAILABLE",
+                            "MODEL_PROVIDER_MISMATCH",
+                            "MODEL_UNAVAILABLE",
+                            "MONTHLY_QUOTA_EXCEEDED",
+                            "NOT_FOUND",
+                            "ORDER_NOT_PAYABLE",
+                            "PAYMENT_PROVIDER_NOT_CONNECTED",
+                            "PLAN_NOT_FOUND",
+                            "PLAN_REQUIRED",
+                            "PROVIDER_AUTH_REQUIRED",
+                            "PROVIDER_CONNECTION_UNAVAILABLE",
+                            "PROVIDER_UNAVAILABLE",
+                            "PROVIDER_NOT_FOUND",
+                            "PROVIDER_NOT_READY",
+                            "RATE_CARD_EXISTS",
+                            "RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED",
+                            "RATE_CARD_NOT_DRAFT",
+                            "RATE_CARD_UNAVAILABLE",
+                            "PRICE_CHANGED",
+                            "PRICE_REFERENCE_UNAVAILABLE",
+                            "RATE_LIMITED",
+                            "REFERRAL_CODE_UNAVAILABLE",
+                            "REFERRAL_NOT_ELIGIBLE",
+                            "REFERRAL_NOT_REVIEWABLE",
+                            "REQUEST_NOT_FOUND",
+                            "ROLLOVER_POLICY_INVALID",
+                            "SUBSCRIPTION_EXPIRED",
+                            "SUBSCRIPTION_NOT_FOUND",
+                            "SUBSCRIPTION_REQUIRED",
+                            "TOKEN_EXPIRED",
+                            "UNAUTHORIZED",
+                            "VALIDATION_ERROR",
+                            "WALLET_LEDGER_MISMATCH",
+                            "WALLET_LIMIT_REACHED"
+                          ]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/engagement": {
+      "get": {
+        "summary": "GET /api/v1/admin/engagement",
+        "security": [
+          {
+            "DesktopBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {},
+                  "additionalProperties": {}
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "RELEASE_UNAVAILABLE",
+                            "UNSUPPORTED_CAPABILITY",
+                            "UNSUPPORTED_PROTOCOL",
+                            "PROTOCOL_INVALID",
+                            "PROVIDER_RATE_LIMITED",
+                            "PROVIDER_BALANCE_EXHAUSTED",
+                            "PROVIDER_USAGE_UNAVAILABLE",
+                            "CONVERSATION_NOT_FOUND",
+                            "CONVERSATION_MODE_CHANGED",
+                            "RATE_CARD_IDENTITY_MISMATCH",
+                            "INSTANCE_ALREADY_EXISTS",
+                            "INVALID_CONFIG",
+                            "INVALID_RELEASE_FILE",
+                            "INVALID_RELEASE_SIZE",
+                            "RELEASE_FILE_MISSING",
+                            "RELEASE_TOO_LARGE",
+                            "UNSUPPORTED_MEDIA_TYPE",
+                            "PAYLOAD_TOO_LARGE",
+                            "ACCOUNT_DISABLED",
+                            "AUTH_REQUIRED",
+                            "BILLING_REVIEW_REQUIRED",
+                            "CANNOT_DISABLE_SELF",
+                            "CLIENT_THREAD_ID_REQUIRED",
+                            "CLIENT_UPGRADE_REQUIRED",
+                            "COPILOT_AUTH_EXPIRED",
+                            "COPILOT_NOT_ENTITLED",
+                            "COPILOT_USAGE_UNAVAILABLE",
+                            "CSRF_REJECTED",
+                            "DEVICE_LIMIT_REACHED",
+                            "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
+                            "DEVICE_REVOKED",
+                            "EMAIL_IN_USE",
+                            "EMAIL_CODE_INVALID",
+                            "EMAIL_DELIVERY_UNAVAILABLE",
+                            "FEATURE_DISABLED",
+                            "TURNSTILE_INVALID",
+                            "TURNSTILE_UNAVAILABLE",
+                            "FORBIDDEN",
+                            "GATEWAY_TIMEOUT",
+                            "IDEMPOTENCY_CONFLICT",
+                            "INSUFFICIENT_POINTS",
+                            "INTERNAL_ERROR",
+                            "INVALID_CREDENTIALS",
+                            "INVALID_POINTS",
+                            "INVALID_PROVIDER_CONNECTION",
+                            "INVALID_REFERRAL_CODE",
+                            "MODEL_NOT_ALLOWED",
+                            "MODEL_NOT_AVAILABLE",
+                            "MODEL_PROVIDER_MISMATCH",
+                            "MODEL_UNAVAILABLE",
+                            "MONTHLY_QUOTA_EXCEEDED",
+                            "NOT_FOUND",
+                            "ORDER_NOT_PAYABLE",
+                            "PAYMENT_PROVIDER_NOT_CONNECTED",
+                            "PLAN_NOT_FOUND",
+                            "PLAN_REQUIRED",
+                            "PROVIDER_AUTH_REQUIRED",
+                            "PROVIDER_CONNECTION_UNAVAILABLE",
+                            "PROVIDER_UNAVAILABLE",
+                            "PROVIDER_NOT_FOUND",
+                            "PROVIDER_NOT_READY",
+                            "RATE_CARD_EXISTS",
+                            "RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED",
+                            "RATE_CARD_NOT_DRAFT",
+                            "RATE_CARD_UNAVAILABLE",
+                            "PRICE_CHANGED",
+                            "PRICE_REFERENCE_UNAVAILABLE",
+                            "RATE_LIMITED",
+                            "REFERRAL_CODE_UNAVAILABLE",
+                            "REFERRAL_NOT_ELIGIBLE",
+                            "REFERRAL_NOT_REVIEWABLE",
+                            "REQUEST_NOT_FOUND",
+                            "ROLLOVER_POLICY_INVALID",
+                            "SUBSCRIPTION_EXPIRED",
+                            "SUBSCRIPTION_NOT_FOUND",
+                            "SUBSCRIPTION_REQUIRED",
+                            "TOKEN_EXPIRED",
+                            "UNAUTHORIZED",
+                            "VALIDATION_ERROR",
+                            "WALLET_LEDGER_MISMATCH",
+                            "WALLET_LIMIT_REACHED"
+                          ]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "RELEASE_UNAVAILABLE",
+                            "UNSUPPORTED_CAPABILITY",
+                            "UNSUPPORTED_PROTOCOL",
+                            "PROTOCOL_INVALID",
+                            "PROVIDER_RATE_LIMITED",
+                            "PROVIDER_BALANCE_EXHAUSTED",
+                            "PROVIDER_USAGE_UNAVAILABLE",
+                            "CONVERSATION_NOT_FOUND",
+                            "CONVERSATION_MODE_CHANGED",
+                            "RATE_CARD_IDENTITY_MISMATCH",
+                            "INSTANCE_ALREADY_EXISTS",
+                            "INVALID_CONFIG",
+                            "INVALID_RELEASE_FILE",
+                            "INVALID_RELEASE_SIZE",
+                            "RELEASE_FILE_MISSING",
+                            "RELEASE_TOO_LARGE",
+                            "UNSUPPORTED_MEDIA_TYPE",
+                            "PAYLOAD_TOO_LARGE",
+                            "ACCOUNT_DISABLED",
+                            "AUTH_REQUIRED",
+                            "BILLING_REVIEW_REQUIRED",
+                            "CANNOT_DISABLE_SELF",
+                            "CLIENT_THREAD_ID_REQUIRED",
+                            "CLIENT_UPGRADE_REQUIRED",
+                            "COPILOT_AUTH_EXPIRED",
+                            "COPILOT_NOT_ENTITLED",
+                            "COPILOT_USAGE_UNAVAILABLE",
+                            "CSRF_REJECTED",
+                            "DEVICE_LIMIT_REACHED",
+                            "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
+                            "DEVICE_REVOKED",
+                            "EMAIL_IN_USE",
+                            "EMAIL_CODE_INVALID",
+                            "EMAIL_DELIVERY_UNAVAILABLE",
+                            "FEATURE_DISABLED",
+                            "TURNSTILE_INVALID",
+                            "TURNSTILE_UNAVAILABLE",
+                            "FORBIDDEN",
+                            "GATEWAY_TIMEOUT",
+                            "IDEMPOTENCY_CONFLICT",
+                            "INSUFFICIENT_POINTS",
+                            "INTERNAL_ERROR",
+                            "INVALID_CREDENTIALS",
+                            "INVALID_POINTS",
+                            "INVALID_PROVIDER_CONNECTION",
+                            "INVALID_REFERRAL_CODE",
+                            "MODEL_NOT_ALLOWED",
+                            "MODEL_NOT_AVAILABLE",
+                            "MODEL_PROVIDER_MISMATCH",
+                            "MODEL_UNAVAILABLE",
+                            "MONTHLY_QUOTA_EXCEEDED",
+                            "NOT_FOUND",
+                            "ORDER_NOT_PAYABLE",
+                            "PAYMENT_PROVIDER_NOT_CONNECTED",
+                            "PLAN_NOT_FOUND",
+                            "PLAN_REQUIRED",
+                            "PROVIDER_AUTH_REQUIRED",
+                            "PROVIDER_CONNECTION_UNAVAILABLE",
+                            "PROVIDER_UNAVAILABLE",
+                            "PROVIDER_NOT_FOUND",
+                            "PROVIDER_NOT_READY",
+                            "RATE_CARD_EXISTS",
+                            "RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED",
+                            "RATE_CARD_NOT_DRAFT",
+                            "RATE_CARD_UNAVAILABLE",
+                            "PRICE_CHANGED",
+                            "PRICE_REFERENCE_UNAVAILABLE",
+                            "RATE_LIMITED",
+                            "REFERRAL_CODE_UNAVAILABLE",
+                            "REFERRAL_NOT_ELIGIBLE",
+                            "REFERRAL_NOT_REVIEWABLE",
+                            "REQUEST_NOT_FOUND",
+                            "ROLLOVER_POLICY_INVALID",
+                            "SUBSCRIPTION_EXPIRED",
+                            "SUBSCRIPTION_NOT_FOUND",
+                            "SUBSCRIPTION_REQUIRED",
+                            "TOKEN_EXPIRED",
+                            "UNAUTHORIZED",
+                            "VALIDATION_ERROR",
+                            "WALLET_LEDGER_MISMATCH",
+                            "WALLET_LIMIT_REACHED"
+                          ]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "RELEASE_UNAVAILABLE",
+                            "UNSUPPORTED_CAPABILITY",
+                            "UNSUPPORTED_PROTOCOL",
+                            "PROTOCOL_INVALID",
+                            "PROVIDER_RATE_LIMITED",
+                            "PROVIDER_BALANCE_EXHAUSTED",
+                            "PROVIDER_USAGE_UNAVAILABLE",
+                            "CONVERSATION_NOT_FOUND",
+                            "CONVERSATION_MODE_CHANGED",
+                            "RATE_CARD_IDENTITY_MISMATCH",
+                            "INSTANCE_ALREADY_EXISTS",
+                            "INVALID_CONFIG",
+                            "INVALID_RELEASE_FILE",
+                            "INVALID_RELEASE_SIZE",
+                            "RELEASE_FILE_MISSING",
+                            "RELEASE_TOO_LARGE",
+                            "UNSUPPORTED_MEDIA_TYPE",
+                            "PAYLOAD_TOO_LARGE",
+                            "ACCOUNT_DISABLED",
+                            "AUTH_REQUIRED",
+                            "BILLING_REVIEW_REQUIRED",
+                            "CANNOT_DISABLE_SELF",
+                            "CLIENT_THREAD_ID_REQUIRED",
+                            "CLIENT_UPGRADE_REQUIRED",
+                            "COPILOT_AUTH_EXPIRED",
+                            "COPILOT_NOT_ENTITLED",
+                            "COPILOT_USAGE_UNAVAILABLE",
+                            "CSRF_REJECTED",
+                            "DEVICE_LIMIT_REACHED",
+                            "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
+                            "DEVICE_REVOKED",
+                            "EMAIL_IN_USE",
+                            "EMAIL_CODE_INVALID",
+                            "EMAIL_DELIVERY_UNAVAILABLE",
+                            "FEATURE_DISABLED",
+                            "TURNSTILE_INVALID",
+                            "TURNSTILE_UNAVAILABLE",
+                            "FORBIDDEN",
+                            "GATEWAY_TIMEOUT",
+                            "IDEMPOTENCY_CONFLICT",
+                            "INSUFFICIENT_POINTS",
+                            "INTERNAL_ERROR",
+                            "INVALID_CREDENTIALS",
+                            "INVALID_POINTS",
+                            "INVALID_PROVIDER_CONNECTION",
+                            "INVALID_REFERRAL_CODE",
+                            "MODEL_NOT_ALLOWED",
+                            "MODEL_NOT_AVAILABLE",
+                            "MODEL_PROVIDER_MISMATCH",
+                            "MODEL_UNAVAILABLE",
+                            "MONTHLY_QUOTA_EXCEEDED",
+                            "NOT_FOUND",
+                            "ORDER_NOT_PAYABLE",
+                            "PAYMENT_PROVIDER_NOT_CONNECTED",
+                            "PLAN_NOT_FOUND",
+                            "PLAN_REQUIRED",
+                            "PROVIDER_AUTH_REQUIRED",
+                            "PROVIDER_CONNECTION_UNAVAILABLE",
+                            "PROVIDER_UNAVAILABLE",
+                            "PROVIDER_NOT_FOUND",
+                            "PROVIDER_NOT_READY",
+                            "RATE_CARD_EXISTS",
+                            "RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED",
+                            "RATE_CARD_NOT_DRAFT",
+                            "RATE_CARD_UNAVAILABLE",
+                            "PRICE_CHANGED",
+                            "PRICE_REFERENCE_UNAVAILABLE",
+                            "RATE_LIMITED",
+                            "REFERRAL_CODE_UNAVAILABLE",
+                            "REFERRAL_NOT_ELIGIBLE",
+                            "REFERRAL_NOT_REVIEWABLE",
+                            "REQUEST_NOT_FOUND",
+                            "ROLLOVER_POLICY_INVALID",
+                            "SUBSCRIPTION_EXPIRED",
+                            "SUBSCRIPTION_NOT_FOUND",
+                            "SUBSCRIPTION_REQUIRED",
+                            "TOKEN_EXPIRED",
+                            "UNAUTHORIZED",
+                            "VALIDATION_ERROR",
+                            "WALLET_LEDGER_MISMATCH",
+                            "WALLET_LIMIT_REACHED"
+                          ]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "RELEASE_UNAVAILABLE",
+                            "UNSUPPORTED_CAPABILITY",
+                            "UNSUPPORTED_PROTOCOL",
+                            "PROTOCOL_INVALID",
+                            "PROVIDER_RATE_LIMITED",
+                            "PROVIDER_BALANCE_EXHAUSTED",
+                            "PROVIDER_USAGE_UNAVAILABLE",
+                            "CONVERSATION_NOT_FOUND",
+                            "CONVERSATION_MODE_CHANGED",
+                            "RATE_CARD_IDENTITY_MISMATCH",
+                            "INSTANCE_ALREADY_EXISTS",
+                            "INVALID_CONFIG",
+                            "INVALID_RELEASE_FILE",
+                            "INVALID_RELEASE_SIZE",
+                            "RELEASE_FILE_MISSING",
+                            "RELEASE_TOO_LARGE",
+                            "UNSUPPORTED_MEDIA_TYPE",
+                            "PAYLOAD_TOO_LARGE",
+                            "ACCOUNT_DISABLED",
+                            "AUTH_REQUIRED",
+                            "BILLING_REVIEW_REQUIRED",
+                            "CANNOT_DISABLE_SELF",
+                            "CLIENT_THREAD_ID_REQUIRED",
+                            "CLIENT_UPGRADE_REQUIRED",
+                            "COPILOT_AUTH_EXPIRED",
+                            "COPILOT_NOT_ENTITLED",
+                            "COPILOT_USAGE_UNAVAILABLE",
+                            "CSRF_REJECTED",
+                            "DEVICE_LIMIT_REACHED",
+                            "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
+                            "DEVICE_REVOKED",
+                            "EMAIL_IN_USE",
+                            "EMAIL_CODE_INVALID",
+                            "EMAIL_DELIVERY_UNAVAILABLE",
+                            "FEATURE_DISABLED",
+                            "TURNSTILE_INVALID",
+                            "TURNSTILE_UNAVAILABLE",
+                            "FORBIDDEN",
+                            "GATEWAY_TIMEOUT",
+                            "IDEMPOTENCY_CONFLICT",
+                            "INSUFFICIENT_POINTS",
+                            "INTERNAL_ERROR",
+                            "INVALID_CREDENTIALS",
+                            "INVALID_POINTS",
+                            "INVALID_PROVIDER_CONNECTION",
+                            "INVALID_REFERRAL_CODE",
+                            "MODEL_NOT_ALLOWED",
+                            "MODEL_NOT_AVAILABLE",
+                            "MODEL_PROVIDER_MISMATCH",
+                            "MODEL_UNAVAILABLE",
+                            "MONTHLY_QUOTA_EXCEEDED",
+                            "NOT_FOUND",
+                            "ORDER_NOT_PAYABLE",
+                            "PAYMENT_PROVIDER_NOT_CONNECTED",
+                            "PLAN_NOT_FOUND",
+                            "PLAN_REQUIRED",
+                            "PROVIDER_AUTH_REQUIRED",
+                            "PROVIDER_CONNECTION_UNAVAILABLE",
+                            "PROVIDER_UNAVAILABLE",
+                            "PROVIDER_NOT_FOUND",
+                            "PROVIDER_NOT_READY",
+                            "RATE_CARD_EXISTS",
+                            "RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED",
+                            "RATE_CARD_NOT_DRAFT",
+                            "RATE_CARD_UNAVAILABLE",
+                            "PRICE_CHANGED",
+                            "PRICE_REFERENCE_UNAVAILABLE",
+                            "RATE_LIMITED",
+                            "REFERRAL_CODE_UNAVAILABLE",
+                            "REFERRAL_NOT_ELIGIBLE",
+                            "REFERRAL_NOT_REVIEWABLE",
+                            "REQUEST_NOT_FOUND",
+                            "ROLLOVER_POLICY_INVALID",
+                            "SUBSCRIPTION_EXPIRED",
+                            "SUBSCRIPTION_NOT_FOUND",
+                            "SUBSCRIPTION_REQUIRED",
+                            "TOKEN_EXPIRED",
+                            "UNAUTHORIZED",
+                            "VALIDATION_ERROR",
+                            "WALLET_LEDGER_MISMATCH",
+                            "WALLET_LIMIT_REACHED"
+                          ]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "RELEASE_UNAVAILABLE",
+                            "UNSUPPORTED_CAPABILITY",
+                            "UNSUPPORTED_PROTOCOL",
+                            "PROTOCOL_INVALID",
+                            "PROVIDER_RATE_LIMITED",
+                            "PROVIDER_BALANCE_EXHAUSTED",
+                            "PROVIDER_USAGE_UNAVAILABLE",
+                            "CONVERSATION_NOT_FOUND",
+                            "CONVERSATION_MODE_CHANGED",
+                            "RATE_CARD_IDENTITY_MISMATCH",
+                            "INSTANCE_ALREADY_EXISTS",
+                            "INVALID_CONFIG",
+                            "INVALID_RELEASE_FILE",
+                            "INVALID_RELEASE_SIZE",
+                            "RELEASE_FILE_MISSING",
+                            "RELEASE_TOO_LARGE",
+                            "UNSUPPORTED_MEDIA_TYPE",
+                            "PAYLOAD_TOO_LARGE",
+                            "ACCOUNT_DISABLED",
+                            "AUTH_REQUIRED",
+                            "BILLING_REVIEW_REQUIRED",
+                            "CANNOT_DISABLE_SELF",
+                            "CLIENT_THREAD_ID_REQUIRED",
+                            "CLIENT_UPGRADE_REQUIRED",
+                            "COPILOT_AUTH_EXPIRED",
+                            "COPILOT_NOT_ENTITLED",
+                            "COPILOT_USAGE_UNAVAILABLE",
+                            "CSRF_REJECTED",
+                            "DEVICE_LIMIT_REACHED",
+                            "DEVICE_NOT_REGISTERED",
+                            "DEVICE_PROOF_INVALID",
+                            "DEVICE_PROOF_REPLAYED",
+                            "DEVICE_REVOKED",
+                            "EMAIL_IN_USE",
+                            "EMAIL_CODE_INVALID",
+                            "EMAIL_DELIVERY_UNAVAILABLE",
+                            "FEATURE_DISABLED",
+                            "TURNSTILE_INVALID",
+                            "TURNSTILE_UNAVAILABLE",
+                            "FORBIDDEN",
+                            "GATEWAY_TIMEOUT",
+                            "IDEMPOTENCY_CONFLICT",
+                            "INSUFFICIENT_POINTS",
+                            "INTERNAL_ERROR",
+                            "INVALID_CREDENTIALS",
+                            "INVALID_POINTS",
+                            "INVALID_PROVIDER_CONNECTION",
+                            "INVALID_REFERRAL_CODE",
+                            "MODEL_NOT_ALLOWED",
+                            "MODEL_NOT_AVAILABLE",
+                            "MODEL_PROVIDER_MISMATCH",
+                            "MODEL_UNAVAILABLE",
+                            "MONTHLY_QUOTA_EXCEEDED",
+                            "NOT_FOUND",
+                            "ORDER_NOT_PAYABLE",
+                            "PAYMENT_PROVIDER_NOT_CONNECTED",
+                            "PLAN_NOT_FOUND",
+                            "PLAN_REQUIRED",
+                            "PROVIDER_AUTH_REQUIRED",
+                            "PROVIDER_CONNECTION_UNAVAILABLE",
+                            "PROVIDER_UNAVAILABLE",
+                            "PROVIDER_NOT_FOUND",
+                            "PROVIDER_NOT_READY",
+                            "RATE_CARD_EXISTS",
+                            "RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED",
+                            "RATE_CARD_NOT_DRAFT",
+                            "RATE_CARD_UNAVAILABLE",
+                            "PRICE_CHANGED",
+                            "PRICE_REFERENCE_UNAVAILABLE",
+                            "RATE_LIMITED",
+                            "REFERRAL_CODE_UNAVAILABLE",
+                            "REFERRAL_NOT_ELIGIBLE",
+                            "REFERRAL_NOT_REVIEWABLE",
+                            "REQUEST_NOT_FOUND",
+                            "ROLLOVER_POLICY_INVALID",
+                            "SUBSCRIPTION_EXPIRED",
+                            "SUBSCRIPTION_NOT_FOUND",
+                            "SUBSCRIPTION_REQUIRED",
+                            "TOKEN_EXPIRED",
+                            "UNAUTHORIZED",
+                            "VALIDATION_ERROR",
+                            "WALLET_LEDGER_MISMATCH",
+                            "WALLET_LIMIT_REACHED"
+                          ]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "PUT /api/v1/admin/engagement",
+        "security": [
+          {
+            "DesktopBearer": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": {}
               }
             }
           }
