@@ -1,4 +1,4 @@
-import {fulfillSignupReward} from './signup-rewards.js';
+import {fulfillSignupReward,qualifyInviteFromCredit} from './signup-rewards.js';
 import type { FastifyInstance } from 'fastify';
 import { aiRequests, auditLogs, billingOrders, db, devices, models, modelInstances, providers, rateCards, rateCardVersions, referralRewards, referrals, systemSettings, usageEvents, users, walletTransactions, wallets } from '@bridge/db';
 import { and, desc, eq, gte, inArray, sql } from 'drizzle-orm';
@@ -69,8 +69,10 @@ export async function registerV2Admin(app: FastifyInstance) {
     const a = await admin(req); const userId = uuidParam(req.params);
     const data = z.object({ points: z.number().int().min(-1_000_000_000).max(1_000_000_000).refine(n => n !== 0), reason: z.string().trim().min(10).max(500), idempotencyKey: z.uuid() }).parse(req.body);
     return db.transaction(async tx => {
+      await tx.select({id:referrals.id}).from(referrals).where(eq(referrals.referredUserId,userId)).for('update');
       const result = await applyWalletChange(tx, { userId, points: data.points, type: 'ADMIN_ADJUSTMENT', referenceType: 'ADMIN', referenceId: a.user.id,
         idempotencyKey: `admin:${data.idempotencyKey}`, metadata: { reason: data.reason } });
+      if (!result.duplicate && data.points>0) await qualifyInviteFromCredit(tx,userId,{transactionId:result.transaction.id});
       if (!result.duplicate) await tx.insert(auditLogs).values({ actorId: a.user.id, action: 'WALLET_ADJUSTED', targetType: 'USER', targetId: userId,
         metadata: { points: data.points, reason: data.reason, transactionId: result.transaction.id } });
       return { transaction: result.transaction, duplicate: result.duplicate };

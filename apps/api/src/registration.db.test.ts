@@ -200,6 +200,22 @@ describe.skipIf(!enabled)('staged registration (dedicated PostgreSQL)', () => {
     expect(challenge.state).toBe('ISSUED');
   }, 180_000);
 
+  it('requires verified signup and waits for the first administrator top-up before giving both invitation rewards',async()=>{
+    const prior=(await data.db.select().from(data.systemSettings).where(eq(data.systemSettings.key,'engagement')))[0];
+    try{
+      await data.db.insert(data.plans).values({code:'PAYG',name:'PAYG',monthlyPrice:'0',maxDevices:3,monthlyTokenLimit:1000000000,monthlyUsageCreditLimit:'1000000000',maxConcurrentRequests:10,requestsPerMinute:100,monthlyPoints:0,rolloverPolicy:'UNLIMITED'}).onConflictDoUpdate({target:data.plans.code,set:{enabled:true}});
+      await data.db.insert(data.systemSettings).values({key:'engagement',value:{revision:0,campaign:{enabled:true},notices:[]}}).onConflictDoUpdate({target:data.systemSettings.key,set:{value:{revision:0,campaign:{enabled:true},notices:[]}}});
+      const [host]=await data.db.insert(data.users).values({email:email(),passwordHash:'fixture'}).returning(),[admin]=await data.db.insert(data.users).values({email:email(),passwordHash:'fixture',role:'ADMIN'}).returning();
+      const referral=await(await import('./referral.js')).referralCodeFor(host.id),address=email();
+      vi.stubGlobal('fetch',vi.fn(async()=>new Response(JSON.stringify({success:true,hostname:'localhost',action:'registration_email_code'}),{status:200})));
+      const code=await issue(address),created=await inject('POST','/api/v1/auth/register',{email:address,password,emailCode:code,referralCode:referral.code});expect(created.statusCode,created.body).toBe(201);const childId=created.json().user.id;
+      const {walletSummary}=await import('./wallet.js');expect((await walletSummary(childId)).balance).toBe(0);expect((await walletSummary(host.id)).balance).toBe(0);
+      const security=await import('./security.js'),token=security.newRefresh();await data.db.insert(data.webSessions).values({userId:admin.id,tokenHash:security.hashRefresh(token),expiresAt:new Date(Date.now()+60000)});
+      const request={method:'POST' as const,url:`/api/v1/admin/users/${childId}/wallet/adjust`,headers:{cookie:`bridge_session=${token}`,origin:'http://localhost:3000'},payload:{points:10000,idempotencyKey:randomUUID(),reason:'Confirmed first top-up for invitation'}};
+      expect((await app.inject(request)).statusCode).toBe(200);expect((await app.inject(request)).json().duplicate).toBe(true);expect(await walletSummary(childId)).toMatchObject({regularBalance:10000,rewardBalance:50000});expect((await walletSummary(host.id)).rewardBalance).toBe(50000);
+    }finally{if(prior)await data.db.update(data.systemSettings).set({value:prior.value}).where(eq(data.systemSettings.key,'engagement'));else await data.db.delete(data.systemSettings).where(eq(data.systemSettings.key,'engagement'));}
+  },30000);
+
   it('keeps admin website credentials encrypted and uses the edited email template', async () => {
     expect((await app.inject({ method: 'GET', url: '/api/v1/admin/website-settings' })).statusCode).toBe(401);
     const adminEmail = email();

@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "productionAdminApi": true,
+  "internalSignupFixture": true,
+  "realCaptchaSignupNotClaimed": true,
+  "registrationGiftZero": true,
+  "reviewBeforeTopupGiftZero": true,
+  "firstAdminCreditRewardsBoth5": true,
+  "repeatCreditsNoExtraReward": true,
+  "idempotentCredit": true,
+  "rewardDays7": true,
+  "appUploaded": false,
+  "testAccountsCleaned": true
+}

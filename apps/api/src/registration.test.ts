@@ -42,6 +42,10 @@ describe('staged registration Turnstile verification', () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
+  it('closes registration when required verification settings are incomplete',async()=>{
+    const previous=process.env.SMTP_HOST;try{process.env.SMTP_HOST='';expect(await(await import('./registration.js')).registrationConfig()).toMatchObject({verificationRequired:true,registrationAvailable:false,configurationStatus:'MISSING_CONFIG'});}finally{process.env.SMTP_HOST=previous;}
+  });
+
   it('requires a token and fails closed on invalid responses, action or hostname', async () => {
     await expect(verify(undefined, 'web_login', '127.0.0.1')).rejects.toMatchObject({ code: 'TURNSTILE_INVALID' });
     for (const body of [

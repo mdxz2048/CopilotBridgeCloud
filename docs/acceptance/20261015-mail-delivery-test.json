@@ -1,0 +1,11 @@
+{
+  "smtpAcceptedRecipients": 2,
+  "immediateRejectedRecipients": 0,
+  "statusApiHttp": [
+    401,
+    401
+  ],
+  "userConfirmedReceipt": true,
+  "receiptConfirmation": "用户回复“我收到了”；未按收件地址分别确认",
+  "testDidNotCreateOrModifyAccounts": true
+}

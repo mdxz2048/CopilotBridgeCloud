@@ -26,8 +26,8 @@ export async function registrationConfig() {
     && settings.turnstile.expectedHostname === new URL(config.PUBLIC_BASE_URL).hostname);
   return {
     verificationRequired: enabled, turnstileSiteKey: enabled ? settings.turnstile.siteKey : null,
-    registrationAvailable: true,
-    configurationStatus: enabled ? 'READY' as const : configured ? 'DISABLED' as const : 'MISSING_CONFIG' as const,
+    registrationAvailable: !enabled || configured,
+    configurationStatus: enabled && configured ? 'READY' as const : configured ? 'DISABLED' as const : 'MISSING_CONFIG' as const,
   };
 }
 

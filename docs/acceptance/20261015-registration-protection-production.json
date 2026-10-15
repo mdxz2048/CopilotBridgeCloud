@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "verificationRequired": true,
+  "resendSmtpAuthenticated": true,
+  "turnstileReachable": true,
+  "missingEmailCodeRejected": true,
+  "invalidEmailCodeRejected": true,
+  "forgedCaptchaRejected": true,
+  "noEmailSent": true,
+  "realInboxDeliveryNotVerified": true
+}

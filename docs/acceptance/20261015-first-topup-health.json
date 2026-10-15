@@ -1,0 +1,16 @@
+{
+  "serverHash": "d8bd0d547c9967f119917b13ec574a9f3e5518037023ede9ca5f3c98e1165746",
+  "activeTestUsers": 0,
+  "health": {
+    "status": "ok",
+    "version": "0.1.0"
+  },
+  "verificationRequired": true,
+  "engagement": {
+    "revision": 3,
+    "campaign": {
+      "enabled": true
+    },
+    "notices": []
+  }
+}

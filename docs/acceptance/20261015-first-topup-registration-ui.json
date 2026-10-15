@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "productionPage": true,
+  "firstTopupRules": true,
+  "registrationNoReward": true,
+  "turnstileWidgetSlot": true,
+  "emailVerificationStep": true,
+  "noEmailSent": true,
+  "realHumanCompletionNotVerified": true
+}
