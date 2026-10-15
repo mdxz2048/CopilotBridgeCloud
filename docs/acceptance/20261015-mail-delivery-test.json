@@ -6,6 +6,9 @@
     401
   ],
   "userConfirmedReceipt": true,
-  "receiptConfirmation": "用户回复“我收到了”；未按收件地址分别确认",
-  "testDidNotCreateOrModifyAccounts": true
+  "receiptConfirmation": "用户先确认收到，随后澄清另一邮箱也已收到；两封实际收件均确认",
+  "testDidNotCreateOrModifyAccounts": true,
+  "bothRecipientsConfirmed": true,
+  "additionalCodeSampleAccepted": true,
+  "additionalCodeSampleWasNonAuthenticating": true
 }
