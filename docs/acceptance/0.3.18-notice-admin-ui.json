@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "widths": [
+    480,
+    1000
+  ],
+  "realComponent": true,
+  "fixtureApi": true,
+  "activityToggle": true,
+  "rewardDays7": true,
+  "notificationEdit": true,
+  "failedSavePreservesDraft": true,
+  "noHorizontalOverflow": true,
+  "noPageErrors": true
+}

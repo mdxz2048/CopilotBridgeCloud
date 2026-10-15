@@ -195,7 +195,7 @@ export async function registerRoutes(app: FastifyInstance) {
   async function latestRelease() {
     return latestWindowsRelease(await db.select().from(releases).where(and(eq(releases.published, true), eq(releases.channel, 'stable'), eq(releases.platform, 'windows'), eq(releases.arch, 'x64'))));
   }
-  app.get('/api/v1/client/config', async () => {const version=(await latestRelease())?.version??'0.1.0';return { minimumVersion: version, latestVersion:version, maintenance:false, features:{cloudGateway:true},...publicEngagement(await engagementPolicy()) };});
+  app.get('/api/v1/client/config', async (_req,reply) => {reply.header('Cache-Control','no-store');const version=(await latestRelease())?.version??'0.1.0';return { minimumVersion: version, latestVersion:version, maintenance:false, features:{cloudGateway:true},...publicEngagement(await engagementPolicy()) };});
   app.get('/api/v1/releases', async () => ({ data: await db.select().from(releases).where(eq(releases.published, true)).orderBy(desc(releases.createdAt)) }));
   app.get('/api/v1/releases/download', async (_req, reply) => {
     const release=await latestRelease();

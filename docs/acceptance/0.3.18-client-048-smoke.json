@@ -1,0 +1,21 @@
+{
+  "passed": true,
+  "appVersion": "0.3.18",
+  "oldVersionUpgradeRequired": true,
+  "latestVersionModelsAccessible": true,
+  "compiledLocalProxy": true,
+  "permanentAccount": true,
+  "separateBalances": true,
+  "fundingHistoryFiltered": true,
+  "invitationFirstTopupRules": true,
+  "results": [
+    {
+      "model": "deepseek/deepseek-flash",
+      "completed": true
+    },
+    {
+      "model": "openai/gpt-6-sol",
+      "completed": true
+    }
+  ]
+}

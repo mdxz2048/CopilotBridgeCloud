@@ -1,0 +1,27 @@
+{
+  "passed": true,
+  "realAppRenderer": true,
+  "fixtureIpc": true,
+  "themes": [
+    "light",
+    "dark"
+  ],
+  "widths": [
+    720,
+    900
+  ],
+  "emptyPreservesFooter": true,
+  "hoverAndFocusPause": true,
+  "reducedMotionStatic": true,
+  "manualNext": true,
+  "quietRotation10000ms": true,
+  "maintenanceAndUpgradeSuppress": true,
+  "invitationTextUsesCampaign": true,
+  "noticeDialogClosable": true,
+  "titleAndBodyDistinct": true,
+  "longBodyScroll": true,
+  "openDetailUpdates": true,
+  "deletedDetailCloses": true,
+  "noHorizontalOverflow": true,
+  "noPageErrors": true
+}

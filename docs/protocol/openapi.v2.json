@@ -2041,6 +2041,16 @@
                   "minLength": 1,
                   "maxLength": 160
                 },
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "content": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 6000
+                },
                 "action": {
                   "type": "string",
                   "enum": [
@@ -7450,6 +7460,16 @@
                             "minLength": 1,
                             "maxLength": 160
                           },
+                          "title": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 80
+                          },
+                          "content": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 6000
+                          },
                           "action": {
                             "type": "string",
                             "enum": [
@@ -9817,6 +9837,16 @@
                             "type": "string",
                             "minLength": 1,
                             "maxLength": 160
+                          },
+                          "title": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 80
+                          },
+                          "content": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 6000
                           },
                           "action": {
                             "type": "string",

@@ -1096,6 +1096,21 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
     }finally{await app.close();}
   },30000);
 
+  it('publishes title and body edits, hides and deletes notices and protects concurrent admin edits',async()=>{
+    const {engagementPolicy}=await import('./engagement-policy.js');const app=await(await import('./server.js')).createServer();
+    try{
+      const headers=await testCookieHeaders(dbModule,ids.admin),userHeaders=await testCookieHeaders(dbModule,ids.user),id=randomUUID(),second=randomUUID();const old=await engagementPolicy();
+      const draft={...old,campaign:{enabled:false},notices:[{id,title:'服务通知',content:'第一行\n'+'完整正文'.repeat(300),enabled:true},{id:second,title:'隐藏草稿',content:'不公开的内容',enabled:false}]};
+      const save=(value:unknown,h=headers)=>app.inject({method:'PUT',url:'/api/v1/admin/engagement',headers:h,payload:value as object});
+      expect((await save(draft,userHeaders)).statusCode).toBe(403);const first=await save(draft);expect(first.statusCode,first.body).toBe(200);
+      const publicResult=await app.inject({url:'/api/v1/client/config'});expect(publicResult.headers['cache-control']).toBe('no-store');expect(publicResult.json().announcements).toEqual([{id,title:draft.notices[0].title,text:draft.notices[0].title,content:draft.notices[0].content,action:'NONE'}]);
+      expect((await save(draft)).statusCode).toBe(409);
+      const edited=await save({...first.json<typeof draft>(),notices:[{...draft.notices[0],title:'更新后的标题',content:'更新后的正文',enabled:true}]});expect(edited.statusCode).toBe(200);expect((await app.inject({url:'/api/v1/client/config'})).json().announcements[0]).toMatchObject({title:'更新后的标题',content:'更新后的正文'});
+      const editedValue=edited.json<typeof draft>();const hidden=await save({...editedValue,notices:[{...editedValue.notices[0],enabled:false}]});expect(hidden.statusCode).toBe(200);expect((await app.inject({url:'/api/v1/client/config'})).json().announcements).toEqual([]);
+      const deleted=await save({...hidden.json<typeof draft>(),notices:[]});expect(deleted.statusCode).toBe(200);expect((await app.inject({url:'/api/v1/client/config'})).json().announcements).toEqual([]);
+    }finally{await app.close();}
+  });
+
   it('filters account funding records before the history limit and keeps other users private',async()=>{
     const {db,users}=dbModule;const [owner]=await db.insert(users).values({email:`account-records-${randomUUID()}@example.test`,passwordHash:'fixture'}).returning();let purchaseId='';
     await db.transaction(async tx=>{const added=await walletModule.applyWalletChange(tx,{userId:owner.id,points:1000,type:'PURCHASE',referenceType:'TEST',referenceId:owner.id,idempotencyKey:randomUUID()});purchaseId=added.transaction.id;});await db.transaction(async tx=>{for(let i=0;i<101;i++)await walletModule.applyWalletChange(tx,{userId:owner.id,points:-1,type:'USAGE',referenceType:'TEST',referenceId:owner.id,idempotencyKey:randomUUID()});});

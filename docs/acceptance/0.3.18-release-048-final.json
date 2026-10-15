@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "activeTestUsers": 0,
+  "settledRequests": 3,
+  "walletDebitsReconciled": true,
+  "registrationProtected": true,
+  "version": "0.3.18",
+  "releaseId": "14d7b20c-5758-4aa8-bea4-b94b73b3e011",
+  "sha256": "e4a299c2756a7d9bb2e5dc80300e2f369538d1ac1d33f3ee80ecb90a725fe68e",
+  "serverHash": "29bec0f2de65624ad638c83ca66c291ba51e8c1b463a44ba7b188787526b48a2",
+  "health": {
+    "status": "ok",
+    "version": "0.1.0"
+  }
+}

@@ -19,7 +19,7 @@ export const RegisterRequestV2Schema = z.object({
   email: z.email(), password: z.string().min(12).max(256), referralCode: z.string().trim().min(8).max(24).optional(),
 });
 export const InviteCampaignSchema=z.object({id:z.string(),referrerRmb:z.literal(5),referredRmb:z.literal(5),rewardDays:z.literal(7),accountNeverExpires:z.literal(true),rules:z.string()});
-export const AnnouncementSchema=z.object({id:z.string().min(1).max(80),text:z.string().min(1).max(160),action:z.enum(['INVITE','NONE'])});
+export const AnnouncementSchema=z.object({id:z.string().min(1).max(80),text:z.string().min(1).max(160),title:z.string().min(1).max(80).optional(),content:z.string().min(1).max(6000).optional(),action:z.enum(['INVITE','NONE'])});
 export const ClientConfigV2Schema=z.object({minimumVersion:z.string(),latestVersion:z.string(),maintenance:z.boolean(),features:z.object({cloudGateway:z.boolean()}),inviteCampaign:InviteCampaignSchema.nullable().optional(),announcements:z.array(AnnouncementSchema).max(11).optional()});
 export const RegistrationConfigV24Schema = z.object({
   inviteCampaign:InviteCampaignSchema.nullable().optional(),announcements:z.array(AnnouncementSchema).max(11).optional(),

@@ -166,3 +166,7 @@ WalletSummary 增加可选整数 `regularBalance`、`rewardBalance`，单位仍�
 ### 0.3.17 紧凑账户的充值记录
 
 GET /api/v1/me/wallet/transactions 兼容增加 kind=account，仅在数据库查询中筛选 PURCHASE / ADMIN_ADJUSTMENT，再取最近100条，避免逐次消费挤掉较早充值记录。默认kind=all保持原行为。App仅展示充值、管理员加减金额、时间与当时变动后余额，当前钱包总额单独展示，不称为完整账单。
+
+### 0.3.18 通知标题与正文
+
+管理员 GET/PUT /api/v1/admin/engagement 的 notices 使用 {id,title,content,enabled}：title 1–80字、content 1–6000字、最多10条，纯文本。旧 {id,text,enabled} 读取/保存时兼容转换，revision并发保护和审计不变。campaign.announcementEnabled（默认true）只控制邀请活动广播，独立于campaign.enabled。公开client/config及registration-config仅返回启用通知；announcements保留text标题，兼容新增title/content，隐藏正文不泄露。client/config返回Cache-Control:no-store，新App约5秒配置轮询，多条10秒轮播，点击标题看正文；详情能同步编辑，隐藏/删除收起。无数据库迁移，原奖励和余额规则不变。

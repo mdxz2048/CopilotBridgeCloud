@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "normalizedAdminNotices": true,
+  "independentCampaignVisibility": true,
+  "visibleCount": 2,
+  "hiddenNoticesExcluded": true,
+  "registrationProtected": true,
+  "serverHash": "29bec0f2de65624ad638c83ca66c291ba51e8c1b463a44ba7b188787526b48a2",
+  "health": {
+    "status": "ok",
+    "version": "0.1.0"
+  }
+}
