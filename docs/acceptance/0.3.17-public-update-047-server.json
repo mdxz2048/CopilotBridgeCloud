@@ -1,0 +1,9 @@
+{
+  "passed": true,
+  "executionEnvironment": "server Node using unchanged compiled App UpdateManager",
+  "publicHttpsFullDownload": true,
+  "automaticDownload": true,
+  "sha256Verified": true,
+  "readyVersion": "0.3.17",
+  "clientConfigVersion": "0.3.17"
+}

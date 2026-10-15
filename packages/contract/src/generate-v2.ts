@@ -27,12 +27,13 @@ const success = (schema: z.ZodType, status = 200) => ({
 });
 type Method = 'get' | 'post' | 'put' | 'patch' | 'delete';
 function route(method: Method, path: string, output: z.ZodType, body?: z.ZodType, status = 200, auth = true) {
+  const query=path==='/api/v1/me/wallet/transactions'?z.object({kind:z.enum(['all','account']).default('all')}):undefined;
   const params = path === '/api/v1/usage/responses/{id}'
     ? z.object({ id: z.string().regex(/^resp_[0-9a-f]{32}$/) })
     : path.includes('{id}') ? uuidParams : undefined;
   registry.registerPath({ method, path, summary: `${method.toUpperCase()} ${path}`,
     ...(auth ? { security: [{ DesktopBearer: [] }] } : {}),
-    ...(body || params ? { request: { ...(params ? { params } : {}), ...(body ? { body: { content: json(body) } } : {}) } } : {}),
+    ...(body || params || query ? { request: { ...(query?{query}:{}), ...(params ? { params } : {}), ...(body ? { body: { content: json(body) } } : {}) } } : {}),
     responses: success(output, status) });
 }
 

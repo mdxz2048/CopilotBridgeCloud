@@ -1096,4 +1096,10 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
     }finally{await app.close();}
   },30000);
 
+  it('filters account funding records before the history limit and keeps other users private',async()=>{
+    const {db,users}=dbModule;const [owner]=await db.insert(users).values({email:`account-records-${randomUUID()}@example.test`,passwordHash:'fixture'}).returning();let purchaseId='';
+    await db.transaction(async tx=>{const added=await walletModule.applyWalletChange(tx,{userId:owner.id,points:1000,type:'PURCHASE',referenceType:'TEST',referenceId:owner.id,idempotencyKey:randomUUID()});purchaseId=added.transaction.id;});await db.transaction(async tx=>{for(let i=0;i<101;i++)await walletModule.applyWalletChange(tx,{userId:owner.id,points:-1,type:'USAGE',referenceType:'TEST',referenceId:owner.id,idempotencyKey:randomUUID()});});
+    const app=await(await import('./server.js')).createServer();try{const headers=await testCookieHeaders(dbModule,owner.id);const all=await app.inject({url:'/api/v1/me/wallet/transactions',headers});expect(all.json().data).toHaveLength(100);expect(all.json().data.every((t:{type:string})=>t.type==='USAGE')).toBe(true);const filtered=await app.inject({url:'/api/v1/me/wallet/transactions?kind=account',headers});expect(filtered.statusCode).toBe(200);expect(filtered.json().data.map((t:{id:string})=>t.id)).toEqual([purchaseId]);expect((await app.inject({url:'/api/v1/me/wallet/transactions?kind=invalid',headers})).statusCode).toBe(400);const otherHeaders=await testCookieHeaders(dbModule,ids.admin);expect((await app.inject({url:'/api/v1/me/wallet/transactions?kind=account',headers:otherHeaders})).json().data.some((t:{id:string})=>t.id===purchaseId)).toBe(false);}finally{await app.close();}
+  },30000);
+
 });

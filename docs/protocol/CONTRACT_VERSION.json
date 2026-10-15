@@ -1,7 +1,7 @@
 {
   "version": "2.7.0",
   "openapiFile": "openapi.v2.json",
-  "openapiSha256": "29942199b07ca300181afa3a401b94e53ae6750f118719b644394ab2b6e09d10",
+  "openapiSha256": "015d6d344c4042d922a6e832ac4d884136407d0e30daa4b4cde668434a478cf6",
   "frozenAt": "2026-10-12",
   "gatewayV1": {
     "version": "1.0.0",

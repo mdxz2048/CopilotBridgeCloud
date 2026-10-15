@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { aiRequests, db, devices, providerAccountCredentials, providerAccounts, providers, referralRewards, referrals, refreshTokens, usageEvents, walletTransactions, wallets } from '@bridge/db';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { actor, allowedModels, ApiError, audit, changeDeviceStatus, currentSubscription, currentUsage } from './core.js';
 import { referralCodeFor, registerReferral } from './referral.js';
@@ -44,11 +44,12 @@ export async function registerV2Routes(app: FastifyInstance) {
   app.get('/api/v1/me/wallet', async req => walletSummary((await actor(req)).user.id));
   app.get('/api/v1/me/devices', async req => ({ data: await db.select().from(devices).where(eq(devices.userId, (await actor(req)).user.id)).orderBy(desc(devices.activatedAt)) }));
   app.get('/api/v1/me/wallet/transactions', async req => {
+    const {kind}=z.object({kind:z.enum(['all','account']).default('all')}).parse(req.query);
     const a = await actor(req);
     const [wallet] = await db.select().from(wallets).where(eq(wallets.userId, a.user.id)).limit(1);
     return { data: wallet ? await db.select({ id: walletTransactions.id, type: walletTransactions.type, points: walletTransactions.points,
       balanceAfter: walletTransactions.balanceAfter, referenceType: walletTransactions.referenceType, referenceId: walletTransactions.referenceId, createdAt: walletTransactions.createdAt })
-      .from(walletTransactions).where(eq(walletTransactions.walletId, wallet.id)).orderBy(desc(walletTransactions.createdAt)).limit(100) : [] };
+      .from(walletTransactions).where(and(eq(walletTransactions.walletId, wallet.id),kind==='account'?inArray(walletTransactions.type,['PURCHASE','ADMIN_ADJUSTMENT']):undefined)).orderBy(desc(walletTransactions.createdAt)).limit(100) : [] };
   });
   app.get('/api/v1/me/usage', usageSummary);
   app.get('/api/v1/usage', usageSummary);

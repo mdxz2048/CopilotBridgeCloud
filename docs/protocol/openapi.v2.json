@@ -16214,6 +16214,21 @@
             "DesktopBearer": []
           }
         ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "account"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "kind",
+            "in": "query"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Success",

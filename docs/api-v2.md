@@ -161,3 +161,8 @@ WalletSummary 增加可选整数 `regularBalance`、`rewardBalance`，单位仍�
 生产强制启用 `STAGED_EMAIL_REGISTRATION_ENABLED=true`（持久化于生产环境及 runtime override），使用已配置的 Turnstile + Resend SMTP。获取邮箱码须同源请求及服务端人机凭证验证；注册必须消费10分钟内的邮箱码，5次错误后作废，成功使用后不可重放。发码有60秒冷却、每邮箱每小时3次、每IP每小时8次数据库限额；注册接口另有每IP每小时5次限制。验证失败/上游异常不会降级为无验证注册；强制验证配置不全时 registrationAvailable:false、MISSING_CONFIG。
 
 活动广播与邀请文案现在说明“首次充值后双方各得¥5”，取代之前的“注册即送”。已到账奖励不追溯撤回，历史REWARDED不会重复领取；原活动快照中未发奖的资格也须今后有真实加款再发。当前任意首次正额管理员加款视为充值，无最低金额设置，管理员减款不计。正常账号资格仍长期有效，奖励自实际发放起7天有效。既有客户端登录/模型调用鉴权与余额不足策略不变。
+
+
+### 0.3.17 紧凑账户的充值记录
+
+GET /api/v1/me/wallet/transactions 兼容增加 kind=account，仅在数据库查询中筛选 PURCHASE / ADMIN_ADJUSTMENT，再取最近100条，避免逐次消费挤掉较早充值记录。默认kind=all保持原行为。App仅展示充值、管理员加减金额、时间与当时变动后余额，当前钱包总额单独展示，不称为完整账单。

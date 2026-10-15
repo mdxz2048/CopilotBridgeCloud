@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "activeTestUsers": 0,
+  "settledRequests": 3,
+  "walletDebitsReconciled": true,
+  "registrationProtected": true,
+  "version": "0.3.17",
+  "releaseId": "12cc26b8-2eb5-4273-9215-f85c3aa862f1",
+  "sha256": "18c7b3ef075fcf61c4f7a4535d048d796fa360923c752f0da4ee9b57c654eb26",
+  "serverHash": "6fb874547847dffbbcef040fe7085212cfdc9472644624bd768d241319678832",
+  "health": {
+    "status": "ok",
+    "version": "0.1.0"
+  }
+}
