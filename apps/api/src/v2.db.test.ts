@@ -1024,4 +1024,24 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
   },30000);
 
 
+  it('separates remaining regular and reward balances through spending, expiration, retries and account APIs',async()=>{
+    const {db,users,devices}=dbModule;
+    const [owner]=await db.insert(users).values({email:`wallet-parts-${randomUUID()}@example.test`,passwordHash:'test'}).returning();
+    const expiresAt=new Date(Date.now()+60000);
+    const credit=(points:number,type:string,key:string,expires?:Date)=>db.transaction(tx=>walletModule.applyWalletChange(tx,{userId:owner.id,points,type,referenceType:'TEST',referenceId:owner.id,idempotencyKey:key,expiresAt:expires}));
+    const prefix=randomUUID();await credit(10000,'PURCHASE',prefix+':purchase');await credit(2000,'ADMIN_ADJUSTMENT',prefix+':admin');await credit(5000,'REFERRAL_REWARD',prefix+':reward',expiresAt);
+    expect(await walletModule.walletSummary(owner.id)).toMatchObject({balance:17000,regularBalance:12000,rewardBalance:5000});
+    await credit(-3000,'USAGE',prefix+':usage');await credit(-3000,'USAGE',prefix+':usage');
+    expect(await walletModule.walletSummary(owner.id)).toMatchObject({balance:14000,regularBalance:12000,rewardBalance:2000});
+    const app=await(await import('./server.js')).createServer();try{
+      const ownerHeaders=await testCookieHeaders(dbModule,owner.id),adminHeaders=await testCookieHeaders(dbModule,ids.admin);
+      const own=await app.inject({url:'/api/v1/me/wallet',headers:ownerHeaders});expect(own.statusCode).toBe(200);expect(own.json()).toMatchObject({balance:14000,regularBalance:12000,rewardBalance:2000});
+      const adminRead=await app.inject({url:'/api/v1/admin/users/'+owner.id,headers:adminHeaders});expect(adminRead.statusCode).toBe(200);expect(adminRead.json().wallet).toMatchObject(own.json());
+    }finally{await app.close();}
+    await walletModule.expireDueWalletLots(owner.id,new Date(expiresAt.getTime()+1));
+    expect(await walletModule.walletSummary(owner.id)).toMatchObject({balance:12000,regularBalance:12000,rewardBalance:0});
+    await credit(-1000,'ADMIN_ADJUSTMENT',prefix+':decrease');expect(await walletModule.walletSummary(owner.id)).toMatchObject({balance:11000,regularBalance:11000,rewardBalance:0});
+    expect(await walletModule.walletSummary(randomUUID())).toMatchObject({balance:0,regularBalance:0,rewardBalance:0});
+  },30000);
+
 });

@@ -39,7 +39,18 @@ export async function expireDueWalletLotsForAll(batchSize = 200, at = new Date()
 }
 
 export async function walletSummary(userId: string) {
-  return { balance: await expireDueWalletLots(userId), unit: 'AI_POINT' as const };
+  return db.transaction(async tx => {
+    const [wallet]=await tx.select().from(wallets).where(eq(wallets.userId,userId)).for('update').limit(1);
+    if(!wallet)return {balance:0,regularBalance:0,rewardBalance:0,unit:'AI_POINT' as const};
+    const balance=await expireLocked(tx,wallet,new Date());
+    const [parts]=await tx.select({
+      regular:sql<number>`coalesce(sum(${walletLots.remainingPoints}) filter(where ${walletTransactions.type} <> 'REFERRAL_REWARD'),0)`,
+      reward:sql<number>`coalesce(sum(${walletLots.remainingPoints}) filter(where ${walletTransactions.type} = 'REFERRAL_REWARD'),0)`
+    }).from(walletLots).innerJoin(walletTransactions,eq(walletTransactions.id,walletLots.sourceTransactionId)).where(eq(walletLots.walletId,wallet.id));
+    const regularBalance=Number(parts.regular),rewardBalance=Number(parts.reward);
+    if(regularBalance+rewardBalance!==balance)throw new ApiError(500,'WALLET_LEDGER_MISMATCH');
+    return {balance,regularBalance,rewardBalance,unit:'AI_POINT' as const};
+  });
 }
 
 export async function applyWalletChange(tx: DbTransaction, change: WalletChange) {

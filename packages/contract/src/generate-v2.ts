@@ -126,6 +126,9 @@ route('put', '/api/v1/admin/referral-policy', adminResponse, generic);
 route('post', '/api/v1/admin/referrals/{id}/review', adminResponse,
   z.object({ decision: z.enum(['APPROVE', 'REJECT']), reason: z.string() }));
 route('get', '/api/v1/admin/cost-analytics', adminResponse);
+route('get','/api/v1/admin/cost-requests',adminResponse);
+route('get','/api/v1/admin/model-pricing',adminResponse);
+route('put','/api/v1/admin/model-pricing/{id}',adminResponse,z.object({multiplier:z.number().min(.01).max(100),expectedRevision:z.number().int().nonnegative()}));
 route('post', '/v1/responses', responseV2, ResponseRequestSchema);
 route('get','/api/v1/admin/insights',adminResponse);
 route('get','/api/v1/admin/users/{id}/activity',adminResponse);

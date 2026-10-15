@@ -9,7 +9,7 @@ Desktop authenticated routes require the bearer token **and** a signed `DPoP` co
 ```ts
 type AccountSummary = { id: string; email: string; status: 'ACTIVE'|'DISABLED'|'EXPIRED' };
 type SubscriptionSummary = { id: string; status: string; planCode: string; periodStart: string; periodEnd: string; monthlyPoints: number; maxDevices: number; rolloverPolicy: 'NONE'|'UNLIMITED' } | null;
-type WalletSummary = { balance: number; unit: 'AI_POINT' };
+type WalletSummary = { balance: number; regularBalance?: number; rewardBalance?: number; unit: 'AI_POINT' };
 type Device = { id: string; userId: string; deviceId: string; deviceName: string; platform: string; osVersion: string; appVersion: string; status: 'ACTIVE'|'REVOKED'|'BLOCKED'; activatedAt: string; lastSeenAt: string|null; updatedAt: string };
 type DeviceCredential = { accessToken: string; refreshToken: string; expiresIn: 1800; user: { id: string; email: string; role: 'USER'|'ADMIN'; status: AccountSummary['status'] }; device: Device };
 type Provider = { id: string; code: string; name: string; ownership: 'MANAGED'; status: 'ACTIVE'|'DISABLED' };
@@ -142,3 +142,7 @@ The shared V1 authentication middleware currently emits `UNAUTHORIZED` for a mis
 `V2_BILLING_MODE` has three states: `OFF` leaves the Gateway V1 billing path intact, `SHADOW` writes immutable AI request and usage events with `pointsRated > 0` and `pointsCharged = 0` when usage is observed, and `ENFORCED` performs wallet preflight and debit. The production gate permits `SHADOW` only. A dedicated integration account may use the gated Mock provider for metered testing in `SHADOW`; public accounts cannot access it. `ENFORCED` requires separate approval and real-provider evidence.
 
 `ai_requests.status` is `CREATED`, `STARTED`, `COMPLETED`, `CLIENT_DISCONNECTED` or `PROVIDER_ERROR`; the current gateway creates at `STARTED`. One final immutable event is stored per V2 request. A failed provider request with no observed usage has a zero counter event and `NO_USAGE`. A provider request that produced usage can still be billed when the client disconnects. If actual usage exceeds the wallet, the event is `UNPAID`; subsequent V2 requests return `INSUFFICIENT_POINTS`. The current V1 Mock integration does not use V2 billing and continues under its frozen contract. Plan `rolloverPolicy:'NONE'` expires unspent subscription grant points at period end after earliest-expiry-first spending; `UNLIMITED` grants and purchased points do not expire under this policy. The historical SHADOW-only statement is superseded by the 0.3.0 release: managed DeepSeek requests enforce the current RMB policy; see [release acceptance](acceptance/RELEASE_0_3_0_REPORT.md).
+
+### 2026-10-15 钱包余额拆分（兼容新增字段）
+
+WalletSummary 增加可选整数 `regularBalance`、`rewardBalance`，单位仍为万分之一人民币。balance = regularBalance + rewardBalance；奖励余额为邀请奖励批次中尚未消费、未过期的余额，其余充值、管理员增加、套餐额度归正常余额。总余额继续用于消费与余额不足判断，扣款顺序沿用最早到期优先、其次创建时间；不重复赠送、不重算账单。旧服务缺字段时客户端不假定奖励为零。

@@ -37,7 +37,7 @@ export const SubscriptionSummaryV2Schema = z.object({
   monthlyPoints: z.number().int().nonnegative(), maxDevices: z.number().int().nonnegative(),
   rolloverPolicy: z.enum(['NONE', 'UNLIMITED']),
 }).nullable();
-export const WalletSummaryV2Schema = z.object({ balance: z.number().int().nonnegative(), unit: z.literal('AI_POINT') });
+export const WalletSummaryV2Schema = z.object({ balance: z.number().int().nonnegative(), regularBalance:z.number().int().nonnegative().optional(), rewardBalance:z.number().int().nonnegative().optional(), unit: z.literal('AI_POINT') });
 export const DeviceV2Schema = z.object({
   id, userId: id, deviceId: id, deviceName: z.string(), platform: z.string(), osVersion: z.string(), appVersion: z.string(),
   status: z.enum(['ACTIVE', 'REVOKED', 'BLOCKED']), activatedAt: instant, lastSeenAt: instant.nullable(), updatedAt: instant,
@@ -75,6 +75,7 @@ export const ReferralRecordV2Schema = z.object({
   registeredAt: instant, qualifiedAt: instant.nullable(),
 });
 export const ErrorCodeV2Schema = z.enum([
+  'RELEASE_UNAVAILABLE',
   'UNSUPPORTED_CAPABILITY','UNSUPPORTED_PROTOCOL','PROTOCOL_INVALID','PROVIDER_RATE_LIMITED','PROVIDER_BALANCE_EXHAUSTED','PROVIDER_USAGE_UNAVAILABLE','CONVERSATION_NOT_FOUND','CONVERSATION_MODE_CHANGED','RATE_CARD_IDENTITY_MISMATCH','INSTANCE_ALREADY_EXISTS',
   'INVALID_CONFIG','INVALID_RELEASE_FILE','INVALID_RELEASE_SIZE','RELEASE_FILE_MISSING','RELEASE_TOO_LARGE','UNSUPPORTED_MEDIA_TYPE','PAYLOAD_TOO_LARGE',
   'ACCOUNT_DISABLED', 'AUTH_REQUIRED', 'BILLING_REVIEW_REQUIRED', 'CANNOT_DISABLE_SELF', 'CLIENT_THREAD_ID_REQUIRED', 'CLIENT_UPGRADE_REQUIRED', 'COPILOT_AUTH_EXPIRED', 'COPILOT_NOT_ENTITLED', 'COPILOT_USAGE_UNAVAILABLE',
@@ -83,7 +84,7 @@ export const ErrorCodeV2Schema = z.enum([
   'INVALID_PROVIDER_CONNECTION', 'INVALID_REFERRAL_CODE', 'MODEL_NOT_ALLOWED', 'MODEL_NOT_AVAILABLE', 'MODEL_PROVIDER_MISMATCH',
   'MODEL_UNAVAILABLE', 'MONTHLY_QUOTA_EXCEEDED', 'NOT_FOUND', 'ORDER_NOT_PAYABLE', 'PAYMENT_PROVIDER_NOT_CONNECTED',
   'PLAN_NOT_FOUND', 'PLAN_REQUIRED', 'PROVIDER_AUTH_REQUIRED', 'PROVIDER_CONNECTION_UNAVAILABLE', 'PROVIDER_UNAVAILABLE', 'PROVIDER_NOT_FOUND', 'PROVIDER_NOT_READY',
-  'RATE_CARD_EXISTS', 'RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED', 'RATE_CARD_NOT_DRAFT', 'RATE_CARD_UNAVAILABLE', 'RATE_LIMITED',
+  'RATE_CARD_EXISTS', 'RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED', 'RATE_CARD_NOT_DRAFT', 'RATE_CARD_UNAVAILABLE', 'PRICE_CHANGED', 'PRICE_REFERENCE_UNAVAILABLE', 'RATE_LIMITED',
   'REFERRAL_CODE_UNAVAILABLE', 'REFERRAL_NOT_ELIGIBLE', 'REFERRAL_NOT_REVIEWABLE', 'REQUEST_NOT_FOUND', 'ROLLOVER_POLICY_INVALID',
   'SUBSCRIPTION_EXPIRED', 'SUBSCRIPTION_NOT_FOUND', 'SUBSCRIPTION_REQUIRED', 'TOKEN_EXPIRED', 'UNAUTHORIZED', 'VALIDATION_ERROR',
   'WALLET_LEDGER_MISMATCH', 'WALLET_LIMIT_REACHED',
