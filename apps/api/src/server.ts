@@ -1,5 +1,6 @@
 import Fastify from 'fastify';
 import { registerMoneyAdmin } from './money-policy.js';
+import {registerModelPricingAdmin} from './model-pricing-admin.js';
 import { randomUUID } from 'node:crypto';
 import { registerRequestLog } from './request-log.js';
 import cookie from '@fastify/cookie';
@@ -48,6 +49,7 @@ export async function createServer() {
   await registerRoutes(app);
   await registerAdmin(app);
   registerMoneyAdmin(app);
+  await registerModelPricingAdmin(app);
   registerReleaseFiles(app);
   registerSiteVisits(app);
   await registerCopilotAuthRoutes(app);

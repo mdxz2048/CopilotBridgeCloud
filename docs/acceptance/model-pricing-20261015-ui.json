@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "widths": [
+    480,
+    1000
+  ],
+  "readonlyDialog": true,
+  "previewBeforeSave": true,
+  "explicitSave": true,
+  "saveFailureRetainsDraft": true,
+  "unknownNotZero": true,
+  "noHorizontalOverflow": true,
+  "realComponent": true
+}

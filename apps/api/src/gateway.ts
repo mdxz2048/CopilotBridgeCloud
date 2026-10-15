@@ -15,7 +15,8 @@ import type { BillingPolicy } from './rating.js';
 import { currentBillingMode, type BillingMode } from './billing-mode.js';
 import { integrationMockAllowed } from './logic.js';
 import { CopilotFailure } from './copilot-provider.js';
-import { ensureMoneyRate,upstreamBalance } from './money-policy.js';
+import { upstreamBalance } from './money-policy.js';
+import {ensureManagedModelRate} from './managed-pricing.js';
 import { currentUsage } from './core.js';
 import { requestContext,requestCounts,requestMilestone,requestNativeMetrics } from './request-log.js';
 import { nextContinuationState, pendingContinuation } from './tool-continuation.js';
@@ -97,7 +98,7 @@ export async function registerGateway(app: FastifyInstance) {
     const meteredMock = ent.provider.code === 'MOCK' && mode === 'SHADOW' && integrationMockAllowed(ent.provider.code, a.user.email,
       process.env.INTEGRATION_MOCK_ENABLED === 'true', process.env.INTEGRATION_MOCK_TEST_EMAIL);
     const settlementMode = mode !== 'OFF' && (ent.provider.code !== 'MOCK' || meteredMock) ? mode : null;
-    if (ent.usage.moneyEnabled && !connection && isDeepSeekProvider(ent.provider.code)) await ensureMoneyRate(ent.provider.id,ent.model.id,ent.model.providerModelId);
+    if (ent.usage.moneyEnabled && !connection) await ensureManagedModelRate(ent.provider.id,ent.model.id,ent.model.providerModelId,ent.provider.code);
     const v2Rate = settlementMode === 'ENFORCED' ? (await preflightPoints(a.user.id, ent.provider.id, ent.model.id, billingPolicy)).rate
       : settlementMode === 'SHADOW' ? await activeRateVersion(ent.provider.id, ent.model.id, billingPolicy) : null;
     if (settlementMode === 'SHADOW' && !v2Rate) throw new ApiError(503, 'RATE_CARD_UNAVAILABLE');

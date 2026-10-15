@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-15",
+  "deployed": true,
+  "health": "ok",
+  "pricingSettingsUnchanged": true,
+  "activeRatesUnchanged": true,
+  "publishedAppUnchanged": true,
+  "modelMultipliers": {
+    "deepseek/deepseek-flash": 1,
+    "openai/gpt-6-sol": 1
+  },
+  "providerBalanceStatuses": [
+    {
+      "name": "DeepSeek",
+      "status": "AVAILABLE"
+    },
+    {
+      "name": "OpenAI / GPT",
+      "status": "UNSUPPORTED"
+    }
+  ],
+  "sourceVerification": {
+    "hashes": {
+      "apps/api/src/model-pricing-admin.ts": "458a4ad3243af339ee97845490f0a10a9bab4f244e8bc8f87b32022ef42ddadb",
+      "apps/api/src/managed-pricing.ts": "68629871b7e5829596765640e3bfd852058081e44dc3d7b1515a551ff356878c",
+      "apps/api/dist/server.js": "b254f539dce1591b616966dbe67716c12ccae2a2dce13b59690cdf85f8e1af54",
+      "apps/web/components/model-pricing-panel.tsx": "d587225d6ff810c59d79deb66897f140abd065c29f7933f05da4f9d78455a8b3"
+    },
+    "images": {
+      "src-api-1": "sha256:f5f4db57b082bfce8af5bed25b7a1e059d7c41da481056e969aec16846ec08cf",
+      "src-web-1": "sha256:b1f9d222da11ca91a73978defa156a9e435da224fd3d5357ea88d3e022e5f807"
+    }
+  },
+  "productionAdminUi": {
+    "passed": true,
+    "actualProductionPage": true,
+    "authenticatedAdmin": true,
+    "upstreamCards": 2,
+    "modelRows": 2,
+    "readonlyDialog": true,
+    "refresh": true,
+    "noPageErrors": true,
+    "noHorizontalOverflow": true,
+    "noPricingMutation": true
+  },
+  "scope": "Cloud API and Web only; no App installer upload; no production pricing edits"
+}

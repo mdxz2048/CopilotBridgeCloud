@@ -1,5 +1,5 @@
-import { db, systemSettings, rateCards, rateCardVersions, models, usageRecords, providers, plans, auditLogs } from '@bridge/db';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { db, systemSettings, models, usageRecords, providers, plans, auditLogs } from '@bridge/db';
+import { eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { FastifyInstance } from 'fastify';
 import { admin, ApiError } from './core.js';
@@ -7,23 +7,9 @@ import { providerFor, isDeepSeekProvider } from './provider.js';
 
 import {POINTS_PER_RMB,MoneyPolicySchema,defaultMoneyPolicy,ratesFor} from './money-pricing.js';
 export {POINTS_PER_RMB,MoneyPolicySchema,defaultMoneyPolicy,ratesFor,isPeak} from './money-pricing.js';
-export async function moneyPolicy() {
-  const [row] = await db.select().from(systemSettings).where(eq(systemSettings.key, 'money_policy')).limit(1);
+export async function moneyPolicy(source:Pick<typeof db,'select'>=db) {
+  const [row] = await source.select().from(systemSettings).where(eq(systemSettings.key, 'money_policy')).limit(1);
   return row ? MoneyPolicySchema.parse(row.value) : defaultMoneyPolicy;
-}
-// Persist the price snapshot before dispatch so a later price edit cannot reprice an in-flight request.
-export async function ensureMoneyRate(providerId: string, modelId: string, providerModelId: string) {
-  const values = ratesFor(providerModelId, await moneyPolicy());
-  return db.transaction(async tx => {
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`money_rate:${providerId}:${modelId}`}, 0))`);
-    await tx.insert(rateCards).values({ providerId, modelId, billingPolicy: 'MANAGED_USAGE' }).onConflictDoNothing();
-    const [card] = await tx.select().from(rateCards).where(and(eq(rateCards.providerId, providerId), eq(rateCards.modelId, modelId), eq(rateCards.billingPolicy, 'MANAGED_USAGE'))).limit(1);
-    const [latest] = await tx.select().from(rateCardVersions).where(eq(rateCardVersions.rateCardId, card.id)).orderBy(desc(rateCardVersions.version)).limit(1);
-    if (latest?.status === 'ACTIVE' && Object.entries(values).every(([key, value]) => String(latest[key as keyof typeof latest]) === String(value))) return latest;
-    await tx.update(rateCardVersions).set({ status: 'RETIRED', effectiveTo: new Date() }).where(and(eq(rateCardVersions.rateCardId, card.id), eq(rateCardVersions.status, 'ACTIVE')));
-    const [created] = await tx.insert(rateCardVersions).values({ ...values, rateCardId: card.id, version: (latest?.version ?? 0) + 1, status: 'ACTIVE', effectiveFrom: new Date() }).returning();
-    return created;
-  });
 }
 const PlanSchema = z.object({ code: z.enum(['PAYG', 'QUARTER']), name: z.string().trim().min(1).max(120), priceRmb: z.number().nonnegative().max(100000), includedRmb: z.number().nonnegative().max(100000), enabled: z.boolean(), maxDevices: z.number().int().min(1).max(100), requestsPerMinute: z.number().int().min(1).max(120), maxConcurrentRequests: z.number().int().min(1).max(20) }).strict();
 const balanceCache = new Map<string, { expires: number; value: unknown }>();

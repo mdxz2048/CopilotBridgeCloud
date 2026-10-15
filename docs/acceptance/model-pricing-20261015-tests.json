@@ -1,0 +1,20 @@
+{
+  "date": "2026-10-15",
+  "apiUnitPassed": 147,
+  "databasePassed": 31,
+  "webUnitPassed": 15,
+  "apiTypecheck": true,
+  "apiBuild": true,
+  "webTypecheck": true,
+  "webBuild": true,
+  "database": "dedicated disposable PostgreSQL; created/migrated/dropped; production DB untouched",
+  "dbCoverage": [
+    "independent model multipliers",
+    "new requests use updated rates",
+    "in-flight requests retain immutable old rates",
+    "optimistic revision conflicts",
+    "admin and origin checks",
+    "internal accounts excluded",
+    "unknown costs excluded from paired margin"
+  ]
+}

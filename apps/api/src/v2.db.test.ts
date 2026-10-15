@@ -974,4 +974,54 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
       else process.env.V2_BILLING_MODE = previousBillingMode;
     }
   }, 15_000);
+  it('publishes one multiplier per model, preserves in-flight rate snapshots and rejects stale administrator edits',async()=>{
+    const {db,providers,models,rateCards,rateCardVersions,systemSettings,users,devices,usageEvents}=dbModule;
+    const {eq}=await import('drizzle-orm');
+    const {ensureManagedModelRate,markupKey}=await import('./managed-pricing.js');
+    const prefix=randomUUID().replaceAll('-','').slice(0,12).toUpperCase();
+    const [ds]=await db.insert(providers).values({code:'DEEPSEEK_'+prefix,name:'Multiplier DS',enabled:true}).returning();
+    const [gpt]=await db.insert(providers).values({code:'OPENAI_'+prefix,name:'Multiplier GPT',enabled:true}).returning();
+    const [dm]=await db.insert(models).values({providerId:ds.id,providerModelId:'deepseek-flash',publicId:'deepseek/markup-'+prefix,displayName:'Multiplier Flash',enabled:true}).returning();
+    const [gm]=await db.insert(models).values({providerId:gpt.id,providerModelId:'gpt-6-sol',publicId:'openai/markup-'+prefix,displayName:'Multiplier Sol',enabled:true}).returning();
+    const old=await ensureManagedModelRate(ds.id,dm.id,dm.providerModelId,ds.code);expect(old).toBeDefined();
+    const [owner]=await db.insert(users).values({email:`markup-${prefix}@example.test`,passwordHash:'fixture'}).returning();
+    const [device]=await db.insert(devices).values({userId:owner.id,deviceId:randomUUID(),deviceName:'Markup fixture',platform:'test'}).returning();
+    await db.transaction(tx=>walletModule.applyWalletChange(tx,{userId:owner.id,points:1000000,type:'TEST_GRANT',referenceType:'TEST',referenceId:owner.id,idempotencyKey:'markup:'+prefix}));
+    const started=await meterModule.createAiRequest({userId:owner.id,deviceId:device.id,providerId:ds.id,modelId:dm.id,responseId:'resp_markup_'+prefix,billingPolicy:'MANAGED_USAGE',rateCardVersionId:old!.id});
+    const app=await(await import('./server.js')).createServer();
+    try{
+      const headers=await testCookieHeaders(dbModule,ids.admin),userHeaders=await testCookieHeaders(dbModule,ids.user);
+      expect((await app.inject({url:'/api/v1/admin/model-pricing',headers:userHeaders})).statusCode).toBe(403);
+      const save=(id:string,multiplier:number,expectedRevision:number)=>app.inject({method:'PUT',url:'/api/v1/admin/model-pricing/'+id,headers,payload:{multiplier,expectedRevision}});
+      expect((await save(dm.id,1.2,0)).statusCode).toBe(200);
+      expect((await save(gm.id,1.1,0)).statusCode).toBe(200);
+      const next=await ensureManagedModelRate(ds.id,dm.id,dm.providerModelId,ds.code);
+      expect(Number(next!.inputRate)/Number(old!.inputRate)).toBeCloseTo(1.2);
+      const currentGpt=await ensureManagedModelRate(gpt.id,gm.id,gm.providerModelId,gpt.code);expect(currentGpt!.inputRate).toBe('154.000000');
+      const historical=(await db.select().from(rateCardVersions).where(eq(rateCardVersions.id,old!.id)))[0];expect(historical.inputRate).toBe(old!.inputRate);expect(historical.status).toBe('RETIRED');
+      const event=await meterModule.settleAiRequest(started.id,'COMPLETED',{usage:{inputTokens:1000000,outputTokens:0}});
+      expect(event.pointsCharged).toBe(Number(old!.inputRate)*1000);
+      const newer=await meterModule.createAiRequest({userId:owner.id,deviceId:device.id,providerId:ds.id,modelId:dm.id,responseId:'resp_markup_new_'+prefix,billingPolicy:'MANAGED_USAGE',rateCardVersionId:next!.id});
+      const eventNew=await meterModule.settleAiRequest(newer.id,'COMPLETED',{usage:{inputTokens:1000000,outputTokens:0},costAudit:{estimatedCostRmb:1,reportedCostRmb:null}});
+      expect(eventNew.pointsCharged).toBe(Number(next!.inputRate)*1000);
+      const attempts=await Promise.all([save(dm.id,1.3,1),save(dm.id,1.4,1)]);expect(attempts.map(r=>r.statusCode).sort()).toEqual([200,409]);
+      const value=(await db.select().from(systemSettings).where(eq(systemSettings.key,markupKey(gm.id))))[0].value as {multiplier:number};expect(value.multiplier).toBe(1.1);
+      const overview=await app.inject({url:'/api/v1/admin/model-pricing',headers});expect(overview.statusCode,overview.body).toBe(200);
+      const result=overview.json();expect(result.models.find((m:{id:string})=>m.id===gm.id).reference.source).toBe('USER_PROVIDED_REFERENCE');expect(result.summary.requests).toBe(0);
+      await db.update(users).set({email:`markup-${prefix}@pricing.invalid`}).where(eq(users.id,owner.id));
+      const customer=(await app.inject({url:'/api/v1/admin/model-pricing',headers})).json();
+      expect(customer.summary).toMatchObject({requests:2,knownCostRequests:1,unknownCostRequests:1,knownCostRmb:1,pairedUserDebitedRmb:eventNew.pointsCharged/10000});
+      expect(customer.summary.userDebitedRmb).toBe((event.pointsCharged+eventNew.pointsCharged)/10000);
+      expect(customer.summary.estimatedMarginRmb).toBeCloseTo(eventNew.pointsCharged/10000-1);
+      await db.insert(dbModule.providerCredentials).values({providerId:gpt.id,...(await import('./security.js')).encryptSecret('synthetic-fixture-key')});
+      const withCredential=(await app.inject({url:'/api/v1/admin/model-pricing',headers})).json();
+      expect(withCredential.providers.find((p:{id:string})=>p.id===gpt.id)).toMatchObject({balance:null,balanceStatus:'UNSUPPORTED'});
+      expect((await app.inject({method:'DELETE',url:'/api/v1/admin/models/'+gm.id,headers})).statusCode).toBe(200);
+      const archived=(await app.inject({url:'/api/v1/admin/model-pricing',headers})).json();expect(archived.models.some((m:{id:string})=>m.id===gm.id)).toBe(false);
+      expect((await save(dm.id,0,2)).statusCode).toBe(400);
+      expect((await app.inject({method:'PUT',url:'/api/v1/admin/model-pricing/'+dm.id,headers:{...headers,origin:'https://other.invalid'},payload:{multiplier:1,expectedRevision:2}})).statusCode).toBe(403);
+    }finally{await app.close();}
+  },30000);
+
+
 });
