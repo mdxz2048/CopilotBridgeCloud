@@ -1,0 +1,72 @@
+{
+  "date": "2026-10-17",
+  "scope": "Web homepage only; no App/API/database changes",
+  "webUnitTests": {
+    "passed": 15,
+    "failed": 0
+  },
+  "productionBuild": true,
+  "localBrowser": {
+    "date": "2026-10-17",
+    "base": "http://127.0.0.1:3128",
+    "checks": [
+      "Production SSR, hydration, single visible screenshot and automatic 0 → 1 → 2 playback",
+      "Arrows wrap, dots select, Home / End / arrows work; focused controls pause autoplay",
+      "Hover pauses, manual pause persists, explicit resume restarts autoplay",
+      "1440 / 1024 / 768 / 390 / 320: no horizontal overflow, correct desktop/mobile image source, three round dots",
+      "FAQ expands, download navigation and shared header work, homepage CSS stays scoped",
+      "Reduced motion defaults to paused; native mobile touch swipe switches screenshot",
+      "Existing signed-in header / user centre retained, including 320px layout (synthetic identity)"
+    ],
+    "rendererErrors": [],
+    "syntheticIdentity": true,
+    "syntheticPageViewsSuppressed": true,
+    "realModelCalls": 0
+  },
+  "productionBrowser": {
+    "date": "2026-10-17",
+    "base": "https://ai.mddxz.top",
+    "checks": [
+      "Production SSR, hydration, single visible screenshot and automatic 0 → 1 → 2 playback",
+      "Arrows wrap, dots select, Home / End / arrows work; focused controls pause autoplay",
+      "Hover pauses, manual pause persists, explicit resume restarts autoplay",
+      "1440 / 1024 / 768 / 390 / 320: no horizontal overflow, correct desktop/mobile image source, three round dots",
+      "FAQ expands, download navigation and shared header work, homepage CSS stays scoped",
+      "Reduced motion defaults to paused; native mobile touch swipe switches screenshot",
+      "Existing signed-in header / user centre retained, including 320px layout (synthetic identity)"
+    ],
+    "rendererErrors": [],
+    "syntheticIdentity": true,
+    "syntheticPageViewsSuppressed": true,
+    "realModelCalls": 0
+  },
+  "deployment": {
+    "date": "2026-10-17",
+    "deployed": true,
+    "candidateAndPublicRoutesPassed": true,
+    "sixPublicAssetHashesPassed": true,
+    "web": "sha256:bf7998e90a7d91b07cecdce1a06e8b83370d8c603e507ad3bc06745efff0a0eb",
+    "previousWeb": "sha256:e244279408e7ee04bda3bab7154280aa9a1f1a708ab1e1484c693c7516914ffa",
+    "apiUnchanged": true,
+    "otherServicesUnchanged": true,
+    "databaseMigration": false,
+    "sourceHashes": {
+      "apps/web/app/page.tsx": "a89c1eff75c9662521e51154ea5c7e64754201513a90ef55068f68b4d13e603f",
+      "apps/web/app/homepage.css": "4e4f902ea87d993d004dc25a51096cc59e0d87dc8e5bb94c844ea1409d6f54f0",
+      "apps/web/components/site-header.tsx": "25445e4102da4509a64166013a0297a3c12e8dc9215fb41b0bf3970cab8320d3",
+      "apps/web/components/screenshot-carousel.tsx": "bb03bb7c3026c32b86ed04213174d9c2402efdb5021f87fc849e290055dbe650",
+      "apps/web/public/homepage/scene-1-desktop-20261017.png": "f0700b41874a277df5a7a794c955ec4c23a1a576cca061837b234a31b68a9a18",
+      "apps/web/public/homepage/scene-1-mobile-20261017.png": "67a0e81fc8a1359a0dd6fe8281bdb4038e3ebf97dc4eff084aed1ab515039558",
+      "apps/web/public/homepage/scene-2-desktop-20261017.png": "3fb461c6a83b7a8f8eea52729ff7ee4670c9b0a416d9b90ea57ae3cdcbfa46b5",
+      "apps/web/public/homepage/scene-2-mobile-20261017.png": "263a25aff02d4565ea9e544e3e925a4580284ba527cd1b6f7adae2ab3f6b34c8",
+      "apps/web/public/homepage/scene-3-desktop-20261017.png": "bcdee5b573e4c6acc08c696ea5e2206b033ee3cad1fa3e99eba6d7e5c0c4d46d",
+      "apps/web/public/homepage/scene-3-mobile-20261017.png": "49791ab1194cba16ea36a01f4977a75d7815301090093707b243296363c4282a"
+    }
+  },
+  "realModelCalls": 0,
+  "notes": [
+    "Three original demo conversations; no private screenshot content.",
+    "Signed-in identity is a synthetic browser fixture, not a real account login.",
+    "Synthetic QA page views intercepted; existing production page-view recording is retained."
+  ]
+}
