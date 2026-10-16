@@ -17,6 +17,11 @@ export const registrationChallenges = pgTable('registration_challenges', {
 }, t => [index('registration_challenges_email_idx').on(t.emailHash, t.createdAt),
   index('registration_challenges_ip_idx').on(t.ipHash, t.createdAt),
   index('registration_challenges_created_idx').on(t.createdAt)]);
+export const passwordResets = pgTable('password_resets', {
+  id: id(), userId: uuid('user_id').references(() => users.id), emailHash: text('email_hash').notNull(), ipHash: text('ip_hash').notNull(),
+  tokenHash: text('token_hash').notNull().unique(), passwordSnapshot: text('password_snapshot'), state: varchar('state',{length:16}).notNull(),
+  expiresAt: timestamp('expires_at',{withTimezone:true}).notNull(), createdAt: created(),
+}, t=>[index('password_resets_email_idx').on(t.emailHash,t.createdAt),index('password_resets_ip_idx').on(t.ipHash,t.createdAt)]);
 export const plans = pgTable('plans', {
   id: id(), code: varchar('code', { length: 32 }).notNull().unique(), name: text('name').notNull(), description: text('description').notNull().default(''),
   monthlyPrice: numeric('monthly_price', { precision: 12, scale: 2 }).notNull(), currency: varchar('currency', { length: 3 }).notNull().default('CNY'),

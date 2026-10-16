@@ -91,8 +91,10 @@ export const ErrorCodeV2Schema = z.enum([
   'RATE_CARD_EXISTS', 'RATE_CARD_FUTURE_SCHEDULE_NOT_SUPPORTED', 'RATE_CARD_NOT_DRAFT', 'RATE_CARD_UNAVAILABLE', 'PRICE_CHANGED', 'PRICE_REFERENCE_UNAVAILABLE', 'RATE_LIMITED',
   'REFERRAL_CODE_UNAVAILABLE', 'REFERRAL_NOT_ELIGIBLE', 'REFERRAL_NOT_REVIEWABLE', 'REQUEST_NOT_FOUND', 'ROLLOVER_POLICY_INVALID',
   'SUBSCRIPTION_EXPIRED', 'SUBSCRIPTION_NOT_FOUND', 'SUBSCRIPTION_REQUIRED', 'TOKEN_EXPIRED', 'UNAUTHORIZED', 'VALIDATION_ERROR',
+  'PASSWORD_RESET_INVALID','CURRENT_PASSWORD_INVALID','PASSWORD_UNCHANGED',
   'WALLET_LEDGER_MISMATCH', 'WALLET_LIMIT_REACHED',
 ]);
 export const ErrorResponseV2Schema = z.object({ error: z.object({
+  details: z.object({maxDevices:z.number().int().min(1).max(100),devices:z.array(z.object({id:z.uuid(),deviceName:z.string(),platform:z.string(),lastSeenAt:z.iso.datetime({offset:true}).nullable()})).max(100)}).optional(),
   code: ErrorCodeV2Schema, message: z.string(), request_id: z.string(), requestId: z.string(),
 }).refine(error => error.request_id === error.requestId) });

@@ -1,3 +1,4 @@
+import { NewPasswordSchema, replacePassword } from './passwords.js';
 import {qualifyInviteFromCredit} from './signup-rewards.js';
 import type { FastifyInstance } from 'fastify';
 import { db, auditLogs, billingOrders, devices, models, modelInstances, planModelAccess, plans, providerCredentials, providers, refreshTokens, releases, subscriptions, systemSettings, usageRecords, usageEvents, userModelAccess, users, webSessions, rateCards, rateCardVersions } from '@bridge/db';
@@ -176,14 +177,13 @@ export async function registerAdmin(app: FastifyInstance) {
   });
   app.post('/api/v1/admin/users/:id/reset-password', async req => {
     const a = await admin(req); const id = idParam(req.params);
-    const data = z.object({ password: z.string().min(12) }).parse(req.body);
-    const [user] = await db.update(users).set({ passwordHash: await hashPassword(data.password) }).where(eq(users.id, id)).returning({ id: users.id });
-    if (!user) throw new ApiError(404, 'NOT_FOUND');
-    await Promise.all([
-      db.update(refreshTokens).set({ revokedAt: new Date() }).where(eq(refreshTokens.userId, id)),
-      db.update(webSessions).set({ revokedAt: new Date() }).where(eq(webSessions.userId, id)),
-    ]);
-    await audit(a.user.id, 'PASSWORD_RESET', 'USER', id);
+    const data = z.object({ password: NewPasswordSchema }).parse(req.body);
+    const passwordHash = await hashPassword(data.password);
+    await db.transaction(async tx=>{
+      const [user] = await tx.select({id:users.id}).from(users).where(eq(users.id,id)).for('update').limit(1);
+      if (!user) throw new ApiError(404, 'NOT_FOUND');
+      await replacePassword(tx,id,passwordHash,a.user.id,'PASSWORD_RESET');
+    });
     return { ok: true };
   });
   app.delete('/api/v1/admin/users/:id', async req => {

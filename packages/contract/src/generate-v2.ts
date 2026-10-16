@@ -32,7 +32,7 @@ function route(method: Method, path: string, output: z.ZodType, body?: z.ZodType
     ? z.object({ id: z.string().regex(/^resp_[0-9a-f]{32}$/) })
     : path.includes('{id}') ? uuidParams : undefined;
   registry.registerPath({ method, path, summary: `${method.toUpperCase()} ${path}`,
-    ...(auth ? { security: [path.startsWith('/api/v1/admin/')?{WebSession:[]}:{ DesktopBearer: [] }] } : {}),
+    ...(auth ? { security: [(path.startsWith('/api/v1/admin/')||path==='/api/v1/auth/change-password')?{WebSession:[]}:{ DesktopBearer: [] }] } : {}),
     ...(body || params || query ? { request: { ...(query?{query}:{}), ...(params ? { params } : {}), ...(body ? { body: { content: json(body) } } : {}) } } : {}),
     responses: success(output, status) });
 }
@@ -76,7 +76,11 @@ route('post', '/api/v1/auth/register', z.object({ user: UserSchema }),
   z.union([RegisterRequestV2Schema, RegisterRequestV24Schema]), 201, false);
 route('post', '/api/v1/auth/login', z.union([DeviceCredentialV2Schema, z.object({ user: UserSchema })]),
   z.union([WebLoginRequestV24Schema, z.object({ email: z.email(), password: z.string() }),
-    z.object({ email: z.email(), password: z.string(), device: DeviceInfoV23Schema })]), 200, false);
+    z.object({ email: z.email(), password: z.string(), device: DeviceInfoV23Schema,replaceDeviceId:z.uuid().optional() })]), 200, false);
+const newPassword=z.string().min(12).max(128);
+route('post','/api/v1/auth/forgot-password',z.object({accepted:z.literal(true)}),z.object({email:z.email(),turnstileToken:z.string().max(4096).optional()}),202,false);
+route('post','/api/v1/auth/reset-password',z.object({ok:z.literal(true)}),z.object({token:z.string().regex(/^[A-Za-z0-9_-]{43}$/),password:newPassword}),200,false);
+route('post','/api/v1/auth/change-password',z.object({ok:z.literal(true)}),z.object({currentPassword:z.string().max(128),password:newPassword}));
 route('get', '/api/v1/admin/rate-policy', z.object({ policy: ratePolicyV23 }));
 route('put', '/api/v1/admin/rate-policy', z.object({ policy: ratePolicyV23 }), ratePolicyV23);
 registry.registerPath({ method: 'post', path: '/api/v1/auth/refresh', summary: 'Rotate a DPoP-bound desktop refresh token',

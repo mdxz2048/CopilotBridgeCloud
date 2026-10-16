@@ -26,7 +26,7 @@ export async function registrationConfig() {
   };
 }
 
-export async function verifyTurnstile(token: string | undefined, action: 'registration_email_code' | 'web_login', ip: string) {
+export async function verifyTurnstile(token: string | undefined, action: 'registration_email_code' | 'web_login' | 'password_reset', ip: string) {
   if (!enabled) return;
   if (!token) throw new ApiError(403, 'TURNSTILE_INVALID');
   const { turnstile } = await effectiveWebsiteSettings();

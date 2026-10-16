@@ -1,3 +1,4 @@
+import { registerPasswordRoutes } from './passwords.js';
 import {registerOnlineEvents} from './online-events.js';
 import {registerEngagementAdmin} from './engagement-admin.js';
 import Fastify from 'fastify';
@@ -40,7 +41,7 @@ export async function createServer() {
   await app.register(rateLimit, transportRateOptions);
   registerRatePolicy(app);
   app.setErrorHandler((error, req, reply) => {
-    if (error instanceof ApiError) return reply.code(error.status).send({ error: { code: error.code, message: error.message, requestId: req.id, request_id: req.id } });
+    if (error instanceof ApiError) return reply.code(error.status).send({ error: { code: error.code, message: error.message, requestId: req.id, request_id: req.id, ...(error.details ? {details:error.details}: {}) } });
     if (error instanceof ZodError) return reply.code(400).send({ error: { code: 'VALIDATION_ERROR', message: 'Invalid request', requestId: req.id, request_id: req.id } });
     if(error && typeof error==='object' && 'statusCode' in error && error.statusCode===413)return reply.code(413).send({error:{code:'PAYLOAD_TOO_LARGE',message:'Request body exceeds the endpoint size limit.',requestId:req.id,request_id:req.id}});
     if (error && typeof error === 'object' && 'statusCode' in error && error.statusCode === 400) return reply.code(400).send({ error: { code: 'VALIDATION_ERROR', message: 'Invalid request', requestId: req.id, request_id: req.id } });
@@ -49,6 +50,7 @@ export async function createServer() {
     return reply.code(500).send({ error: { code: 'INTERNAL_ERROR', message: 'Internal error', requestId: req.id, request_id: req.id } });
   });
   await registerRoutes(app);
+  registerPasswordRoutes(app);
   await registerAdmin(app);
   registerMoneyAdmin(app);
   registerEngagementAdmin(app);

@@ -11,7 +11,7 @@ function widgetApi(): TurnstileApi | undefined {
 }
 
 export function Turnstile({ siteKey, action, onToken, resetKey }: {
-  siteKey: string; action: 'registration_email_code' | 'web_login';
+  siteKey: string; action: 'registration_email_code' | 'web_login' | 'password_reset';
   onToken: (token: string) => void; resetKey: number;
 }) {
   const slot = useRef<HTMLDivElement>(null);

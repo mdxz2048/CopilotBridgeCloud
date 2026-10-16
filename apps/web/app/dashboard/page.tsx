@@ -23,6 +23,7 @@ export default function Dashboard() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const away = useRef(false);
+  const [revoking,setRevoking]=useState<string|null>(null);
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     setOverview(null);
@@ -73,15 +74,16 @@ export default function Dashboard() {
   }, [load]);
 
   async function revoke(device: Device) {
-    if (!window.confirm(`停用设备 ${device.deviceName}？`)) return;
+    if (revoking||!window.confirm(`移除设备 ${device.deviceName}？该设备将退出登录，需要重新输入账号和密码。`)) return;
+    setRevoking(device.id);
     setMessage('');
     try {
       await del(`/api/v1/devices/${device.id}`);
-      await load();
-      setMessage('设备已停用。');
+      setOverview(previous=>previous?{...previous,account:{...previous.account,devices:previous.account.devices.map(d=>d.id===device.id?{...d,status:'REVOKED'}:d)}}:previous);
+      setMessage('设备已移除，该设备需要重新登录。');
     } catch {
       setMessage('设备操作失败，请重试。');
-    }
+    } finally { setRevoking(null); }
   }
 
   if (loading && !overview) return <div className="auth-wrap" role="status">正在读取账号状态…</div>;
@@ -99,6 +101,6 @@ export default function Dashboard() {
     </div>
     <section className="panel"><h2>下载客户端</h2><p>在 Windows 客户端登录后，已绑定设备会显示在这里。尚未发布安装包时，下载页会明确提示。</p><Link className="button button-small" href="/download">前往下载页面</Link></section>
     <section className="panel"><h2>我的邀请</h2><p>邀请码：<code>{referral.code}</code>。活动及奖励以邀请注册页面的当前规则为准；正常余额与已到账奖励余额均可用于模型消费。</p><Link className="mini-button" href={`/register?ref=${encodeURIComponent(referral.code)}`}>打开邀请注册链接</Link></section>
-    <section className="panel"><h2>我的设备</h2>{account.devices.length ? <div className="table-wrap"><table className="data-table"><thead><tr><th>设备</th><th>状态</th><th>上次活动</th><th>操作</th></tr></thead><tbody>{account.devices.map(device => <tr key={device.id}><td>{device.deviceName}</td><td>{device.status}</td><td>{device.lastSeenAt ? new Date(device.lastSeenAt).toLocaleString('zh-CN') : '—'}</td><td>{device.status === 'ACTIVE' && <button className="mini-button danger" onClick={() => void revoke(device)}>停用</button>}</td></tr>)}</tbody></table></div> : <p>还没有绑定设备。</p>}</section>
+    <section className="panel"><h2>我的设备</h2><p>移除后，该设备的登录立即失效，再次使用需要重新登录。网页登录不占客户端设备名额。</p>{account.devices.length ? <div className="table-wrap"><table className="data-table"><thead><tr><th>设备</th><th>状态</th><th>上次活动</th><th>操作</th></tr></thead><tbody>{account.devices.map(device => <tr key={device.id}><td>{device.deviceName}</td><td>{device.status==='ACTIVE'?'已登录':device.status==='BLOCKED'?'已封禁':'已移除'}</td><td>{device.lastSeenAt ? new Date(device.lastSeenAt).toLocaleString('zh-CN') : '—'}</td><td>{device.status === 'ACTIVE' && <button className="mini-button danger" disabled={revoking!==null} onClick={() => void revoke(device)}>{revoking===device.id?'正在移除…':'移除设备'}</button>}</td></tr>)}</tbody></table></div> : <p>还没有绑定设备。</p>}</section>
   </AppShell>;
 }

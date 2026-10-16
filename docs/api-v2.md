@@ -179,3 +179,12 @@ GET /api/v1/me/wallet/transactions 兼容增加 kind=account，仅在数据库�
 - GET /api/v1/admin/model-pricing adds cumulative inputTokens/cachedInputTokens/outputTokens (cache is an input subset), preserves actual wallet charges and known upstream-cost coverage, excludes internal @example.test. All unarchived managed models including disabled rows are returned. Upstream account balance remains shared; unknown cost/balance is not zero.
 - GET /api/v1/admin/audit excludes USER_ONLINE events (separate view) and adds actorEmail.
 - New telemetry contains no historical fabricated events/downloads, and no download IP identity is stored. Existing Desktop/Gateway routes and App minimum version are unchanged.
+
+## 2026-10-16 account security additions
+
+- `POST /api/v1/auth/forgot-password`: trusted browser Origin, optional configured Turnstile `password_reset` proof, normalized email. Returns generic HTTP 202 acceptance; persisted per-email/IP mail quotas apply. Chinese one-time recovery link expires in 30 minutes, with token in the URL fragment.
+- `POST /api/v1/auth/reset-password`: `{token,password}`. A valid unused hashed token and unchanged password snapshot are consumed atomically; expired/used links return `PASSWORD_RESET_INVALID`.
+- `POST /api/v1/auth/change-password`: authenticated cookie or DPoP bearer; `{currentPassword,password}`. Requires the actual current password. New passwords have 12–128 characters.
+- Administrator `POST /api/v1/admin/users/{id}/reset-password` accepts a custom password; the UI can generate a cryptographically random 20-character password and copy it. Passwords never appear in response/audit records.
+- All three password changes revoke browser sessions and refresh tokens, advance device authorization versions and require explicit login again. Administrator-blocked devices remain blocked.
+- Desktop login accepts optional `replaceDeviceId`. Only a valid password login can receive `DEVICE_LIMIT_REACHED` details `{maxDevices,devices:[{id,deviceName,platform,lastSeenAt}]}`; selecting a currently authorized device owned by the same user revokes it and activates the new installation in one user-locked transaction. Existing access tokens stay invalid after re-enrollment. Browser login does not consume App device slots.

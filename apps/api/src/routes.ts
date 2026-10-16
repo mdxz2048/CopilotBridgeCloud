@@ -18,47 +18,43 @@ import { consumeEmailCode, registrationConfig, requestEmailCode, verifyTurnstile
 import { logicalCapabilities, catalogPresentation } from './instance-router.js';
 
 const deviceSchema = DeviceInfoV23Schema;
-const loginSchema = LoginRequestSchema.extend({ device: DeviceInfoV23Schema.optional(), turnstileToken: z.string().min(1).max(4096).optional() });
+const loginSchema = LoginRequestSchema.extend({ device: DeviceInfoV23Schema.optional(), turnstileToken: z.string().min(1).max(4096).optional(), replaceDeviceId: z.uuid().optional() });
 const secure = config.PUBLIC_BASE_URL.startsWith('https:');
 const cookieOptions = { httpOnly: true, secure, sameSite: 'strict' as const, path: '/', maxAge: 60 * 60 * 24 * 7 };
 
-async function registerDevice(userId: string, info: z.infer<typeof deviceSchema>) {
-  return db.transaction(async tx => {
-    await tx.execute(sql`select id from users where id = ${userId} for update`);
-    const [existing] = await tx.select().from(devices).where(and(eq(devices.userId, userId), eq(devices.deviceId, info.deviceId))).limit(1);
-    if (existing) {
-      if (existing.status !== 'ACTIVE') throw new ApiError(403, 'DEVICE_REVOKED');
-      if (existing.publicKeyJwk && (existing.publicKeyJwk.x !== info.publicKeyJwk.x || existing.publicKeyJwk.y !== info.publicKeyJwk.y))
-        throw new ApiError(403, 'DEVICE_PROOF_INVALID');
-      const firstEnrollment = !existing.publicKeyJwk;
-      const [updated] = await tx.update(devices).set({ deviceName: info.deviceName, platform: info.platform,
-        osVersion: info.osVersion, appVersion: info.appVersion, lastSeenAt: new Date(), updatedAt: new Date(),
-        publicKeyJwk: firstEnrollment ? info.publicKeyJwk : undefined,
-        authVersion: firstEnrollment ? sql`${devices.authVersion} + 1` : undefined }).where(eq(devices.id, existing.id)).returning();
-      if (firstEnrollment) await tx.update(refreshTokens).set({ revokedAt: new Date() })
-        .where(and(eq(refreshTokens.deviceId, existing.id), isNull(refreshTokens.revokedAt)));
-      return updated;
-    }
-    const [sub] = await tx.select().from(subscriptions).where(eq(subscriptions.userId, userId)).orderBy(desc(subscriptions.createdAt)).limit(1);
-    if (!sub) throw new ApiError(403, 'SUBSCRIPTION_REQUIRED');
-    if (!subscriptionActive(sub.status,sub.currentPeriodEnd) && (sub.currentPeriodEnd<=new Date()||sub.status==='EXPIRED')) throw new ApiError(403, 'SUBSCRIPTION_EXPIRED');
-    if (!['ACTIVE', 'TRIAL', 'CANCELED'].includes(sub.status)) throw new ApiError(403, 'SUBSCRIPTION_REQUIRED');
-    const [plan] = await tx.select().from(plans).where(eq(plans.id, sub.planId)).limit(1);
-    const [{ count }] = await tx.select({ count: sql<number>`count(*)` }).from(devices).where(and(eq(devices.userId, userId), eq(devices.status, 'ACTIVE')));
-    if (!plan || Number(count) >= await currentDeviceLimit(userId,plan.maxDevices)) throw new ApiError(409, 'DEVICE_LIMIT_REACHED');
-    const [newDevice] = await tx.insert(devices).values({ userId, ...info, lastSeenAt: new Date() }).returning();
-    return newDevice;
-  });
-}
-async function issueRefresh(userId: string, deviceId: string, authVersion: number) {
-  const token = newRefresh();
-  await db.transaction(async tx => {
-    const [device] = await tx.select({ status: devices.status, authVersion: devices.authVersion }).from(devices)
-      .where(and(eq(devices.id, deviceId), eq(devices.userId, userId))).for('update').limit(1);
-    if (!device || device.status !== 'ACTIVE' || device.authVersion !== authVersion) throw new ApiError(403, 'DEVICE_REVOKED');
-    await tx.insert(refreshTokens).values({ userId, deviceId, tokenHash: hashRefresh(token), expiresAt: new Date(Date.now() + 30 * 86400000) });
-  });
-  return token;
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+async function registerDevice(tx: Tx, userId: string, info: z.infer<typeof deviceSchema>, replaceDeviceId?: string) {
+  const [existing] = await tx.select().from(devices).where(and(eq(devices.userId,userId),eq(devices.deviceId,info.deviceId))).limit(1);
+  if (existing?.status==='BLOCKED') throw new ApiError(403,'DEVICE_REVOKED');
+  if (existing?.status==='ACTIVE') {
+    if(existing.publicKeyJwk && (existing.publicKeyJwk.x!==info.publicKeyJwk.x||existing.publicKeyJwk.y!==info.publicKeyJwk.y))throw new ApiError(403,'DEVICE_PROOF_INVALID');
+    const [updated]=await tx.update(devices).set({...info,lastSeenAt:new Date(),updatedAt:new Date(),authVersion:existing.publicKeyJwk?undefined:sql`${devices.authVersion}+1`}).where(eq(devices.id,existing.id)).returning();
+    if(!existing.publicKeyJwk)await tx.update(refreshTokens).set({revokedAt:new Date()}).where(eq(refreshTokens.deviceId,existing.id));
+    return updated;
+  }
+  const [sub]=await tx.select().from(subscriptions).where(eq(subscriptions.userId,userId)).orderBy(desc(subscriptions.createdAt)).limit(1);
+  if(!sub)throw new ApiError(403,'SUBSCRIPTION_REQUIRED');
+  if(!subscriptionActive(sub.status,sub.currentPeriodEnd)&&(sub.currentPeriodEnd<=new Date()||sub.status==='EXPIRED'))throw new ApiError(403,'SUBSCRIPTION_EXPIRED');
+  if(!['ACTIVE','TRIAL','CANCELED'].includes(sub.status))throw new ApiError(403,'SUBSCRIPTION_REQUIRED');
+  const [plan]=await tx.select().from(plans).where(eq(plans.id,sub.planId)).limit(1);
+  if(!plan)throw new ApiError(403,'SUBSCRIPTION_REQUIRED');
+  const maximum=await currentDeviceLimit(userId,plan.maxDevices);
+  const active=await tx.select().from(devices).where(and(eq(devices.userId,userId),eq(devices.status,'ACTIVE'))).orderBy(desc(devices.lastSeenAt));
+  if(replaceDeviceId){
+    const chosen=active.find(d=>d.id===replaceDeviceId);
+    if(!chosen)throw new ApiError(404,'NOT_FOUND');
+    await tx.update(devices).set({status:'REVOKED',authVersion:sql`${devices.authVersion}+1`,updatedAt:new Date()}).where(eq(devices.id,chosen.id));
+    await tx.update(refreshTokens).set({revokedAt:new Date()}).where(eq(refreshTokens.deviceId,chosen.id));
+    await tx.insert(auditLogs).values({actorId:userId,action:'DEVICE_REPLACED',targetType:'DEVICE',targetId:chosen.id});
+  }
+  if(active.length-(replaceDeviceId?1:0)>=maximum)throw new ApiError(409,'DEVICE_LIMIT_REACHED','已达到登录设备上限，请选择移除一台设备后继续登录。',{
+    maxDevices:maximum,devices:active.map(d=>({id:d.id,deviceName:d.deviceName,platform:d.platform,lastSeenAt:d.lastSeenAt}))});
+  if(existing){
+    const [restored]=await tx.update(devices).set({...info,status:'ACTIVE',authVersion:sql`${devices.authVersion}+1`,lastSeenAt:new Date(),updatedAt:new Date()}).where(eq(devices.id,existing.id)).returning();
+    return restored;
+  }
+  const [created]=await tx.insert(devices).values({userId,...info,lastSeenAt:new Date()}).returning();
+  return created;
 }
 function publicUser(user: typeof users.$inferSelect) { return { id: user.id, email: user.email, role: user.role, status: user.status }; }
 function publicV1Device(device: typeof devices.$inferSelect) { return { ...device, status: device.status === 'BLOCKED' ? 'REVOKED' : device.status }; }
@@ -102,21 +98,27 @@ export async function registerRoutes(app: FastifyInstance) {
         if (req.headers.origin) throw new ApiError(403, 'CSRF_REJECTED');
       } else await verifyTurnstile(data.turnstileToken, 'web_login', req.ip);
     }
-    const [user] = await db.select().from(users).where(eq(users.email, data.email.toLowerCase())).limit(1);
-    if (!user || !(await verifyPassword(user.passwordHash, data.password))) throw new ApiError(401, 'INVALID_CREDENTIALS');
-    if (user.status !== 'ACTIVE') throw new ApiError(403, 'ACCOUNT_DISABLED');
-    if (data.device) {
-      const device = await registerDevice(user.id, data.device);
-      const accessToken=await issueAccess(user.id,device.id,user.role,device.authVersion),refreshToken=await issueRefresh(user.id,device.id,device.authVersion);
-      await recordOnlineEvent({userId:user.id,device,ip:req.ip,source:'APP_LOGIN'});
-      return {accessToken,refreshToken,expiresIn:1800,user:publicUser(user),device:publicV1Device(device)};
+    const result = await db.transaction(async tx=>{
+      const [user]=await tx.select().from(users).where(eq(users.email,data.email.toLowerCase())).for('update').limit(1);
+      if(!user||!(await verifyPassword(user.passwordHash,data.password)))throw new ApiError(401,'INVALID_CREDENTIALS');
+      if(user.status!=='ACTIVE')throw new ApiError(403,'ACCOUNT_DISABLED');
+      if(data.device){
+        const device=await registerDevice(tx,user.id,data.device,data.replaceDeviceId);
+        const accessToken=await issueAccess(user.id,device.id,user.role,device.authVersion),refreshToken=newRefresh();
+        await tx.insert(refreshTokens).values({userId:user.id,deviceId:device.id,tokenHash:hashRefresh(refreshToken),expiresAt:new Date(Date.now()+30*86400000)});
+        return {user,device,accessToken,refreshToken};
+      }
+      const session=newRefresh();
+      await tx.insert(webSessions).values({userId:user.id,tokenHash:hashRefresh(session),expiresAt:new Date(Date.now()+7*86400000)});
+      return {user,session};
+    });
+    if(result.device){
+      await recordOnlineEvent({userId:result.user.id,device:result.device,ip:req.ip,source:'APP_LOGIN'});
+      return {accessToken:result.accessToken,refreshToken:result.refreshToken,expiresIn:1800,user:publicUser(result.user),device:publicV1Device(result.device)};
     }
-    if (req.headers.origin !== config.PUBLIC_BASE_URL) throw new ApiError(403, 'CSRF_REJECTED');
-    const session = newRefresh();
-    await db.insert(webSessions).values({ userId: user.id, tokenHash: hashRefresh(session), expiresAt: new Date(Date.now() + 7 * 86400000) });
-    await recordOnlineEvent({userId:user.id,ip:req.ip,source:'WEB_LOGIN',userAgent:req.headers['user-agent']});
-    reply.setCookie('bridge_session', session, cookieOptions);
-    return { user: publicUser(user) };
+    await recordOnlineEvent({userId:result.user.id,ip:req.ip,source:'WEB_LOGIN',userAgent:req.headers['user-agent']});
+    reply.setCookie('bridge_session',result.session!,cookieOptions);
+    return {user:publicUser(result.user)};
   });
   app.post('/api/v1/auth/refresh', { config: { rateLimit: { max: 30, timeWindow: '15 minutes' } } }, async req => {
     const { refreshToken } = RefreshRequestSchema.parse(req.body);
@@ -158,7 +160,12 @@ export async function registerRoutes(app: FastifyInstance) {
     const a = await actor(req);
     const info = deviceSchema.parse(req.body);
     if (!a.device || a.device.deviceId !== info.deviceId) throw new ApiError(403, 'DEVICE_PROOF_INVALID');
-    return { device: publicV1Device(await registerDevice(a.user.id, info)) };
+    return db.transaction(async tx=>{
+      await tx.execute(sql`select id from users where id=${a.user.id} for update`);
+      const [current]=await tx.select().from(devices).where(eq(devices.id,a.device!.id)).limit(1);
+      if(!current||current.status!=='ACTIVE'||current.authVersion!==a.device!.authVersion)throw new ApiError(403,'DEVICE_REVOKED');
+      return {device:publicV1Device(await registerDevice(tx,a.user.id,info))};
+    });
   });
   app.get('/api/v1/devices', async req => ({ data: (await db.select().from(devices).where(eq(devices.userId, (await actor(req)).user.id)).orderBy(desc(devices.activatedAt))).map(publicV1Device) }));
   app.delete('/api/v1/devices/:id', async req => {
