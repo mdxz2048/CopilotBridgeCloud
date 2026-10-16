@@ -1,3 +1,4 @@
+import {registerOnlineEvents} from './online-events.js';
 import {registerEngagementAdmin} from './engagement-admin.js';
 import Fastify from 'fastify';
 import { registerMoneyAdmin } from './money-policy.js';
@@ -54,6 +55,7 @@ export async function createServer() {
   await registerModelPricingAdmin(app);
   registerReleaseFiles(app);
   registerSiteVisits(app);
+  registerOnlineEvents(app);
   await registerCopilotAuthRoutes(app);
   await registerGateway(app);
   await registerV2Routes(app);

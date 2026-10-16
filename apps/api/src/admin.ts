@@ -434,7 +434,8 @@ export async function registerAdmin(app: FastifyInstance) {
       await tx.insert(providerCredentials).values({ providerId: id, ...secret }).onConflictDoUpdate({ target: providerCredentials.providerId, set: { ...secret, updatedAt: new Date() } });
       await tx.update(providers).set({ enabled: true, baseUrl: 'https://api.deepseek.com' }).where(eq(providers.id, id));
       const connectedModels: typeof models.$inferSelect[] = [];
-      for (const selected of (modelId ? [modelId] : catalog)) {
+      const selectedModels=modelId?[modelId]:[selected];
+      for (const selected of selectedModels) {
       const publicId = `deepseek/${selected}`;
       await tx.insert(models).values({ providerId: id, providerModelId: selected, publicId,
         displayName: `DeepSeek · ${selected}`, enabled: false, supportsTools: true, supportsStreaming: true, supportsReasoning: false,
@@ -549,6 +550,6 @@ export async function registerAdmin(app: FastifyInstance) {
     if(release.published)await retainLatestPublishedRelease(release.id,a.user.id);
     return release;
   });
-  app.get('/api/v1/admin/audit', async req => { await admin(req); return { data: await db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt)).limit(200) }; });
+  app.get('/api/v1/admin/audit', async req => { await admin(req); return { data: await db.select({id:auditLogs.id,actorId:auditLogs.actorId,actorEmail:users.email,action:auditLogs.action,targetType:auditLogs.targetType,targetId:auditLogs.targetId,metadata:auditLogs.metadata,createdAt:auditLogs.createdAt}).from(auditLogs).leftJoin(users,eq(users.id,auditLogs.actorId)).where(ne(auditLogs.action,'USER_ONLINE')).orderBy(desc(auditLogs.createdAt)).limit(200) }; });
   app.get('/api/v1/admin/system', async req => { await admin(req); await db.execute(sql`select 1`); return { database: 'ok', gateway: 'ok', settings: await db.select({ key: systemSettings.key, updatedAt: systemSettings.updatedAt }).from(systemSettings) }; });
 }

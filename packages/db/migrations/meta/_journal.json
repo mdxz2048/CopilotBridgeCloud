@@ -85,6 +85,13 @@
       "when": 1791761745575,
       "tag": "0011_classy_true_believers",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792155470257,
+      "tag": "0012_admin_telemetry",
+      "breakpoints": true
     }
   ]
 }

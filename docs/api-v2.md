@@ -170,3 +170,12 @@ GET /api/v1/me/wallet/transactions 兼容增加 kind=account，仅在数据库�
 ### 0.3.18 通知标题与正文
 
 管理员 GET/PUT /api/v1/admin/engagement 的 notices 使用 {id,title,content,enabled}：title 1–80字、content 1–6000字、最多10条，纯文本。旧 {id,text,enabled} 读取/保存时兼容转换，revision并发保护和审计不变。campaign.announcementEnabled（默认true）只控制邀请活动广播，独立于campaign.enabled。公开client/config及registration-config仅返回启用通知；announcements保留text标题，兼容新增title/content，隐藏正文不泄露。client/config返回Cache-Control:no-store，新App约5秒配置轮询，多条10秒轮播，点击标题看正文；详情能同步编辑，隐藏/删除收起。无数据库迁移，原奖励和余额规则不变。
+
+
+## 2026-10-16 administrator management additions
+
+- GET /api/v1/admin/online-events: administrator cookie session only; optional email substring filter, page (1+), pageSize (1–100, default30). Returns data/total/page/pageSize. Events distinguish WEB_LOGIN, APP_LOGIN and APP_RECONNECT after a gap of at least five minutes. Timestamps are ISO UTC; UI renders Asia/Shanghai. IP is the trusted request IP, no geographic lookup or raw user-agent storage. This is event history, not current online status.
+- GET /api/v1/admin/site/summary: administrator only. pageViews and downloads each expose total/today/last30Days; downloads.data is grouped UTC day/version/platform/arch. trackingSince is the installation of telemetry migration0012. Counts valid published Bridge installer GET responses only, excludes HEAD/unpublished/missing files. Repeat downloads and App updates each count; no claim of completed downloads, unique people or installs. A counter failure never interrupts a download.
+- GET /api/v1/admin/model-pricing adds cumulative inputTokens/cachedInputTokens/outputTokens (cache is an input subset), preserves actual wallet charges and known upstream-cost coverage, excludes internal @example.test. All unarchived managed models including disabled rows are returned. Upstream account balance remains shared; unknown cost/balance is not zero.
+- GET /api/v1/admin/audit excludes USER_ONLINE events (separate view) and adds actorEmail.
+- New telemetry contains no historical fabricated events/downloads, and no download IP identity is stored. Existing Desktop/Gateway routes and App minimum version are unchanged.

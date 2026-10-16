@@ -1,3 +1,4 @@
+import {heartbeatDevice} from './online-events.js';
 import { db, auditLogs, devices, models, planModelAccess, plans, providers, refreshTokens, subscriptions, usageEvents, usageRecords, userModelAccess, users, webSessions, systemSettings } from '@bridge/db';
 import { and, desc, eq, gte, inArray, isNull, lt, sql, sum } from 'drizzle-orm';
 import type { FastifyRequest } from 'fastify';
@@ -52,7 +53,7 @@ export async function actor(req: FastifyRequest, desktop = false): Promise<Actor
     requireCurrentClient(device.appVersion,(await latestClientRelease())?.version);
   }
   // Signed account polling serves as a heartbeat, with at most one write/minute.
-  if (device && req.routeOptions.url === '/api/v1/me') await db.update(devices).set({lastSeenAt:new Date()}).where(and(eq(devices.id,device.id),sql`(${devices.lastSeenAt} is null or ${devices.lastSeenAt} < now() - interval '1 minute')`));
+  if (device && req.routeOptions.url === '/api/v1/me') await heartbeatDevice(device,req.ip);
   requestContext(req, { userId: user.id, deviceId: device?.id });
   return { user, device, web: !bearer };
 }

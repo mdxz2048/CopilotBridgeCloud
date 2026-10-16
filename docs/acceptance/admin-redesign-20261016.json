@@ -1,0 +1,259 @@
+{
+  "deployment": {
+    "deployed": true,
+    "migration": "0012_admin_telemetry",
+    "previous": {
+      "api": "sha256:8f589cac0ad15d1b97c128e00e3b41b80173705cb02c2be26e72b3017475a918",
+      "web": "sha256:aea9b736fe0fc0fcd0d5c2b2e49850af9be6556a5f977c98de2e4fc869c96b6c"
+    },
+    "api": "sha256:2bb68e1fda5a7f91a6217860ba725ac31b878adf129ed18de2e904ee66a49642",
+    "web": "sha256:6388b93d59929ce4cb959860c8ef4f1d1db6cbbad70e6f28ab60bfaedac6476e",
+    "sourceHashes": {
+      "apps/api/src/admin.ts": "f1be1288fa4e0fe036408b72c2dc7dc11ff132a3f50fa1580276f3a51cc975aa",
+      "apps/api/src/online-events.ts": "837434cb5aeea343ea66db37f2e406c6a93703853a2612beeac697e64aa60004",
+      "apps/api/src/site-visits.ts": "0d0016f7df99694bfb2b30f7043360cf6e07cf569821801ec7b3d312514bad23",
+      "apps/api/src/release-files.ts": "3befb2c383d54eabbf73ff351efe6028afdcb0ac12b7d948723036a24eeede53",
+      "apps/api/src/model-cleanup.ts": "752df7dd4114ef1c0344170420effe404277a7229b35f529f0a2f177dbc92c5b",
+      "apps/api/src/cli/seed.ts": "b1bc7417d7492b3a55708e200fde68e7130db693c88f0ab58bdb96785cb8fd3c",
+      "apps/api/src/model-pricing-admin.ts": "1a6a1d09179c33e16403ab996e25abfefba0fc27b0b47758e122a4bbebcad54c",
+      "apps/api/src/core.ts": "62e1be484bd3a3fe0e60557bbf7cfac4011131a7ee5cc985409a7a8614ec21fe",
+      "apps/api/src/routes.ts": "9c733ea8a70f56779ff433ca06273f8e0ec09f8a366f87107a89721e3ca7788c",
+      "apps/web/app/admin/page.tsx": "cdb8e7147ab7cf527bd288ca0bc1d8ea369028582b2faec047a26143017ebfbf",
+      "apps/web/components/admin-models.tsx": "855ec2c6a69f2ea2b74cac1a0fd151b3ee2478a6c2dd936e1779373853ee050e",
+      "apps/web/components/admin-insights.tsx": "f011ef1e19fbc45b13c20c349a008836586c55fa9e16395aa18fa846d6c60c08",
+      "apps/web/components/admin-activity.tsx": "08e24eb8b6acf6b66a3645f12276b149b9839b287238c8ec8dfc5e646dbc222f",
+      "apps/web/components/engagement-manager.tsx": "f8129ae36eac4fb07cb4ab503ce2ab6bade851e59f9540a7719327b04bd3cb28",
+      "apps/web/components/failure-feedback.tsx": "94cb34c2ba7ed2cbebdd59d73fb33a94c93c4ca8362e967072180909227cb96c",
+      "apps/web/components/app-shell.tsx": "2575aacc4b3d2120b25cad1966dc8cd3034147bf16a29016e225d16b3589a4bb",
+      "apps/web/app/styles.css": "01a70bcdef5d1716567a28993a09265e2207e845eb839d9c2dc568eb52b91abc",
+      "packages/db/src/schema.ts": "edee0cd914d4c8c8d13cb8fe292f010d67e64aa733aa5a0bdea7ad6eeb1dcfbb",
+      "packages/db/migrations/0012_admin_telemetry.sql": "904442561a8c0c193db2e3ca76bc71e752ebc80ecd7a5bbb2e3376033ae2ee90"
+    },
+    "serverHash": "a090d9e2c2ebbba0e87a300ebdcff5d950bbbb9b8e62bba6279a76821150d8be"
+  },
+  "apiBeforeAppRelease": {
+    "passed": true,
+    "catalog": [
+      {
+        "publicId": "deepseek/deepseek-flash",
+        "enabled": true
+      },
+      {
+        "publicId": "openai/gpt-6.1-sol",
+        "enabled": false
+      },
+      {
+        "publicId": "openai/gpt-5.6-terra",
+        "enabled": false
+      },
+      {
+        "publicId": "openai/gpt-5.5",
+        "enabled": false
+      },
+      {
+        "publicId": "openai/gpt-5.6-sol",
+        "enabled": false
+      },
+      {
+        "publicId": "openai/gpt-6-sol",
+        "enabled": true
+      }
+    ],
+    "tokenStats": true,
+    "upstreams": [
+      {
+        "name": "DeepSeek",
+        "balanceStatus": "AVAILABLE"
+      },
+      {
+        "name": "OpenAI / GPT",
+        "balanceStatus": "UNSUPPORTED"
+      }
+    ],
+    "siteSummary": {
+      "pageViews": {
+        "total": 113,
+        "today": 17,
+        "last30Days": 113
+      },
+      "downloads": 0,
+      "trackingSince": "2026-10-16T13:17:29.066238+00:00"
+    },
+    "onlineHistoryAvailable": true,
+    "onlineEventCount": 0,
+    "onlyDeepSeekFlash": true,
+    "registrationProtected": true,
+    "latestVersion": "0.3.18",
+    "minimumVersion": "0.3.18",
+    "serverHash": "a090d9e2c2ebbba0e87a300ebdcff5d950bbbb9b8e62bba6279a76821150d8be"
+  },
+  "productionBrowser": {
+    "passed": true,
+    "realProduction": true,
+    "readOnlyUi": true,
+    "noGenerationProbe": true,
+    "noFeedbackDeleted": true,
+    "checks": [
+      {
+        "width": 1366,
+        "modelTabs": true,
+        "managementDialog": true,
+        "engagement": true,
+        "onlineHistory": true,
+        "siteStatistics": true,
+        "exitVisible": true,
+        "bodyOverflow": false
+      },
+      {
+        "width": 1024,
+        "modelTabs": true,
+        "managementDialog": true,
+        "engagement": true,
+        "onlineHistory": true,
+        "siteStatistics": true,
+        "exitVisible": true,
+        "bodyOverflow": false
+      },
+      {
+        "width": 390,
+        "modelTabs": true,
+        "managementDialog": true,
+        "engagement": true,
+        "onlineHistory": true,
+        "siteStatistics": true,
+        "exitVisible": true,
+        "bodyOverflow": false
+      }
+    ],
+    "errors": []
+  },
+  "cleanup": {
+    "passed": true,
+    "removed": [
+      "deepseek/deepseek-chat",
+      "deepseek/deepseek-reasoner",
+      "deepseek/deepseek-v4-pro"
+    ],
+    "flashBefore": {
+      "enabled": true,
+      "events": 1391,
+      "usage": 1391
+    },
+    "flashAfter": {
+      "enabled": true,
+      "events": 1391,
+      "usage": 1391
+    }
+  },
+  "tests": {
+    "apiUnit": 153,
+    "isolatedPostgres": 41,
+    "contract": 10,
+    "web": 15,
+    "webBuild": true,
+    "apiBuild": true
+  },
+  "reviews": {
+    "productPassed": true,
+    "uiPassed": true
+  },
+  "fixtureUi": {
+    "errors": [],
+    "listReads": 2,
+    "before": 600,
+    "after": 600,
+    "metrics": {
+      "bodyScroll": 900,
+      "viewport": 900,
+      "sidebar": {
+        "x": 0,
+        "y": 0,
+        "width": 242,
+        "height": 900,
+        "top": 0,
+        "right": 242,
+        "bottom": 900,
+        "left": 0
+      },
+      "mainScroll": 600
+    },
+    "checks": [
+      "notification draft preserved between selections",
+      "save revision received",
+      "mobile logout visible",
+      "delete local row no refetch",
+      "scroll preserved"
+    ]
+  },
+  "finalAppRelease": {
+    "version": "0.3.19",
+    "id": "44698471-c9c2-44e9-a2c9-00c2aa866846",
+    "sha256": "5445227811fc287fd720fccca7ac099106eff1b70c5fc7ac5780e02d9f3fa977",
+    "bytes": 343367815,
+    "updater": {
+      "passed": true,
+      "executionEnvironment": "server Node using unchanged compiled App UpdateManager",
+      "publicHttpsFullDownload": true,
+      "automaticDownload": true,
+      "sha256Verified": true,
+      "readyVersion": "0.3.19",
+      "clientConfigVersion": "0.3.19"
+    }
+  },
+  "finalApi": {
+    "passed": true,
+    "catalog": [
+      {
+        "publicId": "deepseek/deepseek-flash",
+        "enabled": true
+      },
+      {
+        "publicId": "openai/gpt-6.1-sol",
+        "enabled": false
+      },
+      {
+        "publicId": "openai/gpt-5.6-terra",
+        "enabled": false
+      },
+      {
+        "publicId": "openai/gpt-5.5",
+        "enabled": false
+      },
+      {
+        "publicId": "openai/gpt-5.6-sol",
+        "enabled": false
+      },
+      {
+        "publicId": "openai/gpt-6-sol",
+        "enabled": true
+      }
+    ],
+    "tokenStats": true,
+    "upstreams": [
+      {
+        "name": "DeepSeek",
+        "balanceStatus": "AVAILABLE"
+      },
+      {
+        "name": "OpenAI / GPT",
+        "balanceStatus": "UNSUPPORTED"
+      }
+    ],
+    "siteSummary": {
+      "pageViews": {
+        "total": 113,
+        "today": 17,
+        "last30Days": 113
+      },
+      "downloads": 1,
+      "trackingSince": "2026-10-16T13:17:29.066238+00:00"
+    },
+    "onlineHistoryAvailable": true,
+    "onlineEventCount": 0,
+    "onlyDeepSeekFlash": true,
+    "registrationProtected": true,
+    "latestVersion": "0.3.19",
+    "minimumVersion": "0.3.19",
+    "serverHash": "a090d9e2c2ebbba0e87a300ebdcff5d950bbbb9b8e62bba6279a76821150d8be"
+  }
+}

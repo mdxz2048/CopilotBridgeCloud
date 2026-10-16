@@ -18,14 +18,14 @@ export async function registerModelPricingAdmin(app:FastifyInstance) {
    db.select({id:providers.id,name:providers.name,code:providers.code,enabled:providers.enabled}).from(providers),
    db.select().from(systemSettings).where(or(sql`${systemSettings.key} like 'model_markup:%'`,eq(systemSettings.key,'archived_models'))),
    db.select({providerId:providerCredentials.providerId}).from(providerCredentials),
-   db.select({modelId:usageEvents.modelId,providerId:usageEvents.providerId,requests:sql<number>`count(*)`,userDebitedRmb:sql<number>`coalesce(sum(${usageEvents.pointsCharged}),0)/10000.0`,
+   db.select({modelId:usageEvents.modelId,providerId:usageEvents.providerId,requests:sql<number>`count(*)`,inputTokens:sql<number>`coalesce(sum(${usageEvents.inputTokens}),0)`,cachedInputTokens:sql<number>`coalesce(sum(${usageEvents.cachedInputTokens}),0)`,outputTokens:sql<number>`coalesce(sum(${usageEvents.outputTokens}),0)`,userDebitedRmb:sql<number>`coalesce(sum(${usageEvents.pointsCharged}),0)/10000.0`,
     knownCostRmb:sql<number>`coalesce(sum(coalesce((${usageEvents.providerReportedUsage}->'bridge_cost_audit'->>'reportedCostRmb')::numeric,(${usageEvents.providerReportedUsage}->'bridge_cost_audit'->>'estimatedCostRmb')::numeric)),0)`,
     pairedUserDebitedRmb:sql<number>`coalesce(sum(${usageEvents.pointsCharged}/10000.0) filter(where coalesce(${usageEvents.providerReportedUsage}->'bridge_cost_audit'->>'reportedCostRmb',${usageEvents.providerReportedUsage}->'bridge_cost_audit'->>'estimatedCostRmb') is not null),0)`,
     knownCostRequests:sql<number>`count(*) filter(where coalesce(${usageEvents.providerReportedUsage}->'bridge_cost_audit'->>'reportedCostRmb',${usageEvents.providerReportedUsage}->'bridge_cost_audit'->>'estimatedCostRmb') is not null)`})
     .from(usageEvents).innerJoin(users,eq(users.id,usageEvents.userId)).where(sql`lower(${users.email}) not like '%@example.test'`).groupBy(usageEvents.modelId,usageEvents.providerId),
   ]);
   const summary=(selected:typeof stats)=>{
-   const total={requests:0,userDebitedRmb:0,knownCostRmb:0,pairedUserDebitedRmb:0,knownCostRequests:0};
+   const total={requests:0,inputTokens:0,cachedInputTokens:0,outputTokens:0,userDebitedRmb:0,knownCostRmb:0,pairedUserDebitedRmb:0,knownCostRequests:0};
    for(const row of selected)for(const key of Object.keys(total) as Array<keyof typeof total>)total[key]+=Number(row[key]);
    const round=(n:number)=>Number(n.toFixed(8));
    return {...total,userDebitedRmb:round(total.userDebitedRmb),knownCostRmb:round(total.knownCostRmb),pairedUserDebitedRmb:round(total.pairedUserDebitedRmb),unknownCostRequests:total.requests-total.knownCostRequests,estimatedMarginRmb:total.knownCostRequests?round(total.pairedUserDebitedRmb-total.knownCostRmb):null};
@@ -45,7 +45,7 @@ export async function registerModelPricingAdmin(app:FastifyInstance) {
    return {id:m.id,name:m.displayName,publicId:m.publicId,enabled:m.enabled,providerId:m.providerId,
     ...(row?ModelMarkupSchema.parse(row.value):{multiplier:family==='deepseek'?policy.markup:1,revision:0}),
     reference:modelPriceReference(family,m.providerModelId,policy.prices),...summary(stats.filter(s=>s.modelId===m.id))};
-  }).filter(m=>m.enabled||m.reference||m.requests>0);
+  });
   return {models:items,providers:upstreams,summary:summary(stats),checkedAt:new Date().toISOString(),currency:'CNY',excludeInternalTests:true,holidays:policy.holidayDates};
  });
  app.put('/api/v1/admin/model-pricing/:id',async req=>{

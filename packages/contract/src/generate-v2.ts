@@ -27,12 +27,12 @@ const success = (schema: z.ZodType, status = 200) => ({
 });
 type Method = 'get' | 'post' | 'put' | 'patch' | 'delete';
 function route(method: Method, path: string, output: z.ZodType, body?: z.ZodType, status = 200, auth = true) {
-  const query=path==='/api/v1/me/wallet/transactions'?z.object({kind:z.enum(['all','account']).default('all')}):undefined;
+  const query=path==='/api/v1/me/wallet/transactions'?z.object({kind:z.enum(['all','account']).default('all')}):path==='/api/v1/admin/online-events'?z.object({email:z.string().max(320).optional(),page:z.coerce.number().int().min(1).default(1),pageSize:z.coerce.number().int().min(1).max(100).default(30)}):undefined;
   const params = path === '/api/v1/usage/responses/{id}'
     ? z.object({ id: z.string().regex(/^resp_[0-9a-f]{32}$/) })
     : path.includes('{id}') ? uuidParams : undefined;
   registry.registerPath({ method, path, summary: `${method.toUpperCase()} ${path}`,
-    ...(auth ? { security: [{ DesktopBearer: [] }] } : {}),
+    ...(auth ? { security: [path.startsWith('/api/v1/admin/')?{WebSession:[]}:{ DesktopBearer: [] }] } : {}),
     ...(body || params || query ? { request: { ...(query?{query}:{}), ...(params ? { params } : {}), ...(body ? { body: { content: json(body) } } : {}) } } : {}),
     responses: success(output, status) });
 }
@@ -67,6 +67,7 @@ for (const [name, schema] of Object.entries({ AccountSummary: AccountSummaryV2Sc
   registry.register(name, schema);
 }
 registry.registerComponent('securitySchemes', 'DesktopBearer', { type: 'http', scheme: 'bearer', bearerFormat: 'JWT', description: 'Desktop bearer requests also require a DPoP compact ES256 JWT bound to the installation public P-256 JWK. Browser cookies remain exempt.' });
+registry.registerComponent('securitySchemes','WebSession',{type:'apiKey',in:'cookie',name:'bridge_session',description:'Administrator web session. Mutations also require the trusted Origin header.'});
 
 route('get','/api/v1/client/config',ClientConfigV2Schema,undefined,200,false);
 route('get', '/api/v1/auth/registration-config', RegistrationConfigV24Schema, undefined, 200, false);
@@ -133,6 +134,11 @@ route('get','/api/v1/admin/model-pricing',adminResponse);
 route('put','/api/v1/admin/model-pricing/{id}',adminResponse,z.object({multiplier:z.number().min(.01).max(100),expectedRevision:z.number().int().nonnegative()}));
 route('post', '/v1/responses', responseV2, ResponseRequestSchema);
 route('get','/api/v1/admin/insights',adminResponse);
+route('get','/api/v1/admin/online-events',z.object({data:z.array(z.object({id:z.uuid(),email:z.email(),source:z.enum(['WEB_LOGIN','APP_LOGIN','APP_RECONNECT']),deviceName:z.string(),platform:z.string(),osVersion:z.string(),appVersion:z.string(),ipAddress:z.string().nullable(),createdAt:z.iso.datetime({offset:true})})),total:z.number().int(),page:z.number().int(),pageSize:z.number().int()}));
+const metricTotals=z.object({total:z.number(),today:z.number(),last30Days:z.number()});
+route('get','/api/v1/admin/site/summary',z.object({pageViews:metricTotals,downloads:metricTotals.extend({data:z.array(z.object({day:z.string(),version:z.string(),platform:z.string(),arch:z.string(),downloads:z.number()}))}),trackingSince:z.string().nullable(),timezone:z.literal('UTC'),uniqueVisitorsAvailable:z.literal(false)}));
+route('get','/api/v1/admin/site/page-views',adminResponse);
+
 route('get','/api/v1/admin/users/{id}/activity',adminResponse);
 route('get','/api/v1/admin/usage-events/review',adminResponse);
 route('get','/api/v1/official-client/windows',generic);

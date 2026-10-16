@@ -110,7 +110,12 @@ export const paymentEvents = pgTable('payment_events', { id: id(), provider: tex
 export const releases = pgTable('releases', {
   id: id(), version: text('version').notNull(), channel: text('channel').notNull(), platform: text('platform').notNull(), arch: text('arch').notNull(), downloadUrl: text('download_url').notNull(), sha256: text('sha256').notNull(), releaseNotes: text('release_notes').notNull().default(''), published: boolean('published').notNull().default(false), createdAt: created(),
 });
-export const auditLogs = pgTable('audit_logs', { id: id(), actorId: uuid('actor_id').references(() => users.id), action: text('action').notNull(), targetType: text('target_type').notNull(), targetId: text('target_id').notNull(), metadata: jsonb('metadata').$type<Record<string, unknown>>().notNull().default({}), createdAt: created() });
+export const auditLogs = pgTable('audit_logs', { id: id(), actorId: uuid('actor_id').references(() => users.id), action: text('action').notNull(), targetType: text('target_type').notNull(), targetId: text('target_id').notNull(), metadata: jsonb('metadata').$type<Record<string, unknown>>().notNull().default({}), createdAt: created() }, t => [index('audit_logs_action_created_idx').on(t.action,t.createdAt)]);
+
+export const siteDownloadStats = pgTable('site_download_stats', {
+  id: id(), day: varchar('day', {length:10}).notNull(), version: text('version').notNull(),
+  platform: text('platform').notNull(), arch: text('arch').notNull(), downloads: integer('downloads').notNull().default(0),
+}, t => [uniqueIndex('site_download_stats_scope_idx').on(t.day,t.version,t.platform,t.arch)]);
 export const systemSettings = pgTable('system_settings', { key: text('key').primaryKey(), value: jsonb('value').$type<unknown>().notNull(), updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow() });
 export const publicRateHits = pgTable('public_rate_hits', {
   id: id(), ipHash: text('ip_hash').notNull(), createdAt: created(),

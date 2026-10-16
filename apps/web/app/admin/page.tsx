@@ -1,4 +1,6 @@
 'use client';
+import {AdminModels} from '../../components/admin-models';
+import {AdminActivity} from '../../components/admin-activity';
 import {EngagementManager} from "../../components/engagement-manager";
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -7,8 +9,6 @@ import { api, patch, post, put, type Plan } from '../../lib/api';
 import { V2AdminPanel } from '../../components/v2-admin-panels';
 import { CopilotAuthCard } from '../../components/copilot-auth-card';
 import { WebsiteSettings } from '../../components/website-settings';
-import { DeepSeekConnectionCard } from '../../components/deepseek-connection-card';
-import { ModelInstanceManager } from '../../components/model-instance-manager';
 import { MoneyPlanManager } from '../../components/money-plan-manager';
 import { AdminUserDialog, CreateUserDialog } from '../../components/admin-user-dialog';
 import { ReleaseUpload } from '../../components/release-upload';
@@ -16,6 +16,7 @@ import { AdminInsights } from '../../components/admin-insights';
 import { FailureFeedback } from '../../components/failure-feedback';
 
 const items: NavItem[] = [
+  {id:'dashboard',label:'网站统计',icon:'Gauge'},
   {id:'models',label:'模型与连接',icon:'Boxes'},
   {id:'users',label:'用户与权限',icon:'Users'},
   {id:'money-plans',label:'套餐与计费',icon:'Boxes'},
@@ -73,7 +74,7 @@ export default function AdminPage() {
       if (version !== loadVersion.current) return false;
       if (me.user.role !== 'ADMIN') { router.replace('/dashboard'); return false; }
       setEmail(me.user.email);
-      if (active === 'engagement' || active.startsWith('v2-') || active === 'website-settings' || active === 'money-plans' || active === 'failures') return true;
+      if (active === 'models' || active === 'audit' || active === 'engagement' || active.startsWith('v2-') || active === 'website-settings' || active === 'money-plans' || active === 'failures') return true;
       if (active === 'dashboard') {
         const result = await api<Record<string, number>>('/api/v1/admin/dashboard');
         if (version !== loadVersion.current) return false;
@@ -139,12 +140,13 @@ export default function AdminPage() {
     {error ? <><h1>暂时无法验证管理员身份</h1><p role="alert">{error}</p><button className="button" onClick={() => void load()}>重试</button></>
       : <p role="status">正在验证管理员身份…</p>}
   </div></div>;
-  return <AppShell title={title} description="管理账号、权限、模型与服务状态。" items={items} active={active} onChange={id => {setLoading(true);setRows([]);setEmail('');setActive(id);setSelected(null);setForm({});setSearch('');setMessage('');setSetupProvider(null);setModelProviderReady('');}} email={email} admin>
+  return <AppShell title={title} description="管理账号、权限、模型与服务状态。" items={items} active={active} onChange={id => {setLoading(true);setRows([]);setActive(id);setSelected(null);setForm({});setSearch('');setMessage('');setSetupProvider(null);setModelProviderReady('');}} email={email} admin>
     {message && <div className="notice" role="status">{message}</div>}{error && <div className="error-text" role="alert">{error} <button className="mini-button" onClick={load}>重试</button></div>}
     {loading && <div className="loading-skeleton"/>}
     {active === 'money-plans' && <MoneyPlanManager/>}
     {!loading && active === 'failures' && <FailureFeedback/>}
-    {active === 'models' && <><DeepSeekConnectionCard onReady={() => void load()}/><ModelInstanceManager refreshKey={providers.map(p=>`${p.id}:${p.enabled}`).join(',')+models.map(m=>m.id).join(',')}/></> }
+    {!loading && active === 'models' && <AdminModels/>}
+    {!loading && active === 'audit' && <AdminActivity/>}
     {!loading && active === 'engagement' && <><EngagementManager/><V2AdminPanel section="v2-referrals"/></>}
     {!loading && active === 'website-settings' && <WebsiteSettings/>}
     {!loading && active.startsWith('v2-') && <V2AdminPanel section={active as 'v2-wallets' | 'v2-rates' | 'v2-referrals' | 'v2-costs'}/>}
@@ -166,7 +168,7 @@ export default function AdminPage() {
     </>}
     {!loading && active === 'providers' && rows.some(row => row.code === 'COPILOT') && <CopilotAuthCard/>}
     {active === 'users' && <button className="button button-small" onClick={() => setCreatingUser(true)}>创建用户</button>}
-    {!loading && resourcePaths[active] && <><div className="toolbar"><h2>{title} <span style={{fontSize:12,color:'#9aa69b'}}>({rows.length})</span></h2>{active === 'users' && <input className="search-input" value={search} onChange={e => {setRows([]);setSelected(null);setSearch(e.target.value);}} placeholder="搜索邮箱" aria-label="搜索用户"/>}</div><section className="panel" style={{marginTop:0,padding:0}}>{rows.length ? <div className="table-wrap"><table className="data-table"><thead><tr>{columns[active]?.map(c => <th key={c}>{c}</th>)}<th>操作</th></tr></thead><tbody>{rows.map((row, idx) => <tr key={row.id ?? idx}>{columns[active]?.map(c => <td key={c}>{c === 'status' || c === 'enabled' || c === 'published' ? <span className={`badge ${row[c] === 'ACTIVE' || row[c] === true || row[c] === 'COMPLETED' ? '' : 'muted'}`}>{active==='users'&&c==='status'?(row[c]==='ACTIVE'?'正常':'锁定'):display(row[c])}</span> : display(row[c])}</td>)}<td><div className="inline-actions">
+    {!loading && resourcePaths[active] && !['models','audit'].includes(active) && <><div className="toolbar"><h2>{title} <span style={{fontSize:12,color:'#9aa69b'}}>({rows.length})</span></h2>{active === 'users' && <input className="search-input" value={search} onChange={e => {setRows([]);setSelected(null);setSearch(e.target.value);}} placeholder="搜索邮箱" aria-label="搜索用户"/>}</div><section className="panel" style={{marginTop:0,padding:0}}>{rows.length ? <div className="table-wrap"><table className="data-table"><thead><tr>{columns[active]?.map(c => <th key={c}>{c}</th>)}<th>操作</th></tr></thead><tbody>{rows.map((row, idx) => <tr key={row.id ?? idx}>{columns[active]?.map(c => <td key={c}>{c === 'status' || c === 'enabled' || c === 'published' ? <span className={`badge ${row[c] === 'ACTIVE' || row[c] === true || row[c] === 'COMPLETED' ? '' : 'muted'}`}>{active==='users'&&c==='status'?(row[c]==='ACTIVE'?'正常':'锁定'):display(row[c])}</span> : display(row[c])}</td>)}<td><div className="inline-actions">
       {active === 'providers' && row.code === 'COPILOT' ? <span>见上方认证卡</span> : ['users','plans','providers','models','releases'].includes(active) && <button className="mini-button" onClick={() => {setSelected(row);setForm({});setUserAccess(null);setUserAccessId('');}}>管理</button>}
       {active === 'devices' && <button className="mini-button" onClick={() => run(() => patch(`/api/v1/admin/devices/${row.id}`, { status: row.status === 'ACTIVE' ? 'REVOKED' : 'ACTIVE' }))}>{row.status === 'ACTIVE' ? '停用' : '恢复'}</button>}
       {active === 'orders' && row.status === 'PENDING' && row.provider === 'MANUAL' && <button className="mini-button" onClick={() => run(() => post(`/api/v1/admin/orders/${row.id}/mark-paid`, {}), '手工订单已入账')}>确认收款</button>}
@@ -186,17 +188,6 @@ export default function AdminPage() {
 
     {active === 'providers' && selected && selected.code !== 'COPILOT' && <section className="panel"><h2>{display(selected.name)}</h2><p>API Key 保存后只显示掩码。Copilot Provider 在授权评审前保持禁用。</p><div className="form-grid"><Field label="Base URL" value={form.baseUrl ?? String(selected.baseUrl ?? '')} onChange={v => update('baseUrl',v)}/><Field label="超时（毫秒）" type="number" value={form.timeoutMs ?? String(selected.timeoutMs ?? 60000)} onChange={v => update('timeoutMs',v)}/><Field label="新 API Key（留空则不修改）" type="password" value={form.apiKey ?? ''} onChange={v => update('apiKey',v)}/></div><label style={{fontSize:12}}><input type="checkbox" checked={(form.enabled ?? String(selected.enabled)) === 'true'} onChange={e => update('enabled',String(e.target.checked))}/> 启用 Provider</label><div className="form-actions"><button className="button button-small" onClick={() => run(() => patch(`/api/v1/admin/providers/${selected.id}`, {enabled:(form.enabled ?? String(selected.enabled)) === 'true',baseUrl:form.baseUrl || selected.baseUrl || undefined,timeoutMs:Number(form.timeoutMs ?? selected.timeoutMs),apiKey:form.apiKey || undefined}))}>保存 Provider</button><button className="mini-button" onClick={() => run(async () => { const result = await api<{ready:boolean;reason?:string}>(`/api/v1/admin/providers/${selected.id}/health`); setMessage(result.ready ? 'Provider 正常' : `Provider 不可用：${result.reason}`); })}>健康检查</button></div><p>已配置模型：{models.filter(m => m.providerId === selected.id).length}</p></section>}
 
-
-    {active === 'models' && selected && <section className="panel"><h2>{display(selected.displayName)}</h2><p>{display(selected.publicId)} · {selected.enabled ? '模型已启用' : '模型停用'} · Provider {providers.find(row => row.id === selected.providerId)?.enabled ? '已启用' : '停用'}</p><div className="inline-actions"><button className="mini-button" onClick={() => run(() => patch(`/api/v1/admin/models/${selected.id}`, { enabled: !selected.enabled }))}>{selected.enabled ? '停用模型' : '启用模型'}</button></div><div className="form-grid"><Field label="Usage Weight" type="number" value={form.usageWeight ?? String(selected.usageWeight)} onChange={v => update('usageWeight',v)}/></div><button className="mini-button" onClick={() => run(() => patch(`/api/v1/admin/models/${selected.id}`, { usageWeight: Number(form.usageWeight ?? selected.usageWeight) }))}>保存权重</button>
-      <h3 style={{fontSize:14,marginTop:30}}>套餐 ACL（配置值，非最终可用性）</h3>
-      {!planAccess && <p className="error-text">套餐权限尚未加载；请使用上方重试按钮刷新后操作。</p>}
-      {plans.map(p => {
-        const allowed = planAccess?.planAccess.some(row => row.modelId === selected.id && row.planId === p.id);
-        return <div className="inline-actions" style={{marginBottom:9}} key={p.id}><span style={{minWidth:160,fontSize:12}}>{p.name}（{p.enabled ? '启用' : '停用'}）：{planAccess ? allowed ? '已开放' : '未开放' : '读取中'}</span><button className="mini-button" disabled={running || !planAccess || Boolean(allowed)} onClick={() => run(() => put(`/api/v1/admin/models/${selected.id}/plans/${p.id}`, { allowed:true }), `${p.name} 套餐 ACL 已开放`, true)}>开放</button><button className="mini-button danger" disabled={running || !planAccess || !allowed} onClick={() => run(() => put(`/api/v1/admin/models/${selected.id}/plans/${p.id}`, { allowed:false }), `${p.name} 套餐 ACL 已关闭`, true)}>关闭</button></div>;
-      })}
-      <p>先在“模型售价”发布售价，再启用逻辑模型与已验证实例，并在“用户与权限”分配逻辑模型。实际可用性仍由服务端按订阅、额度、用户权限和实例状态判断。</p>
-      <button className="mini-button" onClick={()=>{setActive('v2-rates');setSelected(null);setForm({});}}>配置模型售价</button>
-    </section>}
 
     {active === 'releases' && <ReleaseUpload onUploaded={() => { setMessage('安装包已上传并计算 SHA-256；仍是未发布草稿，请核对后发布。'); void load(); }}/>}
     {active === 'releases' && selected && <section className="panel"><h2>{display(selected.version)}</h2><p>{display(selected.downloadUrl)}</p><p>SHA-256：<code>{display(selected.sha256)}</code></p><button className="button button-small" onClick={() => run(() => patch(`/api/v1/admin/releases/${selected.id}`, {published:!selected.published}), selected.published ? '已取消发布' : '已发布')}>{selected.published ? '取消发布' : '发布'}</button></section>}

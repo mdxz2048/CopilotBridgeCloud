@@ -1,3 +1,4 @@
+import {recordOnlineEvent} from './online-events.js';
 import {subscriptionActive} from './logic.js';
 import {engagementPolicy,publicEngagement} from './engagement-policy.js';
 import {enrollSignupReward} from './signup-rewards.js';
@@ -106,11 +107,14 @@ export async function registerRoutes(app: FastifyInstance) {
     if (user.status !== 'ACTIVE') throw new ApiError(403, 'ACCOUNT_DISABLED');
     if (data.device) {
       const device = await registerDevice(user.id, data.device);
-      return { accessToken: await issueAccess(user.id, device.id, user.role, device.authVersion), refreshToken: await issueRefresh(user.id, device.id, device.authVersion), expiresIn: 1800, user: publicUser(user), device: publicV1Device(device) };
+      const accessToken=await issueAccess(user.id,device.id,user.role,device.authVersion),refreshToken=await issueRefresh(user.id,device.id,device.authVersion);
+      await recordOnlineEvent({userId:user.id,device,ip:req.ip,source:'APP_LOGIN'});
+      return {accessToken,refreshToken,expiresIn:1800,user:publicUser(user),device:publicV1Device(device)};
     }
     if (req.headers.origin !== config.PUBLIC_BASE_URL) throw new ApiError(403, 'CSRF_REJECTED');
     const session = newRefresh();
     await db.insert(webSessions).values({ userId: user.id, tokenHash: hashRefresh(session), expiresAt: new Date(Date.now() + 7 * 86400000) });
+    await recordOnlineEvent({userId:user.id,ip:req.ip,source:'WEB_LOGIN',userAgent:req.headers['user-agent']});
     reply.setCookie('bridge_session', session, cookieOptions);
     return { user: publicUser(user) };
   });

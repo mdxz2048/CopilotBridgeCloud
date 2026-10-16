@@ -1,4 +1,5 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
+import {recordClientDownload} from './site-visits.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { mkdir, stat, unlink, rename } from 'node:fs/promises';
@@ -84,7 +85,12 @@ export function registerReleaseFiles(app: FastifyInstance) {
     return reply.code(201).send(release);
   });
 
-  app.get('/api/v1/releases/files/:id', async (req, reply) => {
+  const downloads=new WeakMap<FastifyRequest,{version:string;platform:string;arch:string}>();
+  app.get('/api/v1/releases/files/:id', {onResponse:async(req,reply)=>{
+    const release=downloads.get(req);
+    if(req.method!=='GET'||reply.statusCode!==200||!release)return;
+    try{await recordClientDownload(release);}catch{req.log.warn({event:'download_count_failed'},'下载计数暂时未保存');}
+  }},async (req, reply) => {
     const id = z.uuid().parse((req.params as { id: string }).id);
     const [release] = await db.select().from(releases).where(eq(releases.id, id)).limit(1);
     if (!release?.published || release.platform !== 'windows') throw new ApiError(404, 'NOT_FOUND');
@@ -98,6 +104,7 @@ export function registerReleaseFiles(app: FastifyInstance) {
     reply.header('Content-Type', 'application/octet-stream');
     reply.header('Content-Length', info.size);
     reply.header('Content-Disposition', `attachment; filename="CopilotBridge-${release.version.replace(/[^A-Za-z0-9._-]/g, '_')}.exe"`);
+    downloads.set(req,{version:release.version,platform:release.platform,arch:release.arch});
     return reply.send(createReadStream(file));
   });
 }

@@ -24,8 +24,6 @@ const providerSpecs = [
 for (const p of providerSpecs) await db.insert(providers).values(p).onConflictDoNothing();
 for (const [code, publicId, providerModelId, name] of [
   ['MOCK', 'mock/mock-chat', 'mock-chat', 'Mock Chat'],
-  ['DEEPSEEK', 'deepseek/deepseek-chat', 'deepseek-chat', 'DeepSeek Chat'],
-  ['DEEPSEEK', 'deepseek/deepseek-reasoner', 'deepseek-reasoner', 'DeepSeek Reasoner'],
 ]) {
   const [provider] = await db.select().from(providers).where(eq(providers.code, code)).limit(1);
   await db.insert(models).values({ providerId: provider.id, publicId, providerModelId, displayName: name, enabled: code === 'MOCK' && process.env.ENABLE_MOCK_PROVIDER === 'true', supportsTools: true, supportsReasoning: name.includes('Reasoner'), supportsStreaming: true }).onConflictDoNothing();
