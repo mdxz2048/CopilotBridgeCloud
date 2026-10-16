@@ -1,0 +1,47 @@
+{
+  "deployment": {
+    "deployed": true,
+    "apiUnchanged": true,
+    "previousWeb": "sha256:d23f42f79248da8431ab18f603c84208716970b2fbbd1039b1f065683626dfe7",
+    "web": "sha256:9e5216584403facc8ccf54821df323833b9dc9314a32a760145bfef557944bc9",
+    "sourceHashes": {
+      "apps/web/app/register/page.tsx": "f99bf25fae6755c23889f4fee38f3ac004b1be42a469f5a633b350f2e9c54fdf",
+      "apps/web/app/styles.css": "34f9abc8a561025ec9bfed9e42171c247184579dd6422c544ad7533fdf5ba91a"
+    }
+  },
+  "verification": {
+    "passed": true,
+    "checks": [
+      {
+        "width": 375,
+        "http": 200,
+        "noSteps": true,
+        "emailSendInline": true,
+        "noHorizontalOverflow": true,
+        "turnstileContainer": true
+      },
+      {
+        "width": 768,
+        "http": 200,
+        "noSteps": true,
+        "emailSendInline": true,
+        "noHorizontalOverflow": true,
+        "turnstileContainer": true
+      },
+      {
+        "width": 1440,
+        "http": 200,
+        "noSteps": true,
+        "emailSendInline": true,
+        "noHorizontalOverflow": true,
+        "turnstileContainer": true
+      }
+    ],
+    "verificationRequired": true,
+    "configurationStatus": "READY",
+    "latestVersion": "0.3.18",
+    "minimumVersion": "0.3.18",
+    "humanVerificationCompleted": false,
+    "emailSent": false
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "passed": true,
+  "checks": 7,
+  "fixtureIpc": true,
+  "fixtureApi": true,
+  "realEmailDelivery": false,
+  "realElectron": false,
+  "appThemes": [
+    "light",
+    "dark"
+  ],
+  "appHeights": [
+    520,
+    700
+  ],
+  "webWidths": [
+    375,
+    768,
+    1440
+  ],
+  "invalidEmailBlocked": true,
+  "sendWithoutPassword": true,
+  "failedSendRetry": true,
+  "cooldown": true,
+  "invitationRetained": true,
+  "registerPayloadVerified": true
+}
