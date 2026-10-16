@@ -1,0 +1,114 @@
+{
+  "date": "2026-10-17",
+  "release": {
+    "id": "a61b0c96-6f42-421a-9187-0c5d3c04b1ed",
+    "version": "0.3.21",
+    "channel": "stable",
+    "platform": "windows",
+    "arch": "x64",
+    "downloadUrl": "https://ai.mddxz.top/api/v1/releases/files/a61b0c96-6f42-421a-9187-0c5d3c04b1ed",
+    "sha256": "03a752ad21f268cbbecf51cdf805ff9b5536255db40bfd69e08b945fdcba48aa",
+    "releaseNotes": "硬件设备号与上线校验更新：\n• 设备名称和设备号分别展示；设备号根据本机硬件信息生成，改名、升级 App 不改变设备号。\n• 旧随机设备号在合法校验后迁移，保留原设备记录和历史用量。\n• 每次 App 启动恢复登录均向平台校验令牌，手动登录校验密码。\n• 后台上线记录展示设备号、校验方式、来源、时间和连接 IP。\n• 同一硬件重装后可重新登录，旧密钥会话保持失效。",
+    "published": true,
+    "createdAt": "2026-10-16T16:43:58.824Z"
+  },
+  "deployment": {
+    "deployed": true,
+    "migration": "existing_0013_no_new_migration",
+    "previous": {
+      "api": "sha256:f7c0e3a39852238fece89b5ac1a08cc096fa695f7b472659312bf66e082f27ec",
+      "web": "sha256:96eb73e601673f3fa11345c071ce34ba6fb68fcc3f321f1b0b72f37971e6fa0f"
+    },
+    "api": "sha256:c2bd3ecfa4433b9712ce003d4bd98c24dbf96e8834856857a78233957267f10c",
+    "web": "sha256:e244279408e7ee04bda3bab7154280aa9a1f1a708ab1e1484c693c7516914ffa",
+    "sourceHashes": {
+      "apps/api/src/routes.ts": "120843814d019f24e4fd225e76ad84ef390d8a6a58bfd386e90fc0db188180bd",
+      "apps/api/src/online-events.ts": "76a625ef3fb6e47d2e16cc70c79b464d78d9dab909498660cf548b41dee00cd8",
+      "apps/web/components/admin-activity.tsx": "44de80997f38abf62c039c719e65c4bec62ae7fe7f8699cb39e059205f0e2e7e",
+      "apps/web/components/admin-user-dialog.tsx": "8d8f0db8e661a1cb8d6758657e22b50dff9c5a7664e6841c96ce9b3e111267ff",
+      "apps/web/app/dashboard/page.tsx": "fb0a0cec32e7feda1d667d22adf2b06cf027fee6a1f6d82ea1cac7d8c6ab504c",
+      "packages/contract/src/generate-v2.ts": "c6509f4c0af51ac455b5bc37e963f8d1a88a3485d6797af26817fe296d4ddfeb",
+      "docs/protocol/openapi.v2.json": "c5276b31a2ac9c6f5783c73419191884f3c0f26e4f557f8a29b3e5c54cb3c94a"
+    },
+    "serverHash": "fd2cb5ad18238250b2aa7e64bf8865864d011bfca2ca9b55345c192bf6a6c99f"
+  },
+  "checks": {
+    "appTests": 238,
+    "apiUnits": {
+      "passed": 153,
+      "initialPass": 152,
+      "oneImportTimeoutUnderParallelBuild": true,
+      "isolatedRerunPassed": 1
+    },
+    "isolatedPostgres": 51,
+    "contractTests": 10,
+    "webUnits": 15,
+    "hardwareProbe": {
+      "passed": true,
+      "independentProcesses": 2,
+      "sameHardwareId": true,
+      "rawHardwareNeverPrinted": true
+    },
+    "browser": {
+      "checks": [
+        {
+          "width": 1366,
+          "separateDeviceNameAndId": true,
+          "passwordAndTokenSources": true
+        },
+        {
+          "width": 390,
+          "separateDeviceNameAndId": true,
+          "passwordAndTokenSources": true
+        }
+      ],
+      "errors": []
+    },
+    "productionUi": {
+      "passed": true,
+      "checks": [
+        {
+          "width": 1366,
+          "adminResetControls": true,
+          "changePassword": true,
+          "forgotPassword": true,
+          "overflow": false
+        },
+        {
+          "width": 390,
+          "adminResetControls": true,
+          "changePassword": true,
+          "forgotPassword": true,
+          "overflow": false
+        }
+      ],
+      "errors": [],
+      "readOnly": true,
+      "noRealPasswordChanged": true,
+      "noEmailSent": true
+    },
+    "package": {
+      "passed": true,
+      "version": "0.3.21",
+      "verifiedFiles": 48,
+      "bytes": 343369757,
+      "sha256": "03a752ad21f268cbbecf51cdf805ff9b5536255db40bfd69e08b945fdcba48aa"
+    },
+    "updater": {
+      "passed": true,
+      "executionEnvironment": "server Node using unchanged compiled App UpdateManager",
+      "publicHttpsFullDownload": true,
+      "automaticDownload": true,
+      "sha256Verified": true,
+      "readyVersion": "0.3.21",
+      "clientConfigVersion": "0.3.21"
+    }
+  },
+  "limits": {
+    "noRealUserPasswordsChanged": true,
+    "noRawHardwareIdentifiersStoredOrUploaded": true,
+    "realWindowsHardwareCollectionVerified": true,
+    "realOfficialClientNotRestarted": true,
+    "installerNotLaunched": true
+  }
+}

@@ -196,7 +196,7 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
     } finally { await app.close(); }
   }, 15_000);
 
-  it('enrolls a legacy device key once at password login and invalidates its old tokens', async () => {
+  it('enrolls and re-enrolls a device key only after password login and invalidates its old tokens', async () => {
     const { db, devices, refreshTokens, subscriptions, users } = dbModule;
     const { eq } = await import('drizzle-orm');
     const security = await import('./security.js');
@@ -234,8 +234,10 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
       const changed = await app.inject({ method: 'POST', url: '/api/v1/auth/login',
         payload: { ...payload, device: { ...payload.device,
           publicKeyJwk: { kty: 'EC', crv: 'P-256', x: replacement.x, y: replacement.y } } } });
-      expect(changed.statusCode).toBe(403);
-      expect(changed.json().error.code).toBe('DEVICE_PROOF_INVALID');
+      expect(changed.statusCode).toBe(200);
+      const [rebound]=await db.select().from(devices).where(eq(devices.id,legacy.id));
+      expect(rebound.authVersion).toBe(2);
+      expect((await app.inject({method:'GET',url:'/api/v1/auth/me',headers:{authorization:`Bearer ${first.json().accessToken}`}})).json().error.code).toBe('DEVICE_REVOKED');
     } finally { await app.close(); }
   });
 

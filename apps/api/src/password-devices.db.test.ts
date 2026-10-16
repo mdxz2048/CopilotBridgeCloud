@@ -1,5 +1,5 @@
 import {beforeAll,afterAll,describe,it,expect,vi} from 'vitest';
-import {generateKeyPairSync,randomUUID} from 'node:crypto';
+import {createHash,generateKeyPairSync,randomUUID} from 'node:crypto';
 import {eq,and} from 'drizzle-orm';
 const mail=vi.hoisted(()=>vi.fn());
 vi.mock('nodemailer',()=>({default:{createTransport:()=>({sendMail:mail})}}));
@@ -83,4 +83,40 @@ describe.skipIf(!process.env.V2_TEST_DATABASE_URL)('Password recovery and device
   const good=results.find(r=>r.statusCode===200)!.json().device;await data.db.update(data.devices).set({status:'BLOCKED'}).where(eq(data.devices.id,good.id));
   const target=good.deviceId===a.deviceId?a:b;expect((await post('/api/v1/auth/login',{email:u.email,password,device:target},{})).json().error.code).toBe('DEVICE_REVOKED');
  });
+ async function signedResume(accessToken:string,key:ReturnType<typeof generateKeyPairSync>,payload:object){
+  const {SignJWT}=await import('jose'),body=JSON.stringify(payload),jwk=key.publicKey.export({format:'jwk'});
+  const digest=(v:string)=>createHash('sha256').update(v).digest('base64url');
+  const proof=await new SignJWT({htm:'POST',htu:origin+'/api/v1/auth/resume',iat:Math.floor(Date.now()/1000),jti:randomUUID(),ath:digest(accessToken),bth:digest(body)}).setProtectedHeader({alg:'ES256',typ:'dpop+jwt',jwk}).sign(key.privateKey);
+  return app.inject({method:'POST',url:'/api/v1/auth/resume',payload:body,remoteAddress:'192.0.2.200',headers:{host:'localhost:3000',authorization:`Bearer ${accessToken}`,dpop:proof,'content-type':'application/json'}});
+ }
+ it('migrates a signed legacy installation in place at the device cap and logs every fresh startup once',async()=>{
+  const u=await subscribed(),key=generateKeyPairSync('ec',{namedCurve:'P-256'}),old={...info(),publicKeyJwk:key.publicKey.export({format:'jwk'})};
+  const login=await post('/api/v1/auth/login',{email:u.email,password,device:old},{});expect(login.statusCode,login.body).toBe(200);
+  const hardware={...old,deviceId:randomUUID(),deviceName:'改名后的电脑',appVersion:'999.0.1'},sessionId=randomUUID();
+  const migrated=await signedResume(login.json().accessToken,key,{device:hardware,legacyDeviceId:old.deviceId,sessionId});expect(migrated.statusCode,migrated.body).toBe(200);expect(migrated.json().device.id).toBe(login.json().device.id);expect(migrated.json().device.deviceId).toBe(hardware.deviceId);
+  const rows=await data.db.select().from(data.devices).where(eq(data.devices.userId,u.id));expect(rows).toHaveLength(1);expect(rows[0].authVersion).toBeGreaterThan(0);
+  expect((await app.inject({url:'/api/v1/auth/me',headers:{authorization:`Bearer ${login.json().accessToken}`}})).json().error.code).toBe('DEVICE_REVOKED');
+  const again=await signedResume(migrated.json().accessToken,key,{device:hardware,legacyDeviceId:old.deviceId,sessionId});expect(again.statusCode,again.body).toBe(200);
+  const second=await signedResume(again.json().accessToken,key,{device:hardware,sessionId:randomUUID()});expect(second.statusCode,second.body).toBe(200);
+  const logs=await data.db.select().from(data.auditLogs).where(and(eq(data.auditLogs.actorId,u.id),eq(data.auditLogs.action,'USER_ONLINE')));
+  const starts=logs.filter(r=>r.metadata.source==='APP_START');expect(starts).toHaveLength(2);expect(starts[0].metadata).toMatchObject({authMethod:'TOKEN',deviceId:hardware.deviceId,ipAddress:'192.0.2.200'});expect(logs.find(r=>r.metadata.source==='APP_LOGIN')?.metadata.authMethod).toBe('PASSWORD');
+  await data.db.update(data.devices).set({status:'REVOKED'}).where(eq(data.devices.userId,u.id));
+  expect((await signedResume(second.json().accessToken,key,{device:hardware,sessionId:randomUUID()})).json().error.code).toBe('DEVICE_REVOKED');
+ });
+ it('requires valid password before re-enrolling a reinstalled hardware device key and invalidates the old key session',async()=>{
+  const u=await subscribed(),device=info(),first=await post('/api/v1/auth/login',{email:u.email,password,device},{});expect(first.statusCode).toBe(200);
+  const changed={...device,publicKeyJwk:info().publicKeyJwk};
+  expect((await post('/api/v1/auth/login',{email:u.email,password:'wrong',device:changed},{})).statusCode).toBe(401);
+  const nextLogin=await post('/api/v1/auth/login',{email:u.email,password,device:changed},{});expect(nextLogin.statusCode,nextLogin.body).toBe(200);expect(nextLogin.json().device.id).toBe(first.json().device.id);
+  expect((await app.inject({url:'/api/v1/auth/me',headers:{authorization:`Bearer ${first.json().accessToken}`}})).json().error.code).toBe('DEVICE_REVOKED');
+ });
+ it('rejects unsigned, cross-device and forged legacy startup claims without adding online records',async()=>{
+  const u=await subscribed(),key=generateKeyPairSync('ec',{namedCurve:'P-256'}),device={...info(),publicKeyJwk:key.publicKey.export({format:'jwk'})},login=await post('/api/v1/auth/login',{email:u.email,password,device},{});
+  const payload={device,sessionId:randomUUID()};expect((await post('/api/v1/auth/resume',payload,{})).statusCode).toBe(401);
+  expect((await post('/api/v1/auth/resume',payload,await cookie(u.id))).statusCode).toBe(403);
+  expect((await signedResume(login.json().accessToken,key,{...payload,device:{...device,deviceId:randomUUID()},legacyDeviceId:randomUUID()})).json().error.code).toBe('DEVICE_NOT_REGISTERED');
+  const [row]=await data.db.select().from(data.devices).where(eq(data.devices.userId,u.id));expect(row.deviceId).toBe(device.deviceId);
+  expect((await data.db.select().from(data.auditLogs).where(and(eq(data.auditLogs.actorId,u.id),eq(data.auditLogs.action,'USER_ONLINE'))))).toHaveLength(1);
+ });
+
 });

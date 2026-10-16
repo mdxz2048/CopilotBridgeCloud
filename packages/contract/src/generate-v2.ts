@@ -76,17 +76,18 @@ route('post', '/api/v1/auth/register', z.object({ user: UserSchema }),
   z.union([RegisterRequestV2Schema, RegisterRequestV24Schema]), 201, false);
 route('post', '/api/v1/auth/login', z.union([DeviceCredentialV2Schema, z.object({ user: UserSchema })]),
   z.union([WebLoginRequestV24Schema, z.object({ email: z.email(), password: z.string() }),
-    z.object({ email: z.email(), password: z.string(), device: DeviceInfoV23Schema,replaceDeviceId:z.uuid().optional() })]), 200, false);
+    z.object({ email: z.email(), password: z.string(), device: DeviceInfoV23Schema,replaceDeviceId:z.uuid().optional(),legacyDeviceId:z.uuid().optional() })]), 200, false);
 const newPassword=z.string().min(12).max(128);
 route('post','/api/v1/auth/forgot-password',z.object({accepted:z.literal(true)}),z.object({email:z.email(),turnstileToken:z.string().max(4096).optional()}),202,false);
 route('post','/api/v1/auth/reset-password',z.object({ok:z.literal(true)}),z.object({token:z.string().regex(/^[A-Za-z0-9_-]{43}$/),password:newPassword}),200,false);
 route('post','/api/v1/auth/change-password',z.object({ok:z.literal(true)}),z.object({currentPassword:z.string().max(128),password:newPassword}));
+route('post','/api/v1/auth/resume',DeviceCredentialV2Schema,z.object({device:DeviceInfoV23Schema,legacyDeviceId:z.uuid().optional(),sessionId:z.uuid()}));
 route('get', '/api/v1/admin/rate-policy', z.object({ policy: ratePolicyV23 }));
 route('put', '/api/v1/admin/rate-policy', z.object({ policy: ratePolicyV23 }), ratePolicyV23);
 registry.registerPath({ method: 'post', path: '/api/v1/auth/refresh', summary: 'Rotate a DPoP-bound desktop refresh token',
   request: { headers: z.object({ DPoP: z.string() }),
     body: { content: json(z.object({ refreshToken: z.string().min(20) })) } },
-  responses: success(z.object({ accessToken: z.string(), refreshToken: z.string(), expiresIn: z.literal(1800) })) });
+  responses: success(z.object({ accessToken: z.string(), refreshToken: z.string(), expiresIn: z.literal(1800),device:DeviceV2Schema.optional() })) });
 route('get', '/api/v1/me', account);
 route('get', '/api/v1/me/subscription', z.object({ subscription: SubscriptionSchema.nullable(), plan: PlanSchema.extend({
   monthlyPoints: z.number().int(), rolloverPolicy: z.enum(['NONE', 'UNLIMITED']),
@@ -138,7 +139,7 @@ route('get','/api/v1/admin/model-pricing',adminResponse);
 route('put','/api/v1/admin/model-pricing/{id}',adminResponse,z.object({multiplier:z.number().min(.01).max(100),expectedRevision:z.number().int().nonnegative()}));
 route('post', '/v1/responses', responseV2, ResponseRequestSchema);
 route('get','/api/v1/admin/insights',adminResponse);
-route('get','/api/v1/admin/online-events',z.object({data:z.array(z.object({id:z.uuid(),email:z.email(),source:z.enum(['WEB_LOGIN','APP_LOGIN','APP_RECONNECT']),deviceName:z.string(),platform:z.string(),osVersion:z.string(),appVersion:z.string(),ipAddress:z.string().nullable(),createdAt:z.iso.datetime({offset:true})})),total:z.number().int(),page:z.number().int(),pageSize:z.number().int()}));
+route('get','/api/v1/admin/online-events',z.object({data:z.array(z.object({id:z.uuid(),email:z.email(),source:z.enum(['WEB_LOGIN','APP_LOGIN','APP_RECONNECT','APP_START']),deviceId:z.uuid().nullable(),authMethod:z.enum(['PASSWORD','TOKEN']).nullable(),deviceName:z.string(),platform:z.string(),osVersion:z.string(),appVersion:z.string(),ipAddress:z.string().nullable(),createdAt:z.iso.datetime({offset:true})})),total:z.number().int(),page:z.number().int(),pageSize:z.number().int()}));
 const metricTotals=z.object({total:z.number(),today:z.number(),last30Days:z.number()});
 route('get','/api/v1/admin/site/summary',z.object({pageViews:metricTotals,downloads:metricTotals.extend({data:z.array(z.object({day:z.string(),version:z.string(),platform:z.string(),arch:z.string(),downloads:z.number()}))}),trackingSince:z.string().nullable(),timezone:z.literal('UTC'),uniqueVisitorsAvailable:z.literal(false)}));
 route('get','/api/v1/admin/site/page-views',adminResponse);

@@ -18,18 +18,19 @@ import { consumeEmailCode, registrationConfig, requestEmailCode, verifyTurnstile
 import { logicalCapabilities, catalogPresentation } from './instance-router.js';
 
 const deviceSchema = DeviceInfoV23Schema;
-const loginSchema = LoginRequestSchema.extend({ device: DeviceInfoV23Schema.optional(), turnstileToken: z.string().min(1).max(4096).optional(), replaceDeviceId: z.uuid().optional() });
+const loginSchema = LoginRequestSchema.extend({ device: DeviceInfoV23Schema.optional(), turnstileToken: z.string().min(1).max(4096).optional(), replaceDeviceId: z.uuid().optional(), legacyDeviceId: z.uuid().optional() });
 const secure = config.PUBLIC_BASE_URL.startsWith('https:');
 const cookieOptions = { httpOnly: true, secure, sameSite: 'strict' as const, path: '/', maxAge: 60 * 60 * 24 * 7 };
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
-async function registerDevice(tx: Tx, userId: string, info: z.infer<typeof deviceSchema>, replaceDeviceId?: string) {
+async function registerDevice(tx: Tx, userId: string, info: z.infer<typeof deviceSchema>, replaceDeviceId?: string, passwordAuthenticated = false) {
   const [existing] = await tx.select().from(devices).where(and(eq(devices.userId,userId),eq(devices.deviceId,info.deviceId))).limit(1);
   if (existing?.status==='BLOCKED') throw new ApiError(403,'DEVICE_REVOKED');
   if (existing?.status==='ACTIVE') {
-    if(existing.publicKeyJwk && (existing.publicKeyJwk.x!==info.publicKeyJwk.x||existing.publicKeyJwk.y!==info.publicKeyJwk.y))throw new ApiError(403,'DEVICE_PROOF_INVALID');
-    const [updated]=await tx.update(devices).set({...info,lastSeenAt:new Date(),updatedAt:new Date(),authVersion:existing.publicKeyJwk?undefined:sql`${devices.authVersion}+1`}).where(eq(devices.id,existing.id)).returning();
-    if(!existing.publicKeyJwk)await tx.update(refreshTokens).set({revokedAt:new Date()}).where(eq(refreshTokens.deviceId,existing.id));
+    const changedKey=Boolean(existing.publicKeyJwk&&(existing.publicKeyJwk.x!==info.publicKeyJwk.x||existing.publicKeyJwk.y!==info.publicKeyJwk.y));
+    if(changedKey&&!passwordAuthenticated)throw new ApiError(403,'DEVICE_PROOF_INVALID');
+    const [updated]=await tx.update(devices).set({...info,lastSeenAt:new Date(),updatedAt:new Date(),authVersion:existing.publicKeyJwk&&!changedKey?undefined:sql`${devices.authVersion}+1`}).where(eq(devices.id,existing.id)).returning();
+    if(!existing.publicKeyJwk||changedKey)await tx.update(refreshTokens).set({revokedAt:new Date()}).where(eq(refreshTokens.deviceId,existing.id));
     return updated;
   }
   const [sub]=await tx.select().from(subscriptions).where(eq(subscriptions.userId,userId)).orderBy(desc(subscriptions.createdAt)).limit(1);
@@ -55,6 +56,18 @@ async function registerDevice(tx: Tx, userId: string, info: z.infer<typeof devic
   }
   const [created]=await tx.insert(devices).values({userId,...info,lastSeenAt:new Date()}).returning();
   return created;
+}
+async function migrateDeviceBinding(tx:Tx,userId:string,info:z.infer<typeof deviceSchema>,legacyDeviceId?:string,authenticatedDeviceId?:string){
+  if(!legacyDeviceId||legacyDeviceId===info.deviceId)return;
+  const [legacy]=await tx.select().from(devices).where(and(eq(devices.userId,userId),eq(devices.deviceId,legacyDeviceId))).for('update').limit(1);
+  if(!legacy)return;
+  if(authenticatedDeviceId&&legacy.id!==authenticatedDeviceId)throw new ApiError(403,'DEVICE_NOT_REGISTERED');
+  if(legacy.status==='BLOCKED')throw new ApiError(403,'DEVICE_REVOKED');
+  const [target]=await tx.select({id:devices.id}).from(devices).where(and(eq(devices.userId,userId),eq(devices.deviceId,info.deviceId))).limit(1);
+  if(target){if(authenticatedDeviceId)throw new ApiError(403,'DEVICE_NOT_REGISTERED','设备号已有绑定，请重新输入账号和密码登录。');return;}
+  await tx.update(devices).set({deviceId:info.deviceId,authVersion:sql`${devices.authVersion}+1`,updatedAt:new Date()}).where(eq(devices.id,legacy.id));
+  await tx.update(refreshTokens).set({revokedAt:new Date()}).where(eq(refreshTokens.deviceId,legacy.id));
+  await tx.insert(auditLogs).values({actorId:userId,action:'DEVICE_ID_MIGRATED',targetType:'DEVICE',targetId:legacy.id,metadata:{previousDeviceId:legacyDeviceId,deviceId:info.deviceId}});
 }
 function publicUser(user: typeof users.$inferSelect) { return { id: user.id, email: user.email, role: user.role, status: user.status }; }
 function publicV1Device(device: typeof devices.$inferSelect) { return { ...device, status: device.status === 'BLOCKED' ? 'REVOKED' : device.status }; }
@@ -103,22 +116,45 @@ export async function registerRoutes(app: FastifyInstance) {
       if(!user||!(await verifyPassword(user.passwordHash,data.password)))throw new ApiError(401,'INVALID_CREDENTIALS');
       if(user.status!=='ACTIVE')throw new ApiError(403,'ACCOUNT_DISABLED');
       if(data.device){
-        const device=await registerDevice(tx,user.id,data.device,data.replaceDeviceId);
+        await migrateDeviceBinding(tx,user.id,data.device,data.legacyDeviceId);
+        const device=await registerDevice(tx,user.id,data.device,data.replaceDeviceId,true);
         const accessToken=await issueAccess(user.id,device.id,user.role,device.authVersion),refreshToken=newRefresh();
         await tx.insert(refreshTokens).values({userId:user.id,deviceId:device.id,tokenHash:hashRefresh(refreshToken),expiresAt:new Date(Date.now()+30*86400000)});
+        await recordOnlineEvent({userId:user.id,device,ip:req.ip,source:'APP_LOGIN'},tx);
         return {user,device,accessToken,refreshToken};
       }
       const session=newRefresh();
       await tx.insert(webSessions).values({userId:user.id,tokenHash:hashRefresh(session),expiresAt:new Date(Date.now()+7*86400000)});
+      await recordOnlineEvent({userId:user.id,ip:req.ip,source:'WEB_LOGIN',userAgent:req.headers['user-agent']},tx);
       return {user,session};
     });
     if(result.device){
-      await recordOnlineEvent({userId:result.user.id,device:result.device,ip:req.ip,source:'APP_LOGIN'});
       return {accessToken:result.accessToken,refreshToken:result.refreshToken,expiresIn:1800,user:publicUser(result.user),device:publicV1Device(result.device)};
     }
-    await recordOnlineEvent({userId:result.user.id,ip:req.ip,source:'WEB_LOGIN',userAgent:req.headers['user-agent']});
     reply.setCookie('bridge_session',result.session!,cookieOptions);
     return {user:publicUser(result.user)};
+  });
+  app.post('/api/v1/auth/resume',async req=>{
+    const a=await actor(req);
+    if(a.web||!a.device)throw new ApiError(403,'DEVICE_PROOF_INVALID');
+    const data=z.object({device:deviceSchema,legacyDeviceId:z.uuid().optional(),sessionId:z.uuid()}).parse(req.body);
+    return db.transaction(async tx=>{
+      const [user]=await tx.select().from(users).where(eq(users.id,a.user.id)).for('update').limit(1);
+      if(!user||user.status!=='ACTIVE')throw new ApiError(403,'ACCOUNT_DISABLED');
+      const [current]=await tx.select().from(devices).where(eq(devices.id,a.device!.id)).for('update').limit(1);
+      if(!current||current.status!=='ACTIVE'||current.authVersion!==a.device!.authVersion)throw new ApiError(403,'DEVICE_REVOKED');
+      if(current.deviceId!==data.device.deviceId){
+        if(current.deviceId!==data.legacyDeviceId)throw new ApiError(403,'DEVICE_NOT_REGISTERED','设备号与登录不一致，请重新登录。');
+        await migrateDeviceBinding(tx,user.id,data.device,data.legacyDeviceId,current.id);
+      }
+      const device=await registerDevice(tx,user.id,data.device);
+      const token=newRefresh();
+      await tx.update(refreshTokens).set({revokedAt:new Date()}).where(and(eq(refreshTokens.deviceId,device.id),isNull(refreshTokens.revokedAt)));
+      await tx.insert(refreshTokens).values({userId:user.id,deviceId:device.id,tokenHash:hashRefresh(token),expiresAt:new Date(Date.now()+30*86400000)});
+      const [recorded]=await tx.select({id:auditLogs.id}).from(auditLogs).where(and(eq(auditLogs.action,'USER_ONLINE'),eq(auditLogs.actorId,user.id),eq(auditLogs.targetId,device.id),sql`${auditLogs.metadata}->>'loginSessionId'=${data.sessionId}`)).limit(1);
+      if(!recorded)await recordOnlineEvent({userId:user.id,device,ip:req.ip,source:'APP_START',loginSessionId:data.sessionId},tx);
+      return {user:publicUser(user),device:publicV1Device(device),accessToken:await issueAccess(user.id,device.id,user.role,device.authVersion),refreshToken:token,expiresIn:1800};
+    });
   });
   app.post('/api/v1/auth/refresh', { config: { rateLimit: { max: 30, timeWindow: '15 minutes' } } }, async req => {
     const { refreshToken } = RefreshRequestSchema.parse(req.body);
@@ -139,7 +175,7 @@ export async function registerRoutes(app: FastifyInstance) {
       if (!user || user.status !== 'ACTIVE' || !device || device.id !== old.deviceId || device.status !== 'ACTIVE') throw new ApiError(403, 'DEVICE_REVOKED');
       const next = newRefresh();
       await tx.insert(refreshTokens).values({ userId: user.id, deviceId: device.id, tokenHash: hashRefresh(next), expiresAt: new Date(Date.now() + 30 * 86400000) });
-      return { accessToken: await issueAccess(user.id, device.id, user.role, device.authVersion), refreshToken: next, expiresIn: 1800 };
+      return { accessToken: await issueAccess(user.id, device.id, user.role, device.authVersion), refreshToken: next, expiresIn: 1800, device:publicV1Device(device) };
     });
   });
   app.post('/api/v1/auth/logout', async (req, reply) => {
