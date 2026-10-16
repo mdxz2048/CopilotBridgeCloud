@@ -25,7 +25,7 @@ export function Turnstile({ siteKey, action, onToken, resetKey }: {
       const api = widgetApi();
       if (!active || !api || !slot.current || widgetId) return;
       widgetId = api.render(slot.current, {
-        sitekey: siteKey, action,
+        sitekey: siteKey, action, language: 'zh-cn',
         callback: (token: string) => { setError(false); tokenCallback.current(token); },
         'expired-callback': () => tokenCallback.current(''),
         'error-callback': () => { setError(true); tokenCallback.current(''); },

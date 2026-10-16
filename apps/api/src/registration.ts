@@ -10,13 +10,8 @@ const enabled = config.STAGED_EMAIL_REGISTRATION_ENABLED === 'true';
 let nextCleanup = 0;
 const hash = (purpose: string, value: string) => createHmac('sha256', config.REFRESH_TOKEN_PEPPER)
   .update(`registration:${purpose}:${value}`).digest('hex');
-export function registrationMail(template: { subject: string; body: string }, code: string, existing: boolean) {
-  return existing
-    ? {
-      subject: 'Registration request received',
-      text: 'A registration request was received for this address. If you already have an account, sign in instead. If you did not request this, ignore this email.',
-    }
-    : { subject: template.subject.replaceAll('{{code}}', code), text: template.body.replaceAll('{{code}}', code) };
+export function registrationMail(template: { subject: string; body: string }, code: string) {
+  return { subject: template.subject.replaceAll('{{code}}', code), text: template.body.replaceAll('{{code}}', code) };
 }
 
 export async function registrationConfig() {
@@ -95,20 +90,18 @@ export async function requestEmailCode(email: string, ip: string) {
     }
     return { ...reserved, existing: Boolean(account) };
   });
+  // The reservation preserves per-email/IP throttling even for existing accounts.
+  if (challenge.existing) throw new ApiError(409, 'EMAIL_IN_USE');
   try {
-    const content = registrationMail(template, code, challenge.existing);
+    const content = registrationMail(template, code);
     const delivery = await mailer.sendMail({
-      from: mail.from, to: normalized, ...content,
+      from: { name: 'Copilot Bridge 账号服务', address: mail.from }, to: normalized, ...content,
     });
     if (!Array.isArray(delivery.accepted) || !delivery.accepted.some((recipient: unknown) =>
       typeof recipient === 'string' && recipient.toLowerCase() === normalized)) throw new Error('Recipient not accepted');
   } catch {
     await db.update(registrationChallenges).set({ state: 'FAILED' }).where(eq(registrationChallenges.id, challenge.id));
     throw new ApiError(503, 'EMAIL_DELIVERY_UNAVAILABLE');
-  }
-  if (challenge.existing) {
-    await db.update(registrationChallenges).set({ sentAt: new Date() }).where(eq(registrationChallenges.id, challenge.id));
-    return;
   }
   await db.transaction(async tx => {
     await tx.update(registrationChallenges).set({ state: 'EXHAUSTED' })

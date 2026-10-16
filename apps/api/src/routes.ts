@@ -79,6 +79,8 @@ export async function registerRoutes(app: FastifyInstance) {
     const data = (staged ? RegisterRequestV24Schema : RegisterRequestV2Schema).parse(req.body);
     const passwordHash = await hashPassword(data.password);
     const user = await db.transaction(async tx => {
+      const [existing] = await tx.select({ id: users.id }).from(users).where(eq(users.email, data.email.toLowerCase())).limit(1);
+      if (existing) throw new ApiError(409, 'EMAIL_IN_USE');
       if (staged && !(await consumeEmailCode(tx, data.email, (data as z.infer<typeof RegisterRequestV24Schema>).emailCode))) return null;
       if (data.referralCode) await validateReferralCode(tx, data.referralCode);
       const [created] = await tx.insert(users).values({ email: data.email.toLowerCase(), passwordHash }).onConflictDoNothing().returning();

@@ -29,12 +29,16 @@ export default function Login() {
       const code = (e as { code?: string }).code;
       setError(code === 'TURNSTILE_INVALID' ? '人机验证失败，请重新完成验证后再试。'
         : code === 'TURNSTILE_UNAVAILABLE' ? '人机验证服务暂不可用，请稍后重试。'
-        : (e as { message?: string }).message ?? '登录失败，请检查账号和密码。');
+        : code === 'INVALID_CREDENTIALS' ? '邮箱或密码不正确，请检查后重试。'
+        : code === 'ACCOUNT_DISABLED' ? '账号已被停用，请联系管理员。'
+        : code === 'RATE_LIMITED' ? '操作太频繁，请稍后再试。'
+        : code === 'VALIDATION_ERROR' ? '邮箱或密码格式不正确，请检查后重试。'
+        : '登录暂时未完成，请稍后重试。');
       setToken(''); setWidgetKey(key => key + 1);
     }
     finally { setBusy(false); }
   }
   if (checkingAuth) return <><SiteHeader/><main className="auth-wrap"><p role="status">正在检查登录状态…</p></main></>;
-  return <><SiteHeader/><main className="auth-wrap"><form className="auth-card" onSubmit={submit}><span className="eyebrow">WELCOME BACK</span><h1>登录你的账号</h1><p>查看账号状态、邀请、AI 点数和设备。</p>{identityError && <p className="auth-unavailable" role="alert">暂时无法确认登录状态；你仍可尝试登录，或稍后刷新重试。</p>}<div className="field"><label htmlFor="email">邮箱</label><input id="email" type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)}/></div><div className="field"><label htmlFor="password">密码</label><input id="password" type="password" autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)}/></div>{loading ? <p role="status">正在检查登录方式…</p> : unavailable ? <p className="auth-unavailable" role="alert">登录验证暂不可用：人机验证可能尚未完成配置，或服务暂时无法连接。请稍后重试或联系管理员。</p> : capabilities?.verificationRequired && <Turnstile key={widgetKey} siteKey={capabilities.turnstileSiteKey!} action="web_login" onToken={setToken} resetKey={widgetKey}/>}
+  return <><SiteHeader/><main className="auth-wrap"><form className="auth-card" onSubmit={submit}><span className="eyebrow">欢迎回来</span><h1>登录你的账号</h1><p>查看账号状态、邀请、AI 点数和设备。</p>{identityError && <p className="auth-unavailable" role="alert">暂时无法确认登录状态；你仍可尝试登录，或稍后刷新重试。</p>}<div className="field"><label htmlFor="email">邮箱</label><input id="email" type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)}/></div><div className="field"><label htmlFor="password">密码</label><input id="password" type="password" autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)}/></div>{loading ? <p role="status">正在检查登录方式…</p> : unavailable ? <p className="auth-unavailable" role="alert">登录验证暂不可用：人机验证可能尚未完成配置，或服务暂时无法连接。请稍后重试或联系管理员。</p> : capabilities?.verificationRequired && <Turnstile key={widgetKey} siteKey={capabilities.turnstileSiteKey!} action="web_login" onToken={setToken} resetKey={widgetKey}/>}
     {error && <div className="error-text" role="alert">{error}</div>}<button className="button" disabled={busy || loading || unavailable}>{busy ? '登录中…' : '登录'}</button><div className="auth-switch">还没有账号？ <Link href="/register">创建账号</Link></div></form></main></>;
 }

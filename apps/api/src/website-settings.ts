@@ -19,8 +19,8 @@ const storedSchema = z.object({
 });
 const expectedHostname = new URL(config.PUBLIC_BASE_URL).hostname;
 const templateDefault = {
-  subject: 'Your registration request',
-  body: 'Your registration code is {{code}}. It expires in 10 minutes. If you did not request it, ignore this email.',
+  subject: '【Copilot Bridge】注册验证码',
+  body: '你好！\n\n你正在注册 Copilot Bridge 账号，本次验证码为：{{code}}\n\n验证码 10 分钟内有效，请勿向他人透露。\n如果不是你本人操作，请忽略此邮件。\n\nCopilot Bridge 账号服务',
 };
 export const websiteSettingsInput = z.object({
   turnstile: z.object({

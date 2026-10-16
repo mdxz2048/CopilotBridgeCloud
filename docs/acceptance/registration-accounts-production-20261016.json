@@ -1,0 +1,82 @@
+{
+  "deployment": {
+    "deployed": true,
+    "previous": {
+      "api": "sha256:438b067bdce52a9edfc1fa753706133a43b067cc396bd9577e0bf9846a341f23",
+      "web": "sha256:9e5216584403facc8ccf54821df323833b9dc9314a32a760145bfef557944bc9"
+    },
+    "api": "sha256:8f589cac0ad15d1b97c128e00e3b41b80173705cb02c2be26e72b3017475a918",
+    "web": "sha256:aea9b736fe0fc0fcd0d5c2b2e49850af9be6556a5f977c98de2e4fc869c96b6c",
+    "sourceHashes": {
+      "apps/api/src/registration.ts": "5fe9b4848a94f86000a5fccf331440ec7ae8c81d1c528dab60abb1b8e372effd",
+      "apps/api/src/routes.ts": "2f78e841ca0ee7b045226a4e9e0d196a24b05abafbfa5d1f1d6d1bf53fc2bd65",
+      "apps/api/src/registration.db.test.ts": "555b5e375fe58f279445d5199368275bfefd9285fefa56174f236a752baa466c",
+      "apps/api/src/registration.test.ts": "92c8ee1cfe5aef18105ad323bacae5c6547ed7e6f357b28839b9dfd9abe4c640",
+      "apps/api/src/website-settings.ts": "cd0a5895f60508e5591a301d5a7b08d0e15b7601aa6f25365ce1f74deb0818de",
+      "apps/api/src/website-settings.test.ts": "a649613cf0bff46314beeff70ad9de5ca887b55590d482652b34ffd769045a62",
+      "apps/web/app/register/page.tsx": "29ac7a7e5c5e496b4590ec925f0ada81bd6acb3a8ac9f6f67b29ca09b3dc5e10",
+      "apps/web/app/login/page.tsx": "df70ebd7609ab143ae8f07ced3d0c8b10147635aadb6bfd7945710937e89bd02",
+      "apps/web/components/turnstile.tsx": "d5b78ae71dc3ef91b81832db09fe203a871b5da01e1f5241d2cbfc17e38b6005"
+    },
+    "serverHash": "d6aa71a27df0db58c0d2cf73f579b6aaaeb72bec3ff2244164dadbbb4330bac9"
+  },
+  "api": {
+    "passed": true,
+    "chineseMailTemplate": true,
+    "verificationRequired": true,
+    "configurationStatus": "READY",
+    "registeredEmailRejected": true,
+    "duplicateStatus": 409,
+    "duplicateCode": "EMAIL_IN_USE",
+    "caseInsensitive": true,
+    "realEmailSent": false,
+    "serverHash": "d6aa71a27df0db58c0d2cf73f579b6aaaeb72bec3ff2244164dadbbb4330bac9",
+    "latestVersion": "0.3.18",
+    "minimumVersion": "0.3.18"
+  },
+  "ui": {
+    "passed": true,
+    "checks": [
+      {
+        "width": 375,
+        "http": 200,
+        "noSteps": true,
+        "emailSendInline": true,
+        "noHorizontalOverflow": true,
+        "turnstileContainer": true
+      },
+      {
+        "width": 768,
+        "http": 200,
+        "noSteps": true,
+        "emailSendInline": true,
+        "noHorizontalOverflow": true,
+        "turnstileContainer": true
+      },
+      {
+        "width": 1440,
+        "http": 200,
+        "noSteps": true,
+        "emailSendInline": true,
+        "noHorizontalOverflow": true,
+        "turnstileContainer": true
+      }
+    ],
+    "verificationRequired": true,
+    "configurationStatus": "READY",
+    "latestVersion": "0.3.18",
+    "minimumVersion": "0.3.18",
+    "humanVerificationCompleted": false,
+    "emailSent": false
+  },
+  "mail": {
+    "passed": true,
+    "template": {
+      "subject": "【Copilot Bridge】注册验证码",
+      "body": "你好！\n\n你正在注册 Copilot Bridge 账号，本次验证码为：{{code}}\n\n验证码 10 分钟内有效，请勿向他人透露。\n如果不是你本人操作，请忽略此邮件。\n\nCopilot Bridge 账号服务"
+    },
+    "credentialsRetained": true,
+    "registrationProtected": true,
+    "realEmailSent": false
+  }
+}

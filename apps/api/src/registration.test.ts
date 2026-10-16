@@ -31,11 +31,8 @@ describe('staged registration Turnstile verification', () => {
     const registration = await import('./registration.js');
     verify = registration.verifyTurnstile;
     expect(registration.registrationMail(
-      { subject: 'Code {{code}}', body: 'Enter {{code}} within ten minutes.' }, '123456', false,
+      { subject: 'Code {{code}}', body: 'Enter {{code}} within ten minutes.' }, '123456',
     )).toEqual({ subject: 'Code 123456', text: 'Enter 123456 within ten minutes.' });
-    expect(JSON.stringify(registration.registrationMail(
-      { subject: 'Code {{code}}', body: 'Enter {{code}}.' }, '123456', true,
-    ))).not.toContain('123456');
     expect(await registration.registrationConfig()).toEqual({
       verificationRequired: true, turnstileSiteKey: 'public-key', registrationAvailable: true, configurationStatus: 'READY',
     });

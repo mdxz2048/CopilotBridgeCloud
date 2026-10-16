@@ -40,6 +40,7 @@ describe('editable website verification settings', () => {
       verificationRequired: false,
       turnstile: { siteKey: 'existing-public-key', secretConfigured: true },
       email: { passwordConfigured: true, from: 'verify@example.test' },
+      template: { subject: '【Copilot Bridge】注册验证码', body: expect.stringContaining('验证码为：{{code}}') },
     });
     expect(JSON.stringify(publicSettings)).not.toContain('existing-private-key');
     expect(JSON.stringify(publicSettings)).not.toContain('existing-mail-password');

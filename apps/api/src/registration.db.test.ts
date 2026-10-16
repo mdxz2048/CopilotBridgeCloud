@@ -2,7 +2,7 @@ import { createHmac, generateKeyPairSync, randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { eq, desc } from 'drizzle-orm';
 
-const sendMail = vi.hoisted(() => vi.fn<(message: { text: string; to: string }) => Promise<unknown>>());
+const sendMail = vi.hoisted(() => vi.fn<(message: { text: string; to: string; subject: string; from: { name: string; address: string } }) => Promise<unknown>>());
 vi.mock('nodemailer', () => ({ default: { createTransport: () => ({ sendMail }) } }));
 
 const enabled = Boolean(process.env.V2_TEST_DATABASE_URL);
@@ -21,8 +21,11 @@ describe.skipIf(!enabled)('staged registration (dedicated PostgreSQL)', () => {
     const response = await inject('POST', '/api/v1/auth/email-code', { email: address, ...captcha });
     expect(response.statusCode).toBe(202);
     const call = sendMail.mock.lastCall?.[0];
-    expect(call?.text).toMatch(/registration code is \d{6}/);
-    return call!.text.match(/registration code is (\d{6})/)![1];
+    expect(call?.text).toMatch(/验证码为：\d{6}/);
+    expect(call?.subject).toBe('【Copilot Bridge】注册验证码');
+    expect(call?.from.name).toBe('Copilot Bridge 账号服务');
+    expect(call?.text).toContain('10 分钟内有效');
+    return call!.text.match(/验证码为：(\d{6})/)![1];
   };
 
   beforeAll(async () => {
@@ -111,7 +114,7 @@ describe.skipIf(!enabled)('staged registration (dedicated PostgreSQL)', () => {
     }), { status: 200 })));
   }, 180_000);
 
-  it('never reports a failed SMTP send as successful, and masks registered emails', async () => {
+  it('reports SMTP failures and rejects registered emails without sending mail', async () => {
     sendMail.mockRejectedValueOnce(new Error('SMTP offline'));
     const failed = await inject('POST', '/api/v1/auth/email-code', { email: email(), ...captcha });
     expect(failed.statusCode).toBe(503);
@@ -119,11 +122,26 @@ describe.skipIf(!enabled)('staged registration (dedicated PostgreSQL)', () => {
     const existing = email();
     await data.db.insert(data.users).values({ email: existing, passwordHash: 'test' });
     const count = sendMail.mock.calls.length;
-    const masked = await inject('POST', '/api/v1/auth/email-code', { email: existing, ...captcha });
-    expect(masked.statusCode).toBe(202);
-    expect(masked.json()).toEqual({ accepted: true });
-    expect(sendMail.mock.calls.length).toBe(count + 1);
-    expect(sendMail.mock.lastCall?.[0].text).not.toContain('registration code is');
+    const duplicate = await inject('POST', '/api/v1/auth/email-code', { email: existing.toUpperCase(), ...captcha });
+    expect(duplicate.statusCode).toBe(409);
+    expect(duplicate.json().error.code).toBe('EMAIL_IN_USE');
+    expect(sendMail.mock.calls.length).toBe(count);
+    const [challenge] = await data.db.select().from(data.registrationChallenges)
+      .where(eq(data.registrationChallenges.emailHash, emailHash(existing))).orderBy(desc(data.registrationChallenges.createdAt)).limit(1);
+    expect(challenge.state).toBe('SUPPRESSED');
+    expect(challenge.codeHash).toBeNull();
+    expect(challenge.sentAt).toBeNull();
+    // The same email cannot repeatedly consume verification requests without cooldown.
+    const repeated = await inject('POST', '/api/v1/auth/email-code', { email: existing, ...captcha });
+    expect(repeated.statusCode).toBe(429);
+    const registerDuplicate = await inject('POST', '/api/v1/auth/register', {
+      email: existing.toUpperCase(), password, emailCode: '000000',
+    });
+    expect(registerDuplicate.statusCode).toBe(409);
+    expect(registerDuplicate.json().error.code).toBe('EMAIL_IN_USE');
+    const accounts = await data.db.select({ id: data.users.id }).from(data.users).where(eq(data.users.email, existing));
+    expect(accounts).toHaveLength(1);
+
   }, 180_000);
 
   it('enforces durable email cooldown, hourly email quota and hourly IP quota', async () => {
@@ -152,7 +170,7 @@ describe.skipIf(!enabled)('staged registration (dedicated PostgreSQL)', () => {
     expect(wrong.statusCode).toBe(400);
     const success = await inject('POST', '/api/v1/auth/register', { email: address, password, emailCode: code });
     expect(success.statusCode).toBe(201);
-    expect((await inject('POST', '/api/v1/auth/register', { email: address, password, emailCode: code })).json().error.code).toBe('EMAIL_CODE_INVALID');
+    expect((await inject('POST', '/api/v1/auth/register', { email: address, password, emailCode: code })).json().error.code).toBe('EMAIL_IN_USE');
     const expiring = email();
     const expiredCode = await issue(expiring);
     const { registrationChallenges } = data;
@@ -237,7 +255,7 @@ describe.skipIf(!enabled)('staged registration (dedicated PostgreSQL)', () => {
         turnstile: { siteKey: 'updated-public-key', expectedHostname: 'localhost', secretKey: 'updated-private-key' },
         email: { smtpHost: 'smtp.example.test', smtpPort: 587, smtpUser: 'user',
           from: 'verify@example.test', password: 'updated-mail-password' },
-        template: { subject: 'Registration {{code}}', body: 'Code: {{code}}' },
+        template: { subject: '【测试】验证码 {{code}}', body: '测试验证码：{{code}}' },
       },
     });
     expect(update.statusCode).toBe(200);
@@ -252,7 +270,7 @@ describe.skipIf(!enabled)('staged registration (dedicated PostgreSQL)', () => {
     }), { status: 200 })));
     const delivered = await inject('POST', '/api/v1/auth/email-code', { email: email(), ...captcha });
     expect(delivered.statusCode).toBe(202);
-    expect(sendMail.mock.lastCall?.[0].text).toMatch(/^Code: \d{6}$/);
+    expect(sendMail.mock.lastCall?.[0].text).toMatch(/^测试验证码：\d{6}$/);
     await data.db.delete(data.systemSettings).where(eq(data.systemSettings.key, 'website_verification'));
   }, 180_000);
 });

@@ -1,0 +1,36 @@
+{
+  "passed": true,
+  "checks": 7,
+  "fixtureIpc": true,
+  "fixtureApi": true,
+  "realEmailDelivery": false,
+  "realElectron": false,
+  "appThemes": [
+    "light",
+    "dark"
+  ],
+  "appHeights": [
+    520,
+    700
+  ],
+  "webWidths": [
+    375,
+    768,
+    1440
+  ],
+  "invalidEmailBlocked": true,
+  "sendWithoutPassword": true,
+  "failedSendRetry": true,
+  "turnstileChinese": true,
+  "registeredEmailHint": true,
+  "registeredEmailLoginLink": true,
+  "changeEmailClearsDuplicate": true,
+  "cooldown": true,
+  "invitationRetained": true,
+  "registerPayloadVerified": true,
+  "apiUnitTests": 153,
+  "isolatedDatabaseTests": 36,
+  "webUnitTests": 15,
+  "databaseDropped": true,
+  "chineseMailTestedWithMockSmtp": true
+}
