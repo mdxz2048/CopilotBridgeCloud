@@ -1,0 +1,25 @@
+{
+  "date": "2026-10-18",
+  "deployed": true,
+  "appVersion": "0.3.24",
+  "releaseId": "25329fb7-3b28-49a6-887e-d09f51344c29",
+  "installerBytes": 343424809,
+  "installerSha256": "54fd9d6365cc14d72208186dc2e1111a4b92fdda37fc6a2d469c125923ef8b53",
+  "apiImage": "sha256:6f30d8290f5bc2747dff682a6e9da93828eb3eb2f33e3e2b4f6548101805146e",
+  "webImage": "sha256:dbd73e938a847cac9d5bf141969bdd145c2d3819e491e774e1b357fee4cdf3de",
+  "migrations": [
+    "0015_silly_triton",
+    "0016_blushing_drax"
+  ],
+  "appTests": 257,
+  "cloudUnitTests": 178,
+  "isolatedPostgresTests": 65,
+  "oldToNewMigrationPassed": true,
+  "asarVerifiedFiles": 52,
+  "publicHttpsFullUpdateReady": true,
+  "syntheticBrowserUI": true,
+  "realOfficialClientRestarted": false,
+  "realXianyuPurchasePerformed": false,
+  "existingUsersOrBalancesChangedByTests": false,
+  "publicRuntimeServerErrors": 0
+}

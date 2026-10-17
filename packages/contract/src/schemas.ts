@@ -68,3 +68,5 @@ export const FailureDiagnosticSchema = z.object({
   reply:z.object({http:z.unknown().optional(),events:z.array(z.unknown()).max(64).optional()}).strict(),truncated:z.boolean().optional(),
   requestStats:z.object({desktop:DiagnosticRequestStatsSchema.optional(),forwarded:DiagnosticRequestStatsSchema.optional()}).strict().optional(),
 }).strict();
+
+export * from './purchases.js';

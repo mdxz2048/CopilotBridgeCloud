@@ -2,8 +2,8 @@
 
 ## 2026-10-11 0.3.3 Native Responses platform deployed
 
-PENDING_CONTRACT_VERSION: 2.7.0
-PENDING_OPENAPI_HASH: sha256:89cb01bc1362535e66f391b1b072f63886e6c7801675876c90e440452344e934
+PENDING_CONTRACT_VERSION: 2.8.0
+PENDING_OPENAPI_HASH: sha256:4fe835b3140924d071008bd179f47ef54a00a0b8860980a81067b3d9f975440f
 PENDING_GATEWAY_V1_OPENAPI_HASH: sha256:4c72178606ecd71ec047c9618e89eff6581e489f53d80ff54f4035d7152a2d85
 GATEWAY_CURRENT_REVISION: 1.2.0
 GATEWAY_CURRENT_OPENAPI_HASH: sha256:e5b0e179f02f31e9a2402325e73a424e1d872869cd4bd5ce0d2f74bb853aa68d
@@ -23,8 +23,8 @@ Latest-only HTTP426 and official offline ZIP routes are implemented. parallel_to
 This section supersedes the historical deployment assumptions below. Source includes DeepSeek native Responses, logical model instances, encrypted stateless history recovery and capability/error diagnostics. API/Web and migration0010 are deployed; real normal/thinking tool loops, audited billing review, Admin UI and public automatic update download passed.
 
 ```text
-PENDING_CONTRACT_VERSION: 2.5.0
-PENDING_OPENAPI_HASH: sha256:01d5d70e80919a88e21a3ae38a8bda027ff0e2e44639625a3ff47b1c254d2be8
+PENDING_CONTRACT_VERSION: 2.8.0
+PENDING_OPENAPI_HASH: sha256:4fe835b3140924d071008bd179f47ef54a00a0b8860980a81067b3d9f975440f
 PENDING_GATEWAY_V1_OPENAPI_HASH: sha256:4c72178606ecd71ec047c9618e89eff6581e489f53d80ff54f4035d7152a2d85
 GATEWAY_CURRENT_REVISION: 1.1.0
 GATEWAY_CURRENT_OPENAPI_HASH: sha256:e522763e7e3cea1a9edc4c9d3aa5b06c047697847b2d9165efef2168c21991f7
@@ -83,8 +83,8 @@ REAL_PROVIDER: BLOCKED (local SDK entitlement verified; production real-provider
 BILLING_MODE: SHADOW (V2_BILLING_ENABLED=false; ENFORCED disabled)
 TEST_WALLET: 10000 AI_POINT via idempotent TEST_GRANT ledger fixture
 PRODUCTION_STATUS: INTERNAL TEST — HTTPS, V2.3 DPoP, account 2/min and device 1/min new-turn policy, same-thread tool continuation, SHADOW settlement and Admin rate reads PASS; real-provider and commercial gates remain CLOSED
-PENDING_CONTRACT_VERSION: 2.4.0
-PENDING_OPENAPI_HASH: sha256:9b6ebcb1c30bdd854a10067b281e7ca5bf6259e19af0709d903cb0eb99417b6a
+PENDING_CONTRACT_VERSION: 2.8.0
+PENDING_OPENAPI_HASH: sha256:4fe835b3140924d071008bd179f47ef54a00a0b8860980a81067b3d9f975440f
 PENDING_GATEWAY_V1_OPENAPI_HASH: sha256:4c72178606ecd71ec047c9618e89eff6581e489f53d80ff54f4035d7152a2d85
 PENDING_PRODUCTION_STATUS: PARTIAL (staged registration disabled; not deployed)
 GATEWAY_V1_CONTRACT_VERSION: 1.0.0 (frozen documentation only, not currently accepted for Desktop auth)
@@ -108,3 +108,8 @@ The three device slots are occupied. A pre-existing installation UUID `e6478afb-
 Production HTTPS checks on 2026-09-30 passed V2.3 signed test-device login/refresh, account/device/wallet reads, JSON Responses, same-thread tool continuation under the 1/min device cap, rejection of another new turn with `RATE_LIMITED`, and unchanged wallet in `SHADOW`. The signed tool/refresh check passed again after an API restart. Admin reads returned the configured defaults (account 2/min, device 1/min, public IP 60/min, auth IP 10/min). The isolated PostgreSQL migration chain and all 17 database tests passed before production migration `0005`–`0007`; local signed SSE and Remote Bridge tool E2E passed. Real Windows installer use, simultaneous live provider tools, real Copilot inference and payment are not validated. The latest release endpoint still returns `{ "release": null }`; the unsigned Desktop test installer remains local-only.
 
 The Mock provider is gated to this exact account. Public production ignores `X-Mock-Error-Code`, rejects the fixed loopback Mock password and exposes no development Mock download route. Commercial plans remain unpublished. This integration path does **not** establish real provider usage, payment, progressive upstream streaming, or approval for `ENFORCED` point charging.
+
+
+## 2026-10-18 purchase review release
+
+Purchase claim and reward acknowledgement routes of domain contract 2.8.0 are deployed. App 0.3.24 is published; 65 isolated PostgreSQL integration tests and existing-wallet-preserving upgrade passed. Full production HTTPS updater reached READY with SHA-256 verified. See [purchase release evidence](../acceptance/purchase-20261018/release.json). Historical global PARTIAL status still covers unrelated provider/runtime validation.

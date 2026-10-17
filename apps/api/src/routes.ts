@@ -1,3 +1,4 @@
+import {purchaseTickets} from '@bridge/db';
 import {recordOnlineEvent} from './online-events.js';
 import {subscriptionActive} from './logic.js';
 import {engagementPolicy,publicEngagement} from './engagement-policy.js';
@@ -188,6 +189,7 @@ export async function registerRoutes(app: FastifyInstance) {
       const token = (req.body as { refreshToken?: string } | undefined)?.refreshToken;
       if (token) await db.update(refreshTokens).set({ revokedAt: new Date() }).where(and(eq(refreshTokens.userId, a.user.id), eq(refreshTokens.tokenHash, hashRefresh(token))));
     }
+    if(a.device)await db.update(purchaseTickets).set({revokedAt:new Date()}).where(and(eq(purchaseTickets.userId,a.user.id),eq(purchaseTickets.deviceId,a.device.id),isNull(purchaseTickets.revokedAt)));
     return { ok: true };
   });
   app.get('/api/v1/auth/me', async req => ({ user: publicUser((await actor(req)).user) }));

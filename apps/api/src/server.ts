@@ -1,3 +1,4 @@
+import {registerPurchases} from './purchases.js';
 import { registerBillingRoutes } from './billing-routes.js';
 import { registerPasswordRoutes } from './passwords.js';
 import {registerOnlineEvents} from './online-events.js';
@@ -53,6 +54,7 @@ export async function createServer() {
   await registerRoutes(app);
   registerPasswordRoutes(app);
   registerBillingRoutes(app);
+  await registerPurchases(app);
   await registerAdmin(app);
   registerMoneyAdmin(app);
   registerEngagementAdmin(app);

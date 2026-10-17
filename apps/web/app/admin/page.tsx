@@ -1,4 +1,5 @@
 'use client';
+import {AdminPurchases} from '../../components/admin-purchases';
 import {AdminModels} from '../../components/admin-models';
 import {AdminActivity} from '../../components/admin-activity';
 import {EngagementManager} from "../../components/engagement-manager";
@@ -18,6 +19,7 @@ import { FailureFeedback } from '../../components/failure-feedback';
 const items: NavItem[] = [
   {id:'dashboard',label:'网站统计',icon:'Gauge'},
   {id:'models',label:'模型与连接',icon:'Boxes'},
+  {id:'purchases',label:'订单审核',icon:'ScrollText'},
   {id:'users',label:'用户与权限',icon:'Users'},
   {id:'money-plans',label:'套餐与计费',icon:'Boxes'},
   {id:'v2-rates',label:'模型售价',icon:'Boxes'},
@@ -74,7 +76,7 @@ export default function AdminPage() {
       if (version !== loadVersion.current) return false;
       if (me.user.role !== 'ADMIN') { router.replace('/dashboard'); return false; }
       setEmail(me.user.email);
-      if (active === 'models' || active === 'audit' || active === 'engagement' || active.startsWith('v2-') || active === 'website-settings' || active === 'money-plans' || active === 'failures') return true;
+      if (active === 'models' || active === 'audit' || active === 'engagement' || active.startsWith('v2-') || active === 'website-settings' || active === 'money-plans' || active === 'failures' || active === 'purchases') return true;
       if (active === 'dashboard') {
         const result = await api<Record<string, number>>('/api/v1/admin/dashboard');
         if (version !== loadVersion.current) return false;
@@ -144,7 +146,8 @@ export default function AdminPage() {
     {message && <div className="notice" role="status">{message}</div>}{error && <div className="error-text" role="alert">{error} <button className="mini-button" onClick={load}>重试</button></div>}
     {loading && <div className="loading-skeleton"/>}
     {active === 'money-plans' && <MoneyPlanManager/>}
-    {!loading && active === 'failures' && <FailureFeedback/>}
+    {!loading && active === 'purchases' && <AdminPurchases/>}
+      {!loading && active === 'failures' && <FailureFeedback/>}
     {!loading && active === 'models' && <AdminModels/>}
     {!loading && active === 'audit' && <AdminActivity/>}
     {!loading && active === 'engagement' && <><EngagementManager/><V2AdminPanel section="v2-referrals"/></>}

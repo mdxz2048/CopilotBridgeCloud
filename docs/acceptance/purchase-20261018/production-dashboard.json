@@ -1,0 +1,12 @@
+{
+  "date": "2026-10-18",
+  "base": "https://ai.mddxz.top",
+  "checks": [
+    "1440px: topup QR + numbered purchase instructions, invitation text/ref copy + failure fallback, bill tabs/pagination/error retry, no overflow, clear cancel/failure/retry/logout",
+    "390px: topup QR + numbered purchase instructions, invitation text/ref copy + failure fallback, bill tabs/pagination/error retry, no overflow, clear cancel/failure/retry/logout"
+  ],
+  "rendererErrors": [],
+  "identity": "synthetic browser fixtures",
+  "allWritesIntercepted": true,
+  "realAccountsOrFundsChanged": false
+}

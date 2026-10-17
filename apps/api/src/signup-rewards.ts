@@ -1,3 +1,4 @@
+import {purchaseClaims,rewardNotices} from '@bridge/db';
 import {users,referrals,referralRewards,systemSettings,plans,subscriptions,auditLogs,walletTransactions,wallets} from '@bridge/db';
 import {and,eq} from 'drizzle-orm';
 import {applyWalletChange,type DbTransaction} from './wallet.js';
@@ -16,26 +17,33 @@ export async function enrollSignupReward(tx:DbTransaction,referral:typeof referr
  await tx.insert(subscriptions).values({userId:referral.referredUserId,planId:plan.id,status:'ACTIVE',startedAt:now,currentPeriodStart:now,currentPeriodEnd:monthEnd});
  return {status:referral.status};
 }
-/** Only real positive manual credits or confirmed paid orders qualify; gifts and reductions never do. */
+/** Only a paid purchase approved by an administrator unlocks the invite reward. */
+async function verifiedPurchase(tx:DbTransaction,userId:string,source:{transactionId:string}|{orderId:string}){
+ if(!('transactionId' in source))return false;
+ const [credit]=await tx.select({points:walletTransactions.points,type:walletTransactions.type,userId:wallets.userId,referenceType:walletTransactions.referenceType,referenceId:walletTransactions.referenceId}).from(walletTransactions).innerJoin(wallets,eq(wallets.id,walletTransactions.walletId)).where(eq(walletTransactions.id,source.transactionId)).limit(1);
+ if(!credit||credit.userId!==userId||credit.points<=0||credit.type!=='PURCHASE'||credit.referenceType!=='PURCHASE_CLAIM'||!credit.referenceId)return false;
+ const [claim]=await tx.select().from(purchaseClaims).where(eq(purchaseClaims.id,credit.referenceId)).limit(1);
+ return Boolean(claim&&claim.userId===userId&&claim.status==='APPROVED'&&claim.points===credit.points&&claim.reviewedBy&&claim.reviewedAt);
+}
 export async function qualifyInviteFromCredit(tx:DbTransaction,userId:string,source:{transactionId:string}|{orderId:string}){
+ if(!await verifiedPurchase(tx,userId,source))return null;
  const [referral]=await tx.select().from(referrals).where(eq(referrals.referredUserId,userId)).for('update').limit(1);if(!referral||referral.status==='REJECTED'||referral.status==='REWARDED')return null;
  const [snapshot]=await tx.select({key:systemSettings.key}).from(systemSettings).where(eq(systemSettings.key,snapshotKey(referral.id))).limit(1);if(!snapshot)return null;
- if('transactionId' in source){const [credit]=await tx.select({points:walletTransactions.points,type:walletTransactions.type,userId:wallets.userId}).from(walletTransactions).innerJoin(wallets,eq(wallets.id,walletTransactions.walletId)).where(eq(walletTransactions.id,source.transactionId)).limit(1);if(!credit||credit.userId!==userId||credit.points<=0||!['ADMIN_ADJUSTMENT','PURCHASE'].includes(credit.type))return null;}
- else {const {billingOrders}=await import('@bridge/db');const [order]=await tx.select().from(billingOrders).where(eq(billingOrders.id,source.orderId)).limit(1);if(!order||order.userId!==userId||order.status!=='PAID'||Number(order.amount)<=0)return null;}
- await tx.insert(systemSettings).values({key:creditKey(referral.id),value:source}).onConflictDoNothing();return fulfillSignupReward(tx,referral.id);
+ await tx.insert(systemSettings).values({key:creditKey(referral.id),value:source}).onConflictDoUpdate({target:systemSettings.key,set:{value:source}});return fulfillSignupReward(tx,referral.id);
 }
 export async function fulfillSignupReward(tx:DbTransaction,id:string){
  const [referral]=await tx.select().from(referrals).where(eq(referrals.id,id)).for('update').limit(1);if(!referral||referral.status==='REJECTED')return null;
  const [setting]=await tx.select().from(systemSettings).where(eq(systemSettings.key,snapshotKey(id))).limit(1);if(!setting)return null;
  if(referral.status==='REWARDED')return {status:'REWARDED' as const};
- const [credit]=await tx.select({key:systemSettings.key}).from(systemSettings).where(eq(systemSettings.key,creditKey(id))).limit(1);if(!credit)return {status:'AWAITING_TOPUP' as const};
+ const [credit]=await tx.select({key:systemSettings.key,value:systemSettings.value}).from(systemSettings).where(eq(systemSettings.key,creditKey(id))).limit(1);if(!credit||!await verifiedPurchase(tx,referral.referredUserId,credit.value as {transactionId:string}))return {status:'AWAITING_TOPUP' as const};
  if(referral.riskFlags.length)return {status:'PENDING' as const};
  const snapshot=setting.value as Snapshot,now=new Date(),expiresAt=new Date(now.getTime()+snapshot.rewardDays*86400000);
  const owners=await tx.select({id:users.id,status:users.status}).from(users).where(eq(users.id,referral.referrerUserId)).for('update');
  const [newUser]=await tx.select({status:users.status}).from(users).where(eq(users.id,referral.referredUserId)).limit(1);
  if(owners[0]?.status!=='ACTIVE'||newUser?.status!=='ACTIVE'){await tx.update(referrals).set({status:'PENDING'}).where(eq(referrals.id,id));return {status:'PENDING' as const};}
  for(const [userId,points]of [[referral.referrerUserId,snapshot.referrerPoints],[referral.referredUserId,snapshot.referredPoints]] as const){
-  const {transaction}=await applyWalletChange(tx,{userId,points,type:'REFERRAL_REWARD',referenceType:'REFERRAL',referenceId:id,idempotencyKey:`referral:${id}:${userId}`,expiresAt,metadata:{campaignId:snapshot.campaignId,trigger:'FIRST_TOPUP',rewardDays:snapshot.rewardDays}});
+  const {transaction}=await applyWalletChange(tx,{userId,points,type:'REFERRAL_REWARD',referenceType:'REFERRAL',referenceId:id,idempotencyKey:`referral:${id}:${userId}`,expiresAt,metadata:{campaignId:snapshot.campaignId,trigger:'FIRST_APPROVED_PURCHASE',rewardDays:snapshot.rewardDays}});
+  await tx.insert(rewardNotices).values({userId,walletTransactionId:transaction.id,points,expiresAt}).onConflictDoNothing();
   await tx.insert(referralRewards).values({referralId:id,beneficiaryUserId:userId,points,walletTransactionId:transaction.id}).onConflictDoNothing();
  }
  await tx.update(referrals).set({status:'REWARDED',qualifiedAt:now}).where(eq(referrals.id,id));

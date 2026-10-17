@@ -1,3 +1,4 @@
+import {PurchaseClaimSchema,PurchaseClaimInputSchema,PurchaseClaimsSchema,PurchaseTicketSchema,PurchaseTicketStatusSchema,PurchaseMobileSchema,PurchaseReviewSchema} from './purchases.js';
 import { OpenAPIRegistry, OpenApiGeneratorV31, extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -32,7 +33,7 @@ function route(method: Method, path: string, output: z.ZodType, body?: z.ZodType
     ? z.object({ id: z.string().regex(/^resp_[0-9a-f]{32}$/) })
     : path.includes('{id}') ? uuidParams : undefined;
   registry.registerPath({ method, path, summary: `${method.toUpperCase()} ${path}`,
-    ...(auth ? { security: [(path.startsWith('/api/v1/admin/')||path==='/api/v1/auth/change-password'||path==='/api/v1/me/devices/revoke-all')?{WebSession:[]}:{ DesktopBearer: [] }] } : {}),
+    ...(path.startsWith('/api/v1/purchase-mobile/')&&!path.endsWith('/exchange')?{security:[{PurchaseSession:[]}]}:auth ? { security: [(path.startsWith('/api/v1/admin/')||path==='/api/v1/auth/change-password'||path==='/api/v1/me/devices/revoke-all')?{WebSession:[]}:{ DesktopBearer: [] }] } : {}),
     ...(body || params || query ? { request: { ...(query?{query}:{}), ...(params ? { params } : {}), ...(body ? { body: { content: json(body) } } : {}) } } : {}),
     responses: success(output, status) });
 }
@@ -67,6 +68,7 @@ for (const [name, schema] of Object.entries({ AccountSummary: AccountSummaryV2Sc
   registry.register(name, schema);
 }
 registry.registerComponent('securitySchemes', 'DesktopBearer', { type: 'http', scheme: 'bearer', bearerFormat: 'JWT', description: 'Desktop bearer requests also require a DPoP compact ES256 JWT bound to the installation public P-256 JWK. Browser cookies remain exempt.' });
+registry.registerComponent('securitySchemes','PurchaseSession',{type:'apiKey',in:'cookie',name:'bridge_purchase',description:'Short-lived, account-bound purchase submission capability; requires matching X-Purchase-Ticket and trusted Origin on writes. Not a general account session.'});
 registry.registerComponent('securitySchemes','WebSession',{type:'apiKey',in:'cookie',name:'bridge_session',description:'Administrator web session. Mutations also require the trusted Origin header.'});
 
 route('get','/api/v1/client/config',ClientConfigV2Schema,undefined,200,false);
@@ -164,10 +166,23 @@ route('post','/api/v1/admin/providers/{id}/connect-openai',adminResponse,z.objec
 route('get','/api/v1/admin/engagement',adminResponse);
 route('put','/api/v1/admin/engagement',adminResponse,generic);
 
+route('get','/api/v1/me/reward-notices',z.object({data:z.array(z.object({id:z.uuid(),amountRmb:z.number().positive(),expiresAt:z.iso.datetime(),createdAt:z.iso.datetime()}))}));
+route('post','/api/v1/me/reward-notices/{id}/ack',z.object({ok:z.literal(true)}),z.object({}).strict());
+route('get','/api/v1/purchase-options',generic,undefined,200,false);
+route('post','/api/v1/me/purchase-tickets',PurchaseTicketSchema,z.object({}).strict());
+route('get','/api/v1/me/purchase-tickets/{id}',PurchaseTicketStatusSchema);
+route('get','/api/v1/me/purchase-claims',PurchaseClaimsSchema);
+route('post','/api/v1/purchase-mobile/exchange',PurchaseMobileSchema,z.object({ticket:z.string().regex(/^[A-Za-z0-9_-]{43}$/)}).strict(),200,false);
+route('get','/api/v1/purchase-mobile/status',PurchaseMobileSchema,undefined,200,false);
+route('post','/api/v1/purchase-mobile/claims',z.object({claim:PurchaseClaimSchema,duplicate:z.boolean()}),PurchaseClaimInputSchema,200,false);
+route('get','/api/v1/admin/purchase-claims',generic);
+route('get','/api/v1/admin/purchase-claims/{id}/reviews',generic);
+route('post','/api/v1/admin/purchase-claims/{id}/review',z.object({claim:PurchaseClaimSchema,duplicate:z.boolean()}),PurchaseReviewSchema);
+
 export function buildOpenApiV2(): Record<string, unknown> {
   const base = JSON.parse(readFileSync(new URL('../../../docs/protocol/openapi.v1.json', import.meta.url), 'utf8')) as Record<string, any>;
   const v2 = new OpenApiGeneratorV31(registry.definitions).generateDocument({ openapi: '3.1.0',
-    info: { title: 'Copilot Bridge Cloud App and Gateway API', version: '2.7.0' },
+    info: { title: 'Copilot Bridge Cloud App and Gateway API', version: '2.8.0' },
     servers: [{ url: 'https://ai.mddxz.top' }] });
   return { ...base, info: v2.info, servers: v2.servers,
     paths: { ...base.paths, ...v2.paths },

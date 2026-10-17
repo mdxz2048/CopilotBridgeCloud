@@ -56,6 +56,7 @@ export default function Dashboard() {
       if (!signal?.aborted) setLoading(false);
     }
   }, [router]);
+  useEffect(()=>{const update=()=>void load();window.addEventListener('bridge:wallet-changed',update);return()=>window.removeEventListener('bridge:wallet-changed',update);},[load]);
   useEffect(() => {
     const controller = new AbortController();
     void load(controller.signal);

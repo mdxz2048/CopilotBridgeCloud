@@ -1,5 +1,4 @@
 import { NewPasswordSchema, replacePassword } from './passwords.js';
-import {qualifyInviteFromCredit} from './signup-rewards.js';
 import type { FastifyInstance } from 'fastify';
 import { db, auditLogs, billingOrders, devices, models, modelInstances, planModelAccess, plans, providerCredentials, providers, refreshTokens, releases, subscriptions, systemSettings, usageRecords, usageEvents, userModelAccess, users, webSessions, rateCards, rateCardVersions } from '@bridge/db';
 import { and, desc, eq, ilike, sql, ne } from 'drizzle-orm';
@@ -302,7 +301,6 @@ export async function registerAdmin(app: FastifyInstance) {
       const now = new Date();
       const [sub] = await tx.insert(subscriptions).values({ userId: order.userId, planId: order.planId, status: 'ACTIVE', startedAt: now, currentPeriodStart: now, currentPeriodEnd: nextPeriod(now) }).returning();
       await grantSubscriptionPoints(tx, sub.id);
-      await qualifyInviteFromCredit(tx,order.userId,{orderId:order.id});
       await qualifyReferralFromPaidOrder(tx, order.userId, Number(order.amount));
       await tx.insert(auditLogs).values({ actorId: a.user.id, action: 'MANUAL_ORDER_PAID', targetType: 'ORDER', targetId: order.id, metadata: { subscriptionId: sub.id } });
       return { order, subscription: sub };

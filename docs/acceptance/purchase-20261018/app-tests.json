@@ -1,0 +1,6 @@
+{
+  "passed": true,
+  "tests": 257,
+  "execution": "Node test serial to avoid existing filesystem timing contention",
+  "compiledVersion": "0.3.24"
+}

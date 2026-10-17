@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "realComponentsWithSyntheticAPI": true,
+  "checks": [
+    "App light purchase and ticket",
+    "App dark purchase and ticket",
+    "Web purchase ticket",
+    "Mobile bound form and submit",
+    "Admin verified manual amount and review",
+    "Reward notice survives refresh/Escape until explicit acknowledgement",
+    "Network error releases loading"
+  ],
+  "errors": []
+}

@@ -1060,7 +1060,12 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
       expect((await save(settings,{...headers,origin:'https://other.invalid'})).statusCode).toBe(403);expect((await save(settings)).statusCode).toBe(200);expect((await save(settings)).statusCode).toBe(409);
       expect((await app.inject({url:'/api/v1/client/config'})).json().inviteCampaign.rules).toContain('注册本身不发奖励');
       const create=(email:string,referralCode?:string)=>app.inject({method:'POST',url:'/api/v1/auth/register',remoteAddress:`192.0.2.${ip++}`,payload:{email,password:'FixturePassword123!',...(referralCode?{referralCode}:{})}});
-      const adjust=(userId:string,points:number,idempotencyKey=randomUUID())=>app.inject({method:'POST',url:`/api/v1/admin/users/${userId}/wallet/adjust`,headers,payload:{points,idempotencyKey,reason:'Internal invitation top-up test'}});
+      const adjust=async(userId:string,points:number,idempotencyKey=randomUUID())=>{
+        if(points<=0)return app.inject({method:'POST',url:`/api/v1/admin/users/${userId}/wallet/adjust`,headers,payload:{points,idempotencyKey,reason:'Internal invitation adjustment test'}});
+        await db.insert(dbModule.purchaseClaims).values({userId,orderNo:idempotencyKey,deadlineAt:new Date(Date.now()+600000)}).onConflictDoNothing();
+        const [claim]=await db.select().from(dbModule.purchaseClaims).where(eq(dbModule.purchaseClaims.orderNo,idempotencyKey));
+        return app.inject({method:'POST',url:`/api/v1/admin/purchase-claims/${claim.id}/review`,headers,payload:{status:'APPROVED',paidRmb:(points/10000).toFixed(2),verified:true}});
+      };
       const email=`campaign-new-${randomUUID()}@example.test`,created=await create(email,code.code);expect(created.statusCode,created.body).toBe(201);const child=created.json().user;
       expect((await walletModule.walletSummary(child.id)).balance).toBe(0);expect((await walletModule.walletSummary(host.id)).balance).toBe(0);
       const [entry]=await db.select().from(referrals).where(eq(referrals.referredUserId,child.id));expect(entry.status).toBe('REGISTERED');
@@ -1084,14 +1089,14 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
       try{expect((await adjust(rollbackId,10000)).statusCode).toBe(500);expect((await walletModule.walletSummary(rollbackId)).balance).toBe(0);expect((await walletModule.walletSummary(host.id)).rewardBalance).toBe(50000);}finally{await db.execute(sql.raw('drop trigger fail_campaign_second_reward on wallet_transactions'));await db.execute(sql.raw('drop function fail_campaign_second_reward()'));}
       const gift=await create(`campaign-gift-${randomUUID()}@example.test`,code.code),giftId=gift.json().user.id;
       const giftTx=await db.transaction(tx=>walletModule.applyWalletChange(tx,{userId:giftId,points:1,type:'REFERRAL_REWARD',referenceType:'TEST',referenceId:giftId,idempotencyKey:randomUUID()}));await db.transaction(tx=>qualifyInviteFromCredit(tx,giftId,{transactionId:giftTx.transaction.id}));expect((await walletModule.walletSummary(giftId)).balance).toBe(1);
-      await db.transaction(tx=>qualifyInviteFromCredit(tx,giftId,{transactionId:credit.json().transaction.id}));expect((await walletModule.walletSummary(giftId)).balance).toBe(1);
+      await db.transaction(async tx=>qualifyInviteFromCredit(tx,giftId,{transactionId:(await db.select().from(dbModule.walletTransactions).where(eq(dbModule.walletTransactions.referenceId,credit.json().claim.id)))[0].id}));expect((await walletModule.walletSummary(giftId)).balance).toBe(1);
       await db.update(users).set({status:'DISABLED'}).where(eq(users.id,host.id));const pending=await create(`campaign-pending-${randomUUID()}@example.test`,code.code),pendingId=pending.json().user.id;
       await adjust(pendingId,10000);expect((await walletModule.walletSummary(pendingId)).rewardBalance).toBe(0);const [pendingEntry]=await db.select().from(referrals).where(eq(referrals.referredUserId,pendingId));expect(pendingEntry.status).toBe('PENDING');
       await db.update(users).set({status:'ACTIVE'}).where(eq(users.id,host.id));const review=await app.inject({method:'POST',url:`/api/v1/admin/referrals/${pendingEntry.id}/review`,headers,payload:{decision:'APPROVE',reason:'Verified first top-up invitation'}});expect(review.statusCode,review.body).toBe(200);expect(review.json().status).toBe('REWARDED');expect((await walletModule.walletSummary(pendingId)).rewardBalance).toBe(50000);
       const paid=await create(`campaign-paid-${randomUUID()}@example.test`,code.code),paidId=paid.json().user.id;
       const [order]=await db.insert(dbModule.billingOrders).values({userId:paidId,planId:plan.id,orderNo:randomUUID(),amount:'1.00',currency:'CNY',provider:'MANUAL'}).returning();
       await db.transaction(tx=>qualifyInviteFromCredit(tx,paidId,{orderId:order.id}));expect((await walletModule.walletSummary(paidId)).balance).toBe(0);
-      const payment=await app.inject({method:'POST',url:`/api/v1/admin/orders/${order.id}/mark-paid`,headers});expect(payment.statusCode,payment.body).toBe(200);expect((await walletModule.walletSummary(paidId)).rewardBalance).toBe(50000);
+      const payment=await app.inject({method:'POST',url:`/api/v1/admin/orders/${order.id}/mark-paid`,headers});expect(payment.statusCode,payment.body).toBe(200);expect((await walletModule.walletSummary(paidId)).rewardBalance).toBe(0); // Subscription activation alone is not a reviewed balance purchase.
       expect((await app.inject({method:'POST',url:`/api/v1/admin/orders/${order.id}/mark-paid`,headers})).statusCode).toBe(409);
       const current=await engagementPolicy();expect((await save({...current,campaign:{enabled:false}})).statusCode).toBe(200);expect((await app.inject({url:'/api/v1/client/config'})).json().announcements).toEqual([]);
       const after=await create(`campaign-off-${randomUUID()}@example.test`,code.code);await adjust(after.json().user.id,10000);expect((await walletModule.walletSummary(after.json().user.id)).rewardBalance).toBe(0);

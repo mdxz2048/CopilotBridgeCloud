@@ -234,3 +234,26 @@ export const deviceBillingPeriods = pgTable('device_billing_periods', {
   chargedPoints: bigint('charged_points', { mode: 'number' }).notNull(),
   startEventId: uuid('start_event_id'), endEventId: uuid('end_event_id').unique(),
 }, t => [index('device_billing_periods_user_date_idx').on(t.userId, t.endedAt)]);
+
+
+export const purchaseClaims = pgTable('purchase_claims', {
+ id:id(), userId:uuid('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),
+ orderNo:varchar('order_no',{length:64}).notNull().unique(),status:varchar('status',{length:16}).notNull().default('PENDING'),
+ points:integer('points'),reason:text('reason'),reviewedBy:uuid('reviewed_by').references(()=>users.id),reviewedAt:timestamp('reviewed_at',{withTimezone:true}),
+ attempt:integer('attempt').notNull().default(1),createdAt:created(),submittedAt:timestamp('submitted_at',{withTimezone:true}).notNull().defaultNow(),
+ deadlineAt:timestamp('deadline_at',{withTimezone:true}).notNull(),updatedAt:timestamp('updated_at',{withTimezone:true}).notNull().defaultNow(),
+},t=>[index('purchase_claims_user_created_idx').on(t.userId,t.createdAt),index('purchase_claims_status_deadline_idx').on(t.status,t.deadlineAt)]);
+export const purchaseReviews=pgTable('purchase_reviews',{
+ id:id(),claimId:uuid('claim_id').notNull().references(()=>purchaseClaims.id,{onDelete:'cascade'}),actorId:uuid('actor_id').notNull().references(()=>users.id),
+ status:varchar('status',{length:16}).notNull(),points:integer('points'),reason:text('reason'),createdAt:created(),
+},t=>[index('purchase_reviews_claim_idx').on(t.claimId,t.createdAt)]);
+export const purchaseTickets=pgTable('purchase_tickets',{
+ id:id(),userId:uuid('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),deviceId:uuid('device_id').references(()=>devices.id,{onDelete:'cascade'}),
+ deviceVersion:integer('device_version'),webSessionId:uuid('web_session_id').references(()=>webSessions.id,{onDelete:'cascade'}),
+ tokenHash:text('token_hash').notNull().unique(),mobileHash:text('mobile_hash').unique(),expiresAt:timestamp('expires_at',{withTimezone:true}).notNull(),
+ revokedAt:timestamp('revoked_at',{withTimezone:true}),claimId:uuid('claim_id').references(()=>purchaseClaims.id,{onDelete:'set null'}),createdAt:created(),
+},t=>[index('purchase_tickets_user_source_idx').on(t.userId,t.deviceId,t.webSessionId),index('purchase_tickets_expiry_idx').on(t.expiresAt)]);
+
+export const rewardNotices=pgTable('reward_notices',{
+ id:id(),userId:uuid('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),walletTransactionId:uuid('wallet_transaction_id').notNull().references(()=>walletTransactions.id).unique(),points:integer('points').notNull(),expiresAt:timestamp('expires_at',{withTimezone:true}).notNull(),createdAt:created(),acknowledgedAt:timestamp('acknowledged_at',{withTimezone:true}),
+},t=>[index('reward_notices_user_ack_idx').on(t.userId,t.acknowledgedAt)]);

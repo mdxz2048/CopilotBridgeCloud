@@ -15,6 +15,8 @@ try {
    const path=new URL(route.request().url()).pathname;let body={},status=200;
    if(path.endsWith('/auth/me')){body=revoked?{error:{code:'UNAUTHORIZED',message:'请登录'}}:{user:{id:'fixture',email:'bill-preview@example.test',role:'USER'}};if(revoked)status=401;}
    else if(path==='/api/v1/account')body={user:{id:'fixture',email:'bill-preview@example.test',role:'USER',status:'ACTIVE'},plan:{maxDevices:3},subscription:{status:'ACTIVE'},devices:[device,{...device,id:'blocked',deviceName:'旧电脑',status:'BLOCKED'}]};
+   else if(path.endsWith('/me/reward-notices'))body={data:[]};
+   else if(path.endsWith('/me/purchase-claims'))body={data:[],total:0,page:1,pageSize:20};
    else if(path.endsWith('/me/wallet'))body={balance:847826,regularBalance:797826,rewardBalance:50000};
    else if(path.endsWith('/referral/stats'))body={code:'INVITE8',registered:3};
    else if(path.endsWith('/me/bills')){
@@ -26,9 +28,9 @@ try {
   const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));await page.goto(base+'/dashboard');
   await page.getByRole('heading',{name:'我的账号',exact:true}).waitFor();
   await page.getByRole('button',{name:'充值',exact:true}).click();
-  await page.getByRole('dialog',{name:'联系管理员充值'}).waitFor();
-  await page.waitForFunction(()=>document.querySelector('.account-topup-qr').naturalWidth>0);
-  await page.getByRole('button',{name:'复制邮箱',exact:true}).click();assert.equal(await page.evaluate(()=>window.__copied),'bill-preview@example.test');
+  await page.getByRole('dialog',{name:'充值',exact:true}).waitFor();
+  await page.waitForFunction(()=>document.querySelector('.purchase-buy img').naturalWidth>0);
+  assert.ok((await page.locator('body').innerText()).includes('1. 扫码下单付款'));
   await page.keyboard.press('Escape');assert.equal(await page.getByRole('dialog').count(),0);
   await page.getByRole('button',{name:'复制邀请文案和链接'}).click();
   const copied=await page.evaluate(()=>window.__copied);assert.ok(copied.includes('原生 ChatGPT / Codex 体验'));assert.ok(copied.includes('/register?ref=INVITE8'));assert.equal(copied.split('\n').length,3);
@@ -47,10 +49,10 @@ try {
   await page.getByRole('button',{name:'取消',exact:true}).click();assert.equal(clearCalls,0);
   await page.getByRole('button',{name:'清空全部登录设备',exact:true}).click();await page.getByRole('button',{name:'确认清空并退出'}).click();await page.getByText('清空失败，设备列表未改变，请重试。',{exact:true}).waitFor();assert.equal(await page.locator('.account-device-row').count(),2);
   clearFailure=false;await page.getByRole('button',{name:'确认清空并退出'}).click();await page.waitForURL('**/login');assert.equal(clearCalls,2);
-  checks.push(`${width}px: topup QR + email copy, invitation text/ref copy + failure fallback, bill tabs/pagination/error retry, no overflow, clear cancel/failure/retry/logout`);
+  checks.push(`${width}px: topup QR + numbered purchase instructions, invitation text/ref copy + failure fallback, bill tabs/pagination/error retry, no overflow, clear cancel/failure/retry/logout`);
   await context.close();
  }
  assert.deepEqual(errors,[]);
- const report={date:'2026-10-17',base,checks,rendererErrors:errors,identity:'synthetic browser fixtures',allWritesIntercepted:true,realAccountsOrFundsChanged:false};
+ const report={date:'2026-10-18',base,checks,rendererErrors:errors,identity:'synthetic browser fixtures',allWritesIntercepted:true,realAccountsOrFundsChanged:false};
  if(output)await writeFile(output+'/account-review.json',JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report,null,2));
 }finally{await browser.close();}

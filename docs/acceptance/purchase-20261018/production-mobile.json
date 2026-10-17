@@ -1,0 +1,8 @@
+{
+  "passed": true,
+  "productionHTTPS": true,
+  "invalidTicketRejected": true,
+  "ChineseRecovery": true,
+  "noAccountAccess": true,
+  "errors": []
+}
