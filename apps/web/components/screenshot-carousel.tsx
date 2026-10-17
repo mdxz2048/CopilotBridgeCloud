@@ -22,7 +22,7 @@ const scenes = [
     "mobile": "/homepage/scene-3-mobile-20261017.png"
   }
 ];
-const INTERVAL_MS = 6500;
+const INTERVAL_MS = 2000;
 
 export function ScreenshotCarousel() {
   const [current, setCurrent] = useState(0);
@@ -81,6 +81,7 @@ export function ScreenshotCarousel() {
     onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false); }}
     onTouchStart={event => { const start = event.changedTouches[0]; touch.current = { x: start.clientX, y: start.clientY }; }}
     onTouchEnd={swipe} onTouchCancel={() => { touch.current = null; }}>
+    <div className="demo-screen"><div className="demo-screen-bar"><span className="demo-screen-light" aria-hidden="true"/><span>任务演示</span><span className="demo-screen-caption">Codex 工作区</span></div>
     <div className="screenshot-viewport">
       {scenes.map((scene, index) => <div className="screenshot-slide" key={scene.title} hidden={index !== current}
         role="group" aria-roledescription="幻灯片" aria-label={`${index + 1} / ${scenes.length}：${scene.title}`}>
@@ -89,6 +90,7 @@ export function ScreenshotCarousel() {
           <img src={scene.desktop} alt={scene.alt} width={2400} height={1480} decoding="async" />
         </picture>
       </div>)}
+    </div>
     </div>
     <div className="screenshot-controls">
       <button type="button" className="shot-arrow" onClick={() => show(current - 1)} aria-label="上一张截图">‹</button>

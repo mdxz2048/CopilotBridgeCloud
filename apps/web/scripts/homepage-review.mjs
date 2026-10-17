@@ -24,16 +24,20 @@ try {
   await page.getByRole('link', { name: '登录', exact: true }).waitFor();
   assert.equal(await page.locator('.homepage h1').innerText(), '一句话，\n把想法变成成果。');
   assert.equal(await page.locator('.modelSection,.model-section').count(), 0);
+  assert.equal(await page.locator('ul.hero-points > li').count(), 3);
+  assert.equal(await page.locator('.demo-screen .screenshot-viewport').count(), 1);
+  assert.ok((await page.locator('.demo-screen-bar').innerText()).includes('任务演示'));
+  checks.push('Three unordered hero points and visible labelled demo screen frame');
   assert.equal(await page.locator('.screenshot-slide:not([hidden])').count(), 1);
   assert.equal(await page.locator('.shot-dot').count(), 3);
   assert.equal(await page.locator('.design-ribbon').count(), 0);
   assert.equal(await page.locator('.site-header a[href="/#examples"]').count(), 1);
   await page.getByRole('button', { name: '暂停自动播放', exact: true }).waitFor();
-  await page.clock.runFor(6600);
+  await page.clock.runFor(2100);
   assert.equal(await index(page), 1);
-  await page.clock.runFor(6600);
+  await page.clock.runFor(2100);
   assert.equal(await index(page), 2);
-  checks.push('Production SSR, hydration, single visible screenshot and automatic 0 → 1 → 2 playback');
+  checks.push('Production SSR, hydration, single visible screenshot and 2 second automatic 0 → 1 → 2 playback');
   await page.getByRole('button', { name: '下一张截图' }).click();
   assert.equal(await index(page), 0);
   await page.getByRole('button', { name: '上一张截图' }).click();
@@ -53,7 +57,7 @@ try {
   await page.clock.runFor(14000); assert.equal(await index(page), 1);
   await page.getByRole('button', { name: '开始自动播放', exact: true }).click();
   await page.mouse.move(1, 1); await page.locator('.site-header .brand').focus();
-  await page.clock.runFor(6600); assert.equal(await index(page), 2);
+  await page.clock.runFor(2100); assert.equal(await index(page), 2);
   await page.getByRole('button', { name: '暂停自动播放', exact: true }).click();
   checks.push('Hover pauses, manual pause persists, explicit resume restarts autoplay');
   for (const width of [1440, 1024, 768, 390, 320]) {

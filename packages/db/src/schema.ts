@@ -1,4 +1,5 @@
-import { pgTable, uuid, varchar, text, boolean, integer, numeric, timestamp, jsonb, uniqueIndex, index } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import { bigint, pgTable, uuid, varchar, text, boolean, integer, numeric, timestamp, jsonb, uniqueIndex, index } from 'drizzle-orm/pg-core';
 
 const id = () => uuid('id').primaryKey().defaultRandom();
 const created = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
@@ -142,7 +143,7 @@ export const walletTransactions = pgTable('wallet_transactions', {
   type: varchar('type', { length: 32 }).notNull(), points: integer('points').notNull(), balanceAfter: integer('balance_after').notNull(),
   referenceType: varchar('reference_type', { length: 32 }).notNull(), referenceId: text('reference_id').notNull(),
   idempotencyKey: text('idempotency_key').notNull().unique(), metadata: jsonb('metadata').$type<Record<string, unknown>>().notNull().default({}), createdAt: created(),
-}, t => [index('wallet_transactions_wallet_date_idx').on(t.walletId, t.createdAt)]);
+}, t => [index('wallet_transactions_wallet_date_idx').on(t.walletId, t.createdAt), index('wallet_transactions_account_date_idx').on(t.walletId, t.createdAt).where(sql`${t.type} <> 'USAGE'`)]);
 export const walletLots = pgTable('wallet_lots', {
   id: id(), walletId: uuid('wallet_id').notNull().references(() => wallets.id), sourceTransactionId: uuid('source_transaction_id').notNull().references(() => walletTransactions.id).unique(),
   grantedPoints: integer('granted_points').notNull(), remainingPoints: integer('remaining_points').notNull(),
@@ -211,3 +212,25 @@ export const referralRewards = pgTable('referral_rewards', {
   id: id(), referralId: uuid('referral_id').notNull().references(() => referrals.id), beneficiaryUserId: uuid('beneficiary_user_id').notNull().references(() => users.id),
   points: integer('points').notNull(), walletTransactionId: uuid('wallet_transaction_id').notNull().references(() => walletTransactions.id), createdAt: created(),
 }, t => [uniqueIndex('referral_rewards_beneficiary_idx').on(t.referralId, t.beneficiaryUserId)]);
+
+
+// A single counter per device; no periodic scans of individual usage events.
+export const deviceBillingStates = pgTable('device_billing_states', {
+  deviceId: uuid('device_id').primaryKey().references(() => devices.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  chargedPoints: bigint('charged_points', { mode: 'number' }).notNull().default(0),
+  settledPoints: bigint('settled_points', { mode: 'number' }).notNull().default(0),
+  startedAt: timestamp('started_at', { withTimezone: true }), startEventId: uuid('start_event_id'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [index('device_billing_states_user_idx').on(t.userId)]);
+
+export const deviceBillingPeriods = pgTable('device_billing_periods', {
+  id: id(), userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  deviceId: uuid('device_id').notNull().references(() => devices.id, { onDelete: 'cascade' }),
+  deviceName: text('device_name').notNull(), bindingId: uuid('binding_id').notNull(),
+  kind: varchar('kind', { length: 16 }).notNull(),
+  startedAt: timestamp('started_at', { withTimezone: true }),
+  endedAt: timestamp('ended_at', { withTimezone: true }).notNull(),
+  chargedPoints: bigint('charged_points', { mode: 'number' }).notNull(),
+  startEventId: uuid('start_event_id'), endEventId: uuid('end_event_id').unique(),
+}, t => [index('device_billing_periods_user_date_idx').on(t.userId, t.endedAt)]);

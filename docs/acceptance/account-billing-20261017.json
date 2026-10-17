@@ -1,0 +1,110 @@
+{
+  "date": "2026-10-17",
+  "scope": [
+    "User bills",
+    "Admin previous-interval amount",
+    "Manual topup",
+    "Invitation copy",
+    "All-session revocation",
+    "Homepage bullet copy + monitor frame + 2s carousel"
+  ],
+  "tests": {
+    "apiUnitPassed": 153,
+    "isolatedPostgresPassed": 57,
+    "contractPassed": 10,
+    "webUnitPassed": 15,
+    "apiTypecheck": true,
+    "dbTypecheck": true,
+    "productionWebBuild": true
+  },
+  "cutoverMigration": {
+    "oldToNewMigrationPassed": true,
+    "actualChargedNotRated": true,
+    "emptyDeviceCounterPresent": true,
+    "historicalNotFabricated": true,
+    "repeatMigrationIdempotent": true,
+    "isolatedDatabaseDropped": true
+  },
+  "productionAccountBrowser": {
+    "date": "2026-10-17",
+    "base": "https://ai.mddxz.top",
+    "checks": [
+      "1440px: topup QR + email copy, invitation text/ref copy + failure fallback, bill tabs/pagination/error retry, no overflow, clear cancel/failure/retry/logout",
+      "390px: topup QR + email copy, invitation text/ref copy + failure fallback, bill tabs/pagination/error retry, no overflow, clear cancel/failure/retry/logout"
+    ],
+    "rendererErrors": [],
+    "identity": "synthetic browser fixtures",
+    "allWritesIntercepted": true,
+    "realAccountsOrFundsChanged": false
+  },
+  "productionHomepageBrowser": {
+    "date": "2026-10-17",
+    "base": "https://ai.mddxz.top",
+    "checks": [
+      "Three unordered hero points and visible labelled demo screen frame",
+      "Production SSR, hydration, single visible screenshot and 2 second automatic 0 → 1 → 2 playback",
+      "Arrows wrap, dots select, Home / End / arrows work; focused controls pause autoplay",
+      "Hover pauses, manual pause persists, explicit resume restarts autoplay",
+      "1440 / 1024 / 768 / 390 / 320: no horizontal overflow, correct desktop/mobile image source, three round dots",
+      "FAQ expands, download navigation and shared header work, homepage CSS stays scoped",
+      "Reduced motion defaults to paused; native mobile touch swipe switches screenshot",
+      "Existing signed-in header / user centre retained, including 320px layout (synthetic identity)"
+    ],
+    "rendererErrors": [],
+    "syntheticIdentity": true,
+    "syntheticPageViewsSuppressed": true,
+    "realModelCalls": 0
+  },
+  "deployment": {
+    "deployed": true,
+    "date": "2026-10-17",
+    "migration": "0014_misty_tusk",
+    "historicalActualChargeBackfillVerified": true,
+    "isolatedDbTests": 57,
+    "migrationCutoverTestPassed": true,
+    "api": "sha256:c5a2f47425759426bdf8413fa20580e46dedd02852a883a608782f19dad88500",
+    "web": "sha256:b180cde54dc6a54293bf71f540a263a2a9c448c638c84e414bffbe6b2d9d8583",
+    "previous": {
+      "api": "sha256:c2bd3ecfa4433b9712ce003d4bd98c24dbf96e8834856857a78233957267f10c",
+      "web": "sha256:bf7998e90a7d91b07cecdce1a06e8b83370d8c603e507ad3bc06745efff0a0eb",
+      "postgres": "sha256:639ab7ceb90e13123085b741fb31ef493fba25463002f6da665352e7b534b652",
+      "caddy": "sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b"
+    },
+    "otherServicesUnchanged": true,
+    "sourceHashes": {
+      "apps/api/src/metering.ts": "1eaca56898fbc2dabfb2f175d570455cfed59a86ba7960117dcdd7d31a303a7b",
+      "apps/api/src/online-events.ts": "54baefb2eebeb30507464d6c14e21b34b200c4cf99d053123202c7a409b30a22",
+      "apps/api/src/server.ts": "10b1e6789900604648e544a7937d058266cd9319338bdef443bbfacf774d2c25",
+      "apps/web/app/dashboard/page.tsx": "d88210a37adfa4263f8e23f93767e0710e97d61a4b0cf27b01b189a6218a8e94",
+      "apps/web/app/homepage.css": "4267ba88f62bae7539673254aba0505af8a4210de92e4a4565da6ea4c430f296",
+      "apps/web/app/page.tsx": "616051992c128d582f5a936702c0f1f8abacdcfb7f89030f81478374be08ee7b",
+      "apps/web/components/admin-activity.tsx": "5e901eb54cfefa8885f9897db892e99ad6820e838c8e6e661a27197be96d9e97",
+      "apps/web/components/screenshot-carousel.tsx": "f638a665dbca3a2eec4094fcf7649fa44791f861c252af6d8402edb7cfa4bbe5",
+      "docs/api-v2.md": "25ff63e67d2f5d49e2039ada196e44e411350e76d25d536ea0f2e5a790b490ad",
+      "docs/protocol/CONTRACT_VERSION.json": "8e120eea9f82896cd24de4faf0b28b57bfed55a68dda1ac87e883519296dd1b7",
+      "docs/protocol/PRODUCTION_INTEGRATION_MANIFEST.md": "3e244f2b456d097391e11da631d616e25f411f3d72f3052a7cba773274dc06c2",
+      "docs/protocol/openapi.v2.json": "89cb01bc1362535e66f391b1b072f63886e6c7801675876c90e440452344e934",
+      "packages/contract/src/generate-v2.ts": "1b9627b07af1328ecd669a2624ad8623651019046e27d8263b15815eef863502",
+      "packages/db/migrations/meta/_journal.json": "ad832a32043207719e9058fec569b2a8e66f83c6f0b0e535cddfe7591c95932e",
+      "packages/db/src/schema.ts": "345c16b768ee18712fa4f6297466fbe69cf3a700c179a3281c7927b033a204fe",
+      "apps/api/src/billing-intervals.db.test.ts": "ee85a1eee4681a6bb8ebaa121d7e1ad632343e39b3910f1d225bddddc1d867a7",
+      "apps/api/src/billing-routes.ts": "7895e37b62bf39dd64d01af4aa8fe0caa08696dbf517ae96c6780f606db30ca6",
+      "apps/api/src/device-billing.ts": "d2cfa213d37b80fd212b7656c22a278f77cfda204eaf0753cdbd6639c8858537",
+      "apps/web/app/dashboard/account.css": "4ab0a952ba72ec0a4652a235fefea53501e5f035e32405d29772457d26242d3d",
+      "apps/web/components/account-dialogs.tsx": "c9c80f2c8d22a2cbba203a1d06ff88b5862d9e10823d3729ffb249150be871af",
+      "apps/web/components/user-bills.tsx": "a8e89794a7d9e40cb6d5787fb105171adaf708554901871328b17f411c7b2e98",
+      "apps/web/public/admin-wechat.png": "bc8b9a38360123135c08bb0a3a19ad4c539509f4c2d005cdf4645940d9786b40",
+      "packages/db/migrations/0014_misty_tusk.sql": "36570a623edd28f421cc57a7f485e7af524f9a18def5d089501ca1d58d81f785",
+      "packages/db/migrations/meta/0014_snapshot.json": "70c16720e0d6aef70b530f580d6952eaa5286b0545f764d962f6021eb6c1d9f7"
+    },
+    "serverHash": "a59f3e96ba9e347f44027e6cc658b7a5db8fbf8999d0e0e1b5b0686c6396caac"
+  },
+  "realModelCalls": 0,
+  "appChanged": false,
+  "notes": [
+    "Browser account identity and destructive actions used intercepted fixtures; no real user was signed out.",
+    "PostgreSQL integration exercises actual settlement, authorization-version invalidation, cookie revocation and rollback in isolated disposable databases.",
+    "Historical amounts use actual pointsCharged and no fabricated old online intervals.",
+    "Source hashes match deployed API/Web; Caddy and Postgres were not restarted."
+  ]
+}

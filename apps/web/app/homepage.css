@@ -191,3 +191,14 @@
 .homepage .section-heading{max-width:none}
 .homepage .hero-lede{margin:1em 0}
 .homepage .footer{min-height:0}
+
+/* A visible monitor frame distinguishes demonstrations from the live website. */
+.homepage .hero-points{list-style:disc;padding-left:19px;display:grid;gap:7px}
+.homepage .hero-points li{padding-left:3px}
+.homepage .hero-points li::marker{color:#628ab8;font-size:10px}
+.homepage .demo-screen{padding:0 9px 9px;border:1px solid #aebdce;border-radius:18px;background:#dce4ed;box-shadow:0 18px 48px #203b5d16,0 2px 6px #203b5d0c}
+.homepage .demo-screen-bar{display:flex;align-items:center;gap:9px;height:35px;padding:0 8px;color:#405672;font-size:11px;font-weight:600}
+.homepage .demo-screen-light{width:6px;height:6px;border-radius:50%;background:#658bb4}
+.homepage .demo-screen-caption{margin-left:auto;font-size:10px;font-weight:400;color:#6c7f96}
+.homepage .demo-screen .screenshot-viewport{border:1px solid #bdcbd9;border-radius:9px;box-shadow:none}
+@media(max-width:760px){.homepage .demo-screen{padding:0 5px 5px;border-radius:13px}.homepage .demo-screen-bar{height:29px;padding-inline:5px;font-size:10px}.homepage .demo-screen-caption{font-size:9px}.homepage .demo-screen .screenshot-viewport{border-radius:6px}}

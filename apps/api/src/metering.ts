@@ -1,4 +1,5 @@
-import { aiRequests, db, rateCards, rateCardVersions, usageEvents, wallets } from '@bridge/db';
+import { accumulateDeviceCharge } from './device-billing.js';
+import { aiRequests, db, devices, rateCards, rateCardVersions, usageEvents, wallets } from '@bridge/db';
 import { and, desc, eq, gt, isNull, lte, or } from 'drizzle-orm';
 import { ApiError } from './core.js';
 import { normalizeUsage, ratePoints, type BillingPolicy, type NormalizedUsage, type PointRates } from './rating.js';
@@ -70,6 +71,9 @@ export async function settleAiRequest(requestId: string, state: RequestState, re
     if (!request) throw new ApiError(404, 'REQUEST_NOT_FOUND');
     const [existing] = await tx.select().from(usageEvents).where(eq(usageEvents.requestId, requestId)).limit(1);
     if (existing) return existing;
+    // Match login/heartbeat order (device → wallet → billing counter). Holding
+    // key-share before the counter also makes its later usage-event FK safe.
+    await tx.select({ id: devices.id }).from(devices).where(eq(devices.id, request.deviceId)).for('key share').limit(1);
     const [version] = request.rateCardVersionId
       ? await tx.select().from(rateCardVersions).where(eq(rateCardVersions.id, request.rateCardVersionId)).limit(1)
       : [];
@@ -96,6 +100,7 @@ export async function settleAiRequest(requestId: string, state: RequestState, re
         billingStatus = 'UNPAID';
       }
     }
+    await accumulateDeviceCharge(tx, request.userId, request.deviceId, charged);
     const reported=result.providerReportedUsage ?? (meteringError && result.usage ? result.usage as Record<string, unknown> : null);
     const providerReportedUsage=result.costAudit?{...reported,bridge_cost_audit:{...result.costAudit,userChargedRmb:charged/10000,walletBeforeRmb:walletAfter===null?null:(walletAfter+charged)/10000,walletAfterRmb:walletAfter===null?null:walletAfter/10000}}:reported;
     const [event] = await tx.insert(usageEvents).values({

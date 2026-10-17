@@ -27,12 +27,12 @@ const success = (schema: z.ZodType, status = 200) => ({
 });
 type Method = 'get' | 'post' | 'put' | 'patch' | 'delete';
 function route(method: Method, path: string, output: z.ZodType, body?: z.ZodType, status = 200, auth = true) {
-  const query=path==='/api/v1/me/wallet/transactions'?z.object({kind:z.enum(['all','account']).default('all')}):path==='/api/v1/admin/online-events'?z.object({email:z.string().max(320).optional(),page:z.coerce.number().int().min(1).default(1),pageSize:z.coerce.number().int().min(1).max(100).default(30)}):undefined;
+  const query=path==='/api/v1/me/bills'?z.object({kind:z.enum(['all','recharge','consumption']).default('all'),page:z.coerce.number().int().min(1).max(100000).default(1),pageSize:z.coerce.number().int().min(1).max(100).default(20)}):path==='/api/v1/me/wallet/transactions'?z.object({kind:z.enum(['all','account']).default('all')}):path==='/api/v1/admin/online-events'?z.object({email:z.string().max(320).optional(),page:z.coerce.number().int().min(1).default(1),pageSize:z.coerce.number().int().min(1).max(100).default(30)}):undefined;
   const params = path === '/api/v1/usage/responses/{id}'
     ? z.object({ id: z.string().regex(/^resp_[0-9a-f]{32}$/) })
     : path.includes('{id}') ? uuidParams : undefined;
   registry.registerPath({ method, path, summary: `${method.toUpperCase()} ${path}`,
-    ...(auth ? { security: [(path.startsWith('/api/v1/admin/')||path==='/api/v1/auth/change-password')?{WebSession:[]}:{ DesktopBearer: [] }] } : {}),
+    ...(auth ? { security: [(path.startsWith('/api/v1/admin/')||path==='/api/v1/auth/change-password'||path==='/api/v1/me/devices/revoke-all')?{WebSession:[]}:{ DesktopBearer: [] }] } : {}),
     ...(body || params || query ? { request: { ...(query?{query}:{}), ...(params ? { params } : {}), ...(body ? { body: { content: json(body) } } : {}) } } : {}),
     responses: success(output, status) });
 }
@@ -95,6 +95,11 @@ route('get', '/api/v1/me/subscription', z.object({ subscription: SubscriptionSch
 route('get', '/api/v1/me/wallet', WalletSummaryV2Schema);
 route('get', '/api/v1/me/devices', list(DeviceV2Schema));
 route('get', '/api/v1/me/wallet/transactions', list(walletTransaction));
+
+const billRow = z.object({id:z.uuid(),category:z.enum(['BALANCE','CONSUMPTION']),type:z.string(),points:z.number().int(),balanceAfter:z.number().int().nullable(),occurredAt:z.iso.datetime({offset:true}),startedAt:z.iso.datetime({offset:true}).nullable(),endedAt:z.iso.datetime({offset:true}).nullable(),deviceName:z.string().nullable(),deviceId:z.uuid().nullable(),periodKind:z.string().nullable()});
+route('get','/api/v1/me/bills',z.object({data:z.array(billRow),pending:z.array(z.object({id:z.uuid(),deviceId:z.uuid(),deviceName:z.string(),startedAt:z.iso.datetime({offset:true})})),total:z.number().int(),page:z.number().int(),pageSize:z.number().int(),summary:z.object({balance:z.number().int(),totalAdded:z.number().int(),totalConsumed:z.number().int()})}));
+route('post','/api/v1/me/devices/revoke-all',z.object({ok:z.literal(true),revokedDevices:z.number().int(),webSessionsRevoked:z.literal(true)}),z.object({confirm:z.literal(true)}));
+
 route('get', '/api/v1/me/usage', UsageSummaryV2Schema);
 route('get', '/api/v1/usage', UsageSummaryV2Schema);
 route('get', '/api/v1/usage/requests/{id}', requestLookup);
@@ -139,7 +144,7 @@ route('get','/api/v1/admin/model-pricing',adminResponse);
 route('put','/api/v1/admin/model-pricing/{id}',adminResponse,z.object({multiplier:z.number().min(.01).max(100),expectedRevision:z.number().int().nonnegative()}));
 route('post', '/v1/responses', responseV2, ResponseRequestSchema);
 route('get','/api/v1/admin/insights',adminResponse);
-route('get','/api/v1/admin/online-events',z.object({data:z.array(z.object({id:z.uuid(),email:z.email(),source:z.enum(['WEB_LOGIN','APP_LOGIN','APP_RECONNECT','APP_START']),deviceId:z.uuid().nullable(),authMethod:z.enum(['PASSWORD','TOKEN']).nullable(),deviceName:z.string(),platform:z.string(),osVersion:z.string(),appVersion:z.string(),ipAddress:z.string().nullable(),createdAt:z.iso.datetime({offset:true})})),total:z.number().int(),page:z.number().int(),pageSize:z.number().int()}));
+route('get','/api/v1/admin/online-events',z.object({data:z.array(z.object({id:z.uuid(),email:z.email(),billingRecorded:z.boolean(),previousBilling:z.object({id:z.uuid(),kind:z.string(),points:z.number().int(),startedAt:z.iso.datetime({offset:true}).nullable(),endedAt:z.iso.datetime({offset:true})}).nullable(),source:z.enum(['WEB_LOGIN','APP_LOGIN','APP_RECONNECT','APP_START']),deviceId:z.uuid().nullable(),authMethod:z.enum(['PASSWORD','TOKEN']).nullable(),deviceName:z.string(),platform:z.string(),osVersion:z.string(),appVersion:z.string(),ipAddress:z.string().nullable(),createdAt:z.iso.datetime({offset:true})})),total:z.number().int(),page:z.number().int(),pageSize:z.number().int()}));
 const metricTotals=z.object({total:z.number(),today:z.number(),last30Days:z.number()});
 route('get','/api/v1/admin/site/summary',z.object({pageViews:metricTotals,downloads:metricTotals.extend({data:z.array(z.object({day:z.string(),version:z.string(),platform:z.string(),arch:z.string(),downloads:z.number()}))}),trackingSince:z.string().nullable(),timezone:z.literal('UTC'),uniqueVisitorsAvailable:z.literal(false)}));
 route('get','/api/v1/admin/site/page-views',adminResponse);

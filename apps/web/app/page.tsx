@@ -17,7 +17,11 @@ export default function Home() {
 <span className="eyebrow">CHATGPT / CODEX × COPILOT BRIDGE</span>
 <h1>一句话，<br />把想法变成<em>成果。</em>
 </h1>
-<p className="hero-lede">使用最新版 ChatGPT / Codex 官方客户端，连接已开通的 DeepSeek 或 GPT-6。写工具、读资料、出试卷，在熟悉的对话里，把想法变成可用的成果。</p>
+<ul className="hero-lede hero-points">
+  <li>使用最新版 ChatGPT / Codex 官方客户端。</li>
+  <li>连接已开通的 DeepSeek 或 GPT-6。</li>
+  <li>写工具、读资料、出试卷，在熟悉的对话里，把想法变成可用的成果。</li>
+</ul>
 <div className="hero-actions">
 <a className="btn" href="/download">下载 Bridge <span className="arrow">↗</span>
 </a>

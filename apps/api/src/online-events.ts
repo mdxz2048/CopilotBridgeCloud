@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+import { advanceDeviceBilling } from './device-billing.js';
 import type {FastifyInstance} from 'fastify';
 import {isIP} from 'node:net';
 import {db,auditLogs,devices,users} from '@bridge/db';
@@ -14,9 +16,14 @@ function onlineMetadata({device,ip,source,userAgent=''}:{device?:Device;ip:strin
   return {source,deviceId:device?.deviceId??null,authMethod:source==='WEB_LOGIN'||source==='APP_LOGIN'?'PASSWORD':'TOKEN',deviceName:device?.deviceName??`${platform} · ${browser}`,platform:device?.platform??platform,
     osVersion:device?.osVersion??'',appVersion:device?.appVersion??'',ipAddress:isIP(ip)?ip:null};
 }
-export async function recordOnlineEvent(input:{userId:string;device?:Device;ip:string;source:Source;userAgent?:string;loginSessionId?:string},tx:Tx|typeof db=db) {
-  await tx.insert(auditLogs).values({actorId:input.userId,action:'USER_ONLINE',targetType:input.device?'DEVICE':'USER',
-    targetId:input.device?.id??input.userId,metadata:{...onlineMetadata(input),...(input.loginSessionId?{loginSessionId:input.loginSessionId}:{})}});
+export async function recordOnlineEvent(input:{userId:string;device?:Device;ip:string;source:Source;userAgent?:string;loginSessionId?:string},tx:Tx|typeof db=db):Promise<void> {
+  // Standalone callers must receive the same atomic boundary as login transactions.
+  if (tx === db) return db.transaction(inner => recordOnlineEvent(input, inner));
+  const id = randomUUID();
+  const boundary = input.device ? await advanceDeviceBilling(tx as Tx, input.userId, input.device, id) : null;
+  await tx.insert(auditLogs).values({id,actorId:input.userId,action:'USER_ONLINE',targetType:input.device?'DEVICE':'USER',
+    targetId:input.device?.id??input.userId,createdAt:boundary?.at??new Date(),
+    metadata:{...onlineMetadata(input),...(boundary?{previousBilling:boundary.previous}:{}),...(input.loginSessionId?{loginSessionId:input.loginSessionId}:{})}});
 }
 export async function heartbeatDevice(device:Device,ip:string) {
   if(device.lastSeenAt&&Date.now()-device.lastSeenAt.getTime()<60000)return;
@@ -26,8 +33,7 @@ export async function heartbeatDevice(device:Device,ip:string) {
     if(!current||current.status!=='ACTIVE'||(current.lastSeenAt&&now.getTime()-current.lastSeenAt.getTime()<60000))return;
     await tx.update(devices).set({lastSeenAt:now}).where(eq(devices.id,device.id));
     if(!current.lastSeenAt||now.getTime()-current.lastSeenAt.getTime()>=300000){
-      await tx.insert(auditLogs).values({actorId:current.userId,action:'USER_ONLINE',targetType:'DEVICE',targetId:current.id,
-        metadata:onlineMetadata({device:current,ip,source:'APP_RECONNECT'})});
+      await recordOnlineEvent({userId:current.userId,device:current,ip,source:'APP_RECONNECT'},tx);
     }
   });
 }
@@ -40,7 +46,7 @@ export function registerOnlineEvents(app:FastifyInstance) {
     const rows=await db.select({id:auditLogs.id,email:users.email,metadata:auditLogs.metadata,createdAt:auditLogs.createdAt})
       .from(auditLogs).innerJoin(users,eq(users.id,auditLogs.actorId)).where(where).orderBy(desc(auditLogs.createdAt),desc(auditLogs.id)).limit(query.pageSize).offset((query.page-1)*query.pageSize);
     return {data:rows.map(row=>({id:row.id,email:row.email,createdAt:row.createdAt,
-      source:String(row.metadata.source??'APP_RECONNECT'),deviceId:typeof row.metadata.deviceId==='string'?row.metadata.deviceId:null,authMethod:typeof row.metadata.authMethod==='string'?row.metadata.authMethod:null,deviceName:String(row.metadata.deviceName??'未知设备'),platform:String(row.metadata.platform??''),
+      billingRecorded:Object.hasOwn(row.metadata,'previousBilling'),previousBilling:row.metadata.previousBilling??null,source:String(row.metadata.source??'APP_RECONNECT'),deviceId:typeof row.metadata.deviceId==='string'?row.metadata.deviceId:null,authMethod:typeof row.metadata.authMethod==='string'?row.metadata.authMethod:null,deviceName:String(row.metadata.deviceName??'未知设备'),platform:String(row.metadata.platform??''),
       osVersion:String(row.metadata.osVersion??''),appVersion:String(row.metadata.appVersion??''),ipAddress:typeof row.metadata.ipAddress==='string'?row.metadata.ipAddress:null})),
       total:Number(count.total),page:query.page,pageSize:query.pageSize};
   });
