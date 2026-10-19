@@ -1,0 +1,48 @@
+{
+  "version": "0.3.26",
+  "releaseId": "5124d226-2748-4601-a4d5-b91e86190d5d",
+  "transport": "actual public HTTPS through production nginx/Caddy/API",
+  "range206": true,
+  "range416": true,
+  "ifRangeFallback200": true,
+  "baselineHashVerified": true,
+  "baselineSource": "existing NSIS-equivalent installer bytes; no installer execution",
+  "executedInstaller": false,
+  "config": {
+    "latestVersion": "0.3.26",
+    "minimumVersion": "0.3.26"
+  },
+  "results": [
+    {
+      "scenario": "normal",
+      "rangeRequests": 8,
+      "differentialBytes": 1025887,
+      "mapBytes": 695803,
+      "fullRequests": 0,
+      "fullBytes": 0,
+      "metadataRequests": 1,
+      "modes": [
+        "differential"
+      ],
+      "state": "READY",
+      "sha256": "ac5ba4cec184582208af8c66201a3e11e29035559385ee4b36478d2d58cc8fc5",
+      "elapsedMs": 10167
+    },
+    {
+      "scenario": "corrupt",
+      "rangeRequests": 8,
+      "differentialBytes": 1025887,
+      "mapBytes": 695803,
+      "fullRequests": 1,
+      "fullBytes": 343429580,
+      "metadataRequests": 1,
+      "modes": [
+        "differential",
+        "full"
+      ],
+      "state": "READY",
+      "sha256": "ac5ba4cec184582208af8c66201a3e11e29035559385ee4b36478d2d58cc8fc5",
+      "elapsedMs": 33336
+    }
+  ]
+}

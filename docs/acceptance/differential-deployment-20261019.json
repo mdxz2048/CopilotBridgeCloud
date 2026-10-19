@@ -1,0 +1,13 @@
+{
+  "deployed": true,
+  "apiImage": "sha256:7b6934bae4697eabfa1294c8be659f2176897c99247fd0a76b83339428a094ae",
+  "previousApiImage": "sha256:c7a0125dfdfd31998d007e985052687aa3c86a4c96f32da96937bb5c18a83200",
+  "otherServiceImagesUnchanged": true,
+  "sourceSha256": {
+    "release-files.ts": "555aa1c64d4c9724f666c8c1968e4eafa4858517c1e0dacddb70b4797787f28a",
+    "release-differential.ts": "fdf006b5cf59b66711b80cd72b0a748f9ba32786f3796042f1cbd0f7833b3565",
+    "release-lifecycle.ts": "5d84f217420a1d25242479563cccc55a72c0cf3f3c4e31a4eba9f04aff6d5ea9"
+  },
+  "health": "ok",
+  "databaseMigration": false
+}

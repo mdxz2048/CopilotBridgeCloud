@@ -2,17 +2,18 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import {recordClientDownload} from './site-visits.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { createReadStream, createWriteStream } from 'node:fs';
-import { mkdir, stat, unlink, rename } from 'node:fs/promises';
+import { mkdir, stat, unlink, rename, writeFile, readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { Transform, type Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { db, auditLogs, releases } from '@bridge/db';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { admin, ApiError } from './core.js';
 import { config } from './config.js';
 import { registerOfficialClient } from './official-client.js';
+import { blockmapLimit, installerRange, validateBlockmap } from './release-differential.js';
 
 const storage = resolve(process.env.RELEASE_STORAGE_DIR ?? join(homedir(), '.bridge-cloud', 'releases'));
 const maxBytes = 512 * 1024 * 1024;
@@ -44,6 +45,66 @@ export function releaseInspector(limit = maxBytes) {
 export function registerReleaseFiles(app: FastifyInstance) {
   registerOfficialClient(app);
   app.addContentTypeParser('application/octet-stream', (req, payload, done) => done(null, payload));
+
+  app.get('/api/v1/releases/by-version/:version', async req => {
+    const version = z.string().regex(/^\d+\.\d+\.\d+$/).parse((req.params as {version:string}).version);
+    const [release] = await db.select().from(releases).where(and(eq(releases.version, version), eq(releases.channel, 'stable'), eq(releases.platform, 'windows'), eq(releases.arch, 'x64'), eq(releases.published, true))).limit(1);
+    if (!release) throw new ApiError(404, 'NOT_FOUND');
+    return { release };
+  });
+
+  app.put('/api/v1/admin/releases/:id/blockmap', { bodyLimit: blockmapLimit, onRequest: async req => { await admin(req); } }, async req => {
+    const operator = await admin(req);
+    const id = z.uuid().parse((req.params as {id:string}).id);
+    if (req.headers['content-type'] !== 'application/octet-stream') throw new ApiError(415, 'UNSUPPORTED_MEDIA_TYPE');
+    // Serialize against publishing and other uploads: published sidecars are immutable.
+    return db.transaction(async tx => {
+      const [release] = await tx.select().from(releases).where(eq(releases.id, id)).for('update').limit(1);
+      if (!release || release.platform !== 'windows' || release.arch !== 'x64') throw new ApiError(404, 'NOT_FOUND');
+      if (release.published) {
+        // Older released installers predate sidecars. Permit a single audited backfill,
+        // while keeping an already published map immutable (including concurrent PUTs).
+        let exists = false;
+        try { await stat(join(storage, `${id}.exe.blockmap`)); exists = true; }
+        catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
+        if (exists) throw new ApiError(409, 'RELEASE_ALREADY_PUBLISHED');
+      }
+      const installer = await stat(join(storage, `${id}.exe`));
+      const chunks: Buffer[] = []; let size = 0;
+      for await (const chunk of req.body as Readable) {
+        const bytes = Buffer.from(chunk); size += bytes.length;
+        if (size > blockmapLimit) throw new ApiError(413, 'RELEASE_BLOCKMAP_TOO_LARGE');
+        chunks.push(bytes);
+      }
+      const bytes = Buffer.concat(chunks);
+      const summary = validateBlockmap(bytes, installer.size);
+      const temporary = join(storage, `${id}.${randomUUID()}.blockmap.part`);
+      try { await writeFile(temporary, bytes, {flag:'wx', mode:0o600}); await rename(temporary, join(storage, `${id}.exe.blockmap`)); }
+      finally { await unlink(temporary).catch((error:NodeJS.ErrnoException) => {if(error.code !== 'ENOENT') throw error;}); }
+      await tx.insert(auditLogs).values({actorId:operator.user.id,action:'RELEASE_BLOCKMAP_UPLOADED',targetType:'RELEASE',targetId:id,metadata:{size, publishedBackfill:release.published, ...summary}});
+      return { size, sha256:createHash('sha256').update(bytes).digest('hex'), ...summary };
+    });
+  });
+
+  app.get('/api/v1/releases/files/:id/blockmap', async (req, reply) => {
+    const id = z.uuid().parse((req.params as {id:string}).id);
+    const [release] = await db.select().from(releases).where(eq(releases.id, id)).limit(1);
+    if (!release?.published || release.platform !== 'windows' || release.arch !== 'x64') throw new ApiError(404, 'NOT_FOUND');
+    let bytes: Buffer;
+    try {
+      const path = join(storage, `${id}.exe.blockmap`);
+      if ((await stat(path)).size > blockmapLimit) throw new ApiError(503, 'INVALID_RELEASE_BLOCKMAP');
+      bytes = await readFile(path);
+      validateBlockmap(bytes, (await stat(join(storage, `${id}.exe`))).size);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') throw new ApiError(404, 'NOT_FOUND');
+      throw error;
+    }
+    reply.header('Content-Type','application/octet-stream');
+    reply.header('Content-Length',bytes.length);
+    reply.header('Cache-Control','public, max-age=31536000, immutable');
+    return reply.send(bytes);
+  });
 
   app.post('/api/v1/admin/releases/upload', { bodyLimit: maxBytes, onRequest: async req => { await admin(req); } }, async (req, reply) => {
     const operator = await admin(req);
@@ -102,6 +163,16 @@ export function registerReleaseFiles(app: FastifyInstance) {
       throw error;
     }
     reply.header('Content-Type', 'application/octet-stream');
+    const etag = `"${release.sha256}"`;
+    reply.header('ETag', etag);
+    reply.header('Accept-Ranges', 'bytes');
+    const ifRange = req.headers['if-range'];
+    const range = installerRange(req.headers.range, Array.isArray(ifRange) ? '' : ifRange, etag, info.size);
+    if (range === false) return reply.code(416).header('Content-Range', `bytes */${info.size}`).send();
+    if (range) {
+      reply.code(206).header('Content-Range', `bytes ${range.start}-${range.end}/${info.size}`).header('Content-Length', range.end-range.start+1);
+      return reply.send(createReadStream(file, range));
+    }
     reply.header('Content-Length', info.size);
     reply.header('Content-Disposition', `attachment; filename="CopilotBridge-${release.version.replace(/[^A-Za-z0-9._-]/g, '_')}.exe"`);
     downloads.set(req,{version:release.version,platform:release.platform,arch:release.arch});
