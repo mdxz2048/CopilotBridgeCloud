@@ -7,6 +7,7 @@ import { actor,admin } from './core.js';
 import { ApiError } from './errors.js';
 import { config } from './config.js';
 import { encryptSecret,decryptSecret } from './security.js';
+import { captureClientFlight,flightSnapshotId } from './flight-recorder-service.js';
 
 export const DIAGNOSTIC_MAX_BYTES=128*1024;
 const secretKey=/^key$|authorization|headers?|cookies?|password|passwd|secret|credentials?|token|api[_-]?key|dpop|publickeyjwk|encrypted_content|file_data|base64|binary/i;
@@ -45,7 +46,8 @@ function metadata(row:typeof failureDiagnostics.$inferSelect){
   const payload=JSON.parse(decryptSecret(row.payload));
   return {id:row.id,userId:row.userId,userEmail:row.userEmail,deviceId:row.deviceId,appVersion:row.appVersion,traceId:row.traceId,stage:row.stage,errorCode:row.errorCode,
     error:payload.error,...diagnosticModelNames(payload),requestId:payload.requestId??null,responseId:payload.responseId??null,threadId:payload.threadId??null,
-    occurredAt:row.occurredAt,receivedAt:row.createdAt,truncated:Boolean(payload.truncated),payloadBytes:row.payloadBytes};
+    occurredAt:row.occurredAt,receivedAt:row.createdAt,truncated:Boolean(payload.truncated),payloadBytes:row.payloadBytes,
+    snapshotId:flightSnapshotId(row.userId,payload.requestId,payload.traceId)};
 }
 export async function registerDiagnostics(app:FastifyInstance){
   // Timer never logs private contents; startup and every upload also enforce bounds.
@@ -62,7 +64,7 @@ export async function registerDiagnostics(app:FastifyInstance){
     const flags={truncated:false};const sanitized=sanitizeDiagnostic(body,0,flags) as Record<string,unknown>;
     sanitized.truncated=Boolean(body.truncated||flags.truncated);
     const payload=encryptSecret(JSON.stringify(sanitized));
-    return db.transaction(async tx=>{
+    const result=await db.transaction(async tx=>{
       await tx.execute(sql`select pg_advisory_xact_lock(81903317)`);
       await pruneFailureDiagnostics(tx);
       const [existing]=await tx.select().from(failureDiagnostics).where(eq(failureDiagnostics.id,body.id)).limit(1);
@@ -79,6 +81,8 @@ export async function registerDiagnostics(app:FastifyInstance){
       await pruneFailureDiagnostics(tx);
       return {id:body.id,received:true,duplicate:false};
     });
+    await captureClientFlight(auth.user.id,{requestId:body.requestId,traceId:body.traceId,failureId:body.id,code:body.error.code});
+    return result;
   });
   app.get('/api/v1/admin/diagnostics/failures',async req=>{
     await admin(req);

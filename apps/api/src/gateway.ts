@@ -25,6 +25,7 @@ import { nativeReasoning, validateNativeRequest,nativeFailedEvent } from './nati
 import { NativeTimeoutError } from './native-timeouts.js';
 import { once } from 'node:events';
 import { encryptSecret, decryptSecret } from './security.js';
+import { beginFlight,recordFlight,associateFlight,failFlight,getFlightRecorder } from './flight-recorder-service.js';
 
 function responseBody(id: string, model: string, result: CanonicalResult, billing?: { points: number; points_rated: number; points_charged: number; remaining_points: number; request_id: string; billing_mode: Exclude<BillingMode, 'OFF'> }) {
   return { ...(result.nativeResponse ?? {}), id, object: 'response', status: result.status ?? 'completed', model, output: result.output,
@@ -48,6 +49,7 @@ export async function registerGateway(app: FastifyInstance) {
   app.post('/v1/responses',{bodyLimit:64*1024*1024}, async (req, reply) => {
     const a = await actor(req, true);
     requestMilestone(req,'authDone');
+    beginFlight(req,a.user.id,a.device?.id);
     const threadId = req.headers['x-client-thread-id'];
     if (typeof threadId !== 'string' || !threadId.trim() || threadId.length > 200) throw new ApiError(400, 'CLIENT_THREAD_ID_REQUIRED');
     const body = ResponseRequestSchema.parse(req.body) as CanonicalRequest;
@@ -143,6 +145,8 @@ export async function registerGateway(app: FastifyInstance) {
       return { record: newRecord, v2RequestId: request?.id, continuation, maxOutputTokens };
     });
     requestMilestone(req,'reservationDone');
+    associateFlight(req,responseId,v2RequestId);
+    recordFlight(req,'prepared_request',body);
     if(maxOutputTokens)body.maxOutputTokens=maxOutputTokens;
     const started = Date.now();
     if (v2RequestId) reply.header('X-Bridge-AI-Request-Id', v2RequestId);
@@ -157,11 +161,13 @@ export async function registerGateway(app: FastifyInstance) {
     let costObservation:Awaited<ReturnType<typeof beginCostObservation>>|null=null;
     reply.raw.on('close', () => {
       if (!ended && !reply.raw.writableEnded) {
+        failFlight(req,'client_disconnected','CLIENT_DISCONNECTED');
         clientDisconnected = true; controller.abort();
         if (v2RequestId) void db.update(aiRequests).set({ status: 'CLIENT_DISCONNECTED' })
           .where(and(eq(aiRequests.id, v2RequestId), eq(aiRequests.status, 'COMPLETED')))
           .catch(() => req.log.warn({ requestId: v2RequestId }, 'could not mark disconnected V2 request'));
       }
+      getFlightRecorder()?.finish(req.id);
     });
     try {
       costObservation=v2RequestId&&!connection?await beginCostObservation(adapter,ent.model.providerModelId,isDeepSeekProvider(ent.provider.code)):null;
@@ -180,12 +186,24 @@ export async function registerGateway(app: FastifyInstance) {
         }
       }
       const onTextDelta = copilotStreamOpened ? (delta: string) => {
+        recordFlight(req,'response_text_delta',{delta});
         observedTextDelta = hasObservedUpstreamTextDelta(observedTextDelta, delta);
         if (delta && !reply.raw.destroyed && !reply.raw.writableEnded) {
           writeEvent(reply.raw, 'response.output_text.delta', { item_id: `msg_${responseId}`, response_id: responseId, output_index: 0, content_index: 0, delta });
         }
       } : undefined;
       const onNativeEvent = async (type:string, event:Record<string,unknown>,eventSignal?:AbortSignal) => {
+        recordFlight(req,'upstream_event',{type,event});
+        if(profile==='deepseek'&&type==='response.output_item.added'&&event.item&&typeof event.item==='object'){
+          const item=event.item as Record<string,unknown>;
+          if(item.type==='function_call'&&typeof item.name==='string'){
+            const name=item.name,declared=(body.tools??[]).filter(t=>t.type==='function'||t.type==='custom').map(t=>String(t.name));
+            const exact=declared.filter(alias=>alias===name),candidates=exact.length?exact:declared.filter(alias=>alias.endsWith('__'+name));
+            recordFlight(req,'tool_binding_audit',{returnedName:name,declaredNames:declared,candidates,unique:candidates.length===1});
+            if(candidates.length!==1)failFlight(req,'tool_binding_audit',candidates.length?'MODEL_TOOL_NAME_AMBIGUOUS':'MODEL_TOOL_NAME_UNDECLARED');
+          }
+        }
+        if(type==='response.failed'||type==='response.incomplete'||type==='error')failFlight(req,'upstream_event',type);
         requestMilestone(req,'relayFirstEvent');
         if(type==='response.output_text.delta'||type==='response.reasoning_text.delta')requestMilestone(req,'relayFirstText');
         if(type==='response.function_call_arguments.done'||type==='response.custom_tool_call_input.done')requestMilestone(req,'relayToolArgumentsDone');
@@ -242,6 +260,7 @@ export async function registerGateway(app: FastifyInstance) {
         billing_status:event?.billingStatus, balance_warning:balance <= 0, settlement_pending:event?.billingStatus==='UNPAID', ...(result.usageUnavailable?{usage_unavailable:true}:{}),
         period_limit_rmb:latestUsage.rmbLimit, period_used_rmb:latestUsage.rmbUsed, money_enabled:latestUsage.moneyEnabled,
         limits:{account_rpm:0,device_rpm:0,plan_rpm:0} });
+      recordFlight(req,'response',response);
       if (!body.stream) { ended = true; return response; }
       if (copilotStreamOpened) {
         if (!reply.raw.destroyed && !reply.raw.writableEnded) {
@@ -282,6 +301,7 @@ export async function registerGateway(app: FastifyInstance) {
       ended = true;
       reply.raw.end();
     } catch (error) {
+      failFlight(req,'gateway_error',error instanceof ApiError||error instanceof CopilotFailure?error.code:clientDisconnected?'CLIENT_DISCONNECTED':'PROVIDER_UNAVAILABLE');
       const upstream = error instanceof Error ? /^HTTP_(\d{3})$/.exec(error.message) : null;
       req.log.warn({ event: 'provider_failed', requestId: req.id, userId: a.user.id, deviceId: a.device!.id,
         model: ent.model.publicId, providerId: ent.provider.id, upstreamStatus: upstream ? Number(upstream[1]) : undefined,

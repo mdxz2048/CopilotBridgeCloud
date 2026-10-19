@@ -26,6 +26,7 @@ import { registerRatePolicy } from './rate-policy.js';
 import { registerReleaseFiles } from './release-files.js';
 import { registerSiteVisits } from './site-visits.js';
 import { registerDiagnostics } from './diagnostics.js';
+import { registerFlightRecorder } from './flight-recorder-service.js';
 import { transportRateOptions, transportRateScope } from './transport-rate-limit.js';
 import { requestContext } from './request-log.js';
 
@@ -39,6 +40,7 @@ export async function createServer() {
   registerRequestLog(app);
   captureDeviceBody(app);
   await app.register(cookie);
+  await registerFlightRecorder(app);
   app.addHook('onRequest', async req => { requestContext(req, { transportRateScope: transportRateScope(req) }); });
   await app.register(rateLimit, transportRateOptions);
   registerRatePolicy(app);
