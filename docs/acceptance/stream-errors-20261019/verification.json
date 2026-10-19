@@ -1,0 +1,98 @@
+{
+  "version": "0.3.25",
+  "officialClient": "Codex CLI 0.163.0-alpha.10.2",
+  "officialGuiVerified": false,
+  "cases": [
+    {
+      "scenario": "wallet",
+      "requests": 1,
+      "chineseReasonVisible": true
+    },
+    {
+      "scenario": "tool",
+      "requests": 1,
+      "chineseReasonVisible": true
+    },
+    {
+      "scenario": "disconnect",
+      "requests": 1,
+      "chineseReasonVisible": true
+    },
+    {
+      "scenario": "incomplete",
+      "requests": 1,
+      "chineseReasonVisible": true
+    }
+  ],
+  "replayedPriorLiveResponses": {
+    "version": "0.3.25",
+    "testType": "offline replay of the previous 99 real upstream recordings; no additional live model calls",
+    "requests": 99,
+    "passed": 99,
+    "failures": []
+  },
+  "ui": {
+    "result": "PASS",
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "widths": [
+      900,
+      620
+    ],
+    "longEmail": true,
+    "signedOut": true,
+    "pageErrors": []
+  },
+  "cloud": {
+    "deployed": true,
+    "apiImage": "sha256:c7a0125dfdfd31998d007e985052687aa3c86a4c96f32da96937bb5c18a83200",
+    "previousApiImage": "sha256:6f30d8290f5bc2747dff682a6e9da93828eb3eb2f33e3e2b4f6548101805146e",
+    "otherServiceImagesUnchanged": true,
+    "sourceSha256": "b35488820a138d078993134030952a456ab87e15259f60982bee3f7147451972",
+    "health": "ok",
+    "databaseMigration": false,
+    "runtimeChange": "Chinese recharge guidance only"
+  },
+  "appTests": {
+    "passed": 266,
+    "failed": 0,
+    "skipped": 0
+  },
+  "apiTests": {
+    "passed": 8,
+    "failed": 0,
+    "databaseTestsRequired": false,
+    "reason": "API runtime change is text only; no database logic or migration changed"
+  },
+  "package": {
+    "passed": true,
+    "version": "0.3.25",
+    "verifiedFiles": 53,
+    "bytes": 343427212,
+    "sha256": "ef39f5f4ebfc546adeebe4e7639791d4a03b1580a7b5272853051d9c531f418a"
+  },
+  "officialCliUsesSyntheticFailures": true,
+  "updater": {
+    "passed": true,
+    "executionEnvironment": "server Node using unchanged compiled App UpdateManager",
+    "publicHttpsFullDownload": true,
+    "automaticDownload": true,
+    "sha256Verified": true,
+    "readyVersion": "0.3.25",
+    "clientConfigVersion": "0.3.25"
+  },
+  "release": {
+    "id": "0f4cc300-0473-407c-99a3-35fdda1f3419",
+    "version": "0.3.25",
+    "channel": "stable",
+    "platform": "windows",
+    "arch": "x64",
+    "downloadUrl": "https://ai.mddxz.top/api/v1/releases/files/0f4cc300-0473-407c-99a3-35fdda1f3419",
+    "sha256": "ef39f5f4ebfc546adeebe4e7639791d4a03b1580a7b5272853051d9c531f418a",
+    "releaseNotes": "充值与故障提示更新：\n1. 充值入口移到已登录旁边，点击文字直接充值。\n2. 余额不足、连接中断、工具异常等情况显示中文具体原因。\n3. 修复部分 DeepSeek 工具参数导致的断流，平台同步故障详情。",
+    "published": true,
+    "createdAt": "2026-10-19T03:03:32.108Z"
+  }
+}

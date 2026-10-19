@@ -53,7 +53,7 @@ export async function preflightPoints(userId: string, providerId: string, modelI
   // Metering anomalies never block unrelated conversations. An exhausted wallet
   // blocks new billed requests; an administrator credit takes effect immediately.
   if ((await walletSummary(userId)).balance <= 0)
-    throw new ApiError(402, 'INSUFFICIENT_POINTS', '余额不足，请联系管理员增加余额后继续使用。');
+    throw new ApiError(402, 'INSUFFICIENT_POINTS', '余额不足，请打开 Copilot Bridge，点击「充值」，到账后重试。');
   return { rate };
 }
 
