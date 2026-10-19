@@ -1,8 +1,35 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { executeNativeResponses, nativeInput, nativeReasoning, nativeResult, providerHttpFailure, validateNativeRequest } from './native-responses.js';
+import { executeNativeResponses, nativeInput, nativeReasoning, nativeResult, nativeToolBoundary, providerHttpFailure, validateNativeRequest } from './native-responses.js';
 
 afterEach(()=>vi.unstubAllGlobals());
 const terminal = {id:'upstream',object:'response',model:'deepseek-flash',status:'completed',output:[{id:'rs_1',type:'reasoning',content:[{type:'reasoning_text',text:'fixture reasoning'}]},{id:'fc_1',type:'function_call',call_id:'call_1',name:'probe',arguments:'{}'}],usage:{input_tokens:20,input_tokens_details:{cached_tokens:4},output_tokens:8,output_tokens_details:{reasoning_tokens:3},total_tokens:28},provider_extension:{keep:true}};
+
+const execWrapper={type:'function',name:'functions__exec',description:'Run JavaScript code to orchestrate/compose tool calls. All nested tools are available on the global `tools` object, for example await tools.exec_command(...).',parameters:{type:'object',properties:{input:{type:'string'}},required:['input'],additionalProperties:false}};
+
+describe('DeepSeek desktop wrapper boundary',()=>{
+  it('constrains wrapper entry points without changing tool schemas, caller instructions or long history',async()=>{
+    const input=Array.from({length:50},(_,i)=>[{type:'function_call',call_id:`call_${i}`,name:'functions__exec',arguments:JSON.stringify({input:'text(await tools.exec_command({cmd: "echo synthetic"}));'})},{type:'function_call_output',call_id:`call_${i}`,output:'synthetic result '.repeat(1000)}]).flat();
+    const request={model:'logical',input,tools:[execWrapper,{type:'function',name:'functions__wait',parameters:{type:'object'}}],instructions:'Keep the original task policy.',stream:true};const original=JSON.stringify(request);
+    vi.stubGlobal('fetch',vi.fn(async(_url,init)=>{
+      const body=JSON.parse(init.body);expect(body.input).toEqual(input);expect(body.instructions).toContain(request.instructions);expect(body.instructions).toContain('["functions__exec","functions__wait"]');
+      expect(body.instructions).toContain('unless that exact name is separately declared');expect(body.tools[0].parameters).toEqual(execWrapper.parameters);expect(body.tools[0].description).toContain('TOP-LEVEL ENTRY POINT');expect(body.tools[1]).toEqual(request.tools[1]);
+      const example=JSON.parse(body.instructions.split('Example wrapper arguments: ')[1].split('. Use the command required')[0]);expect(example.input).toBe('text(await tools.exec_command({cmd: "echo bridge_probe"}));');
+      return new Response(`data: ${JSON.stringify({type:'response.completed',response:terminal})}\n\n`);
+    }));
+    await executeNativeResponses('https://fixture.test','fixture',request,'fixture',new AbortController().signal);expect(JSON.stringify(request)).toBe(original);expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it('leaves OpenAI, unrelated exec tools and plain chat unchanged',()=>{
+    const request={model:'logical',input:'synthetic',tools:[execWrapper]};expect(nativeToolBoundary(request,'openai')).toEqual({});
+    expect(nativeToolBoundary({...request,tools:[{...execWrapper,description:'ordinary function'}]})).toEqual({});
+    expect(nativeToolBoundary({...request,tools:[{...execWrapper,parameters:{type:'object',properties:{cmd:{type:'string'}},required:['cmd']}}]})).toEqual({});
+    expect(nativeToolBoundary({model:'logical',input:'synthetic'})).toEqual({});
+  });
+  it('keeps a separately declared command tool available and recalculates the list for each request',()=>{
+    const direct={type:'function',name:'exec_command',parameters:{type:'object',properties:{cmd:{type:'string'}}}};
+    const request={model:'logical',input:'synthetic',tools:[execWrapper,direct]};const guarded=nativeToolBoundary(request);expect(guarded.tools?.[1]).toBe(direct);expect(guarded.instructions).toContain('["functions__exec","exec_command"]');
+    expect(nativeToolBoundary({...request,tools:[execWrapper]}).instructions).toContain('["functions__exec"]');expect(request).not.toHaveProperty('instructions');
+  });
+});
 describe('native Responses protocol',()=>{
   it('replays client discovery and an empty result before ordinary tools without losing history',async()=>{
     const discovery={type:'tool_search_call',call_id:'search_1',status:'completed',execution:'client',arguments:'{"query":"probe"}',extension:{retained:true}};

@@ -3,6 +3,26 @@ import type { CanonicalRequest, CanonicalResult } from './provider.js';
 import type { ResponsesProfile } from './instance-router.js';
 import { nativeDeadline,nativeEventProgress } from './native-timeouts.js';
 
+/** Keep the desktop JavaScript wrapper distinct from methods documented inside it. */
+export function nativeToolBoundary(request:CanonicalRequest,profile:ResponsesProfile='deepseek'):Pick<CanonicalRequest,'tools'|'instructions'> {
+  if(profile!=='deepseek')return {};
+  const wrapper=request.tools?.find(tool=>{
+    const parameters=tool.parameters as {properties?:Record<string,{type?:string}>;required?:unknown;additionalProperties?:unknown}|undefined;
+    return tool.type==='function'&&tool.name==='functions__exec'&&
+      typeof tool.description==='string'&&tool.description.includes('Run JavaScript code')&&tool.description.includes('global `tools` object')&&
+      Object.keys(parameters?.properties??{}).join(',')==='input'&&parameters?.properties?.input.type==='string'&&
+      Array.isArray(parameters.required)&&parameters.required.length===1&&parameters.required[0]==='input'&&parameters.additionalProperties===false;
+  });
+  if(!wrapper)return {};
+  const names=request.tools!.filter(tool=>['function','custom'].includes(String(tool.type))&&typeof tool.name==='string').map(tool=>tool.name);
+  const example=JSON.stringify({input:'text(await tools.exec_command({cmd: "echo bridge_probe"}));'});
+  const boundary=`[Bridge DeepSeek tool boundary]\nThe only callable top-level function/custom tool names for this request are: ${JSON.stringify(names)}. Use their exact names. Names appearing only inside tool descriptions, JavaScript examples, or conversation history do not declare additional top-level tools.\nfunctions__exec is a JavaScript orchestration wrapper. Call functions__exec with a JSON object containing exactly one string field, input, whose value is JavaScript source. Methods on the tools object (for example tools.exec_command) must be called inside that JavaScript. Do not emit exec_command or another nested method as a top-level tool call unless that exact name is separately declared in the current tools array.\nExample wrapper arguments: ${example}. Use the command required by the current task; the example is illustrative. Other advertised tools remain available according to their own schemas.`;
+  return {
+    instructions:[request.instructions,boundary].filter(Boolean).join('\n\n'),
+    tools:request.tools!.map(tool=>tool===wrapper?{...tool,description:`TOP-LEVEL ENTRY POINT: functions__exec. Supply JavaScript in the input string. tools.exec_command and other tools.* methods documented below run INSIDE this wrapper; they are not separate top-level tools unless separately declared in the current request.\n\n${tool.description}`}:tool),
+  };
+}
+
 export function nativeInput(input: CanonicalRequest['input'],profile:ResponsesProfile='deepseek'): CanonicalRequest['input'] {
   if(profile!=='deepseek'||!Array.isArray(input))return input;
   const isDiscovery=(item:Record<string,unknown>)=>item.type==='tool_search_call'||item.type==='tool_search_output';
@@ -103,7 +123,7 @@ export async function executeNativeResponses(baseUrl: string, key: string, reque
   const profile=options.responsesProfile??'deepseek';validateNativeRequest(request,profile);
   const { maxOutputTokens, reasoning:_wireReasoning, ...wire } = request;
   const reasoning=nativeReasoning(request,options.canThink??true,profile);
-  const body = { ...wire, input:nativeInput(request.input,profile), model: modelId, ...(Object.keys(reasoning).length||profile==='deepseek'?{reasoning}:{}),
+  const body = { ...wire, ...nativeToolBoundary(request,profile), input:nativeInput(request.input,profile), model: modelId, ...(Object.keys(reasoning).length||profile==='deepseek'?{reasoning}:{}),
     ...(maxOutputTokens ? { max_output_tokens: Math.min(maxOutputTokens, typeof request.max_output_tokens === 'number' ? request.max_output_tokens : maxOutputTokens) } : {}) };
   const started=performance.now();const encodedBody=JSON.stringify(body);
   const metrics:Record<string,number>={requestBytes:Buffer.byteLength(encodedBody),responseBytes:0,eventCount:0,upstreamAttemptCount:1};

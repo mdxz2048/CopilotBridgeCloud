@@ -21,7 +21,7 @@ import { currentUsage } from './core.js';
 import { requestContext,requestCounts,requestMilestone,requestNativeMetrics } from './request-log.js';
 import { nextContinuationState, pendingContinuation } from './tool-continuation.js';
 import { chooseInstance,catalogPresentation,responsesProfile,instanceHealthAfterResult,instanceHealthAfterFailure } from './instance-router.js';
-import { nativeReasoning, validateNativeRequest,nativeFailedEvent } from './native-responses.js';
+import { nativeReasoning, validateNativeRequest,nativeFailedEvent,nativeToolBoundary } from './native-responses.js';
 import { NativeTimeoutError } from './native-timeouts.js';
 import { once } from 'node:events';
 import { encryptSecret, decryptSecret } from './security.js';
@@ -147,6 +147,8 @@ export async function registerGateway(app: FastifyInstance) {
     requestMilestone(req,'reservationDone');
     associateFlight(req,responseId,v2RequestId);
     recordFlight(req,'prepared_request',body);
+    const toolBoundary=nativeToolBoundary(body,profile);
+    if(native&&toolBoundary.tools)recordFlight(req,'provider_tool_boundary',toolBoundary);
     if(maxOutputTokens)body.maxOutputTokens=maxOutputTokens;
     const started = Date.now();
     if (v2RequestId) reply.header('X-Bridge-AI-Request-Id', v2RequestId);
