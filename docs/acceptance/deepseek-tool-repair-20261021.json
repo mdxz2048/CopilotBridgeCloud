@@ -1,0 +1,55 @@
+{
+  "deployed": true,
+  "images": {
+    "api": "sha256:449ee3c368d8bd84eac36828bf6d672972acb98b7f3568705b45033c53e74515",
+    "web": "sha256:a97ce13149dfcf364c317d18c73bdc128a96fc726d3e4cb8abfa06f954cee91b",
+    "postgres": "sha256:639ab7ceb90e13123085b741fb31ef493fba25463002f6da665352e7b534b652",
+    "caddy": "sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b"
+  },
+  "previousApiImage": "sha256:d7df017bbf5d769cb020e2f730569d7d65aaf39ab30dd03e8a64576ba3ad6a81",
+  "otherServiceImagesUnchanged": true,
+  "health": "ok",
+  "sourceSha256": {
+    "gateway.ts": "7d7c4821ef4dadf8b8ad232a6acae83a4842ad0e9bfd242a5ff62d141b3add1e",
+    "deepseek-tool-repair.ts": "0264916399f2faa1051804f91ba2529c6b20c59a7a7798a65051932a446dff88"
+  },
+  "databaseMigration": false,
+  "paidProviderRequests": 0,
+  "date": "2026-10-21",
+  "appVersion": "0.3.26",
+  "clientUpdateRequired": false,
+  "unitTests": {
+    "passed": 178,
+    "databaseSkipped": 70
+  },
+  "typecheck": "PASS",
+  "build": "PASS",
+  "isolatedDatabase": {
+    "signedGatewayRepair": "PASS",
+    "nativeContinuationAndBilling": "PASS",
+    "targetedPassed": 2,
+    "temporaryDatabaseAndContainerCleaned": true,
+    "extendedRunPassed": 29,
+    "extendedRunFailed": 1,
+    "knownBaselineFailure": "v2.db.test.ts release retention expected 1 record but got 2; reproduced on unmodified production baseline in a fresh isolated database"
+  },
+  "compiledAppTranslator": {
+    "currentCompiledAppTranslator": "PASS",
+    "customToolName": "functions.exec",
+    "streamAndJsonAgree": true,
+    "callIdPreserved": true,
+    "actualToolExecution": false,
+    "paidProviderRequests": 0
+  },
+  "productionSyntheticValidation": {
+    "actualFailedRequestInventoryRecognized": true,
+    "inventoryToolCount": 13,
+    "sseAndJsonAgree": true,
+    "callIdPreserved": true,
+    "actualToolExecution": false,
+    "privateTaskReplayed": false
+  },
+  "officialClientGui": "NOT_RUN",
+  "productionBundleSha256": "112f86916cd34ee6ef30d0eb8ab3af5702c07419d8fba116a6211a6f17e5db8c",
+  "productionBundleMatchesLocal": true
+}

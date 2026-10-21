@@ -22,6 +22,7 @@ import { requestContext,requestCounts,requestMilestone,requestNativeMetrics } fr
 import { nextContinuationState, pendingContinuation } from './tool-continuation.js';
 import { chooseInstance,catalogPresentation,responsesProfile,instanceHealthAfterResult,instanceHealthAfterFailure } from './instance-router.js';
 import { nativeReasoning, validateNativeRequest,nativeFailedEvent,nativeToolBoundary } from './native-responses.js';
+import { DeepSeekToolRepair } from './deepseek-tool-repair.js';
 import { NativeTimeoutError } from './native-timeouts.js';
 import { once } from 'node:events';
 import { encryptSecret, decryptSecret } from './security.js';
@@ -161,6 +162,7 @@ export async function registerGateway(app: FastifyInstance) {
     let observedTextDelta = false;
     let upstreamAttempted = false;
     let costObservation:Awaited<ReturnType<typeof beginCostObservation>>|null=null;
+    const toolRepair = new DeepSeekToolRepair(body, profile, data => recordFlight(req,'tool_call_repaired',data));
     reply.raw.on('close', () => {
       if (!ended && !reply.raw.writableEnded) {
         failFlight(req,'client_disconnected','CLIENT_DISCONNECTED');
@@ -201,8 +203,9 @@ export async function registerGateway(app: FastifyInstance) {
           if(item.type==='function_call'&&typeof item.name==='string'){
             const name=item.name,declared=(body.tools??[]).filter(t=>t.type==='function'||t.type==='custom').map(t=>String(t.name));
             const exact=declared.filter(alias=>alias===name),candidates=exact.length?exact:declared.filter(alias=>alias.endsWith('__'+name));
-            recordFlight(req,'tool_binding_audit',{returnedName:name,declaredNames:declared,candidates,unique:candidates.length===1});
-            if(candidates.length!==1)failFlight(req,'tool_binding_audit',candidates.length?'MODEL_TOOL_NAME_AMBIGUOUS':'MODEL_TOOL_NAME_UNDECLARED');
+            const repairPending=toolRepair.candidate(item);
+            recordFlight(req,'tool_binding_audit',{returnedName:name,declaredNames:declared,candidates,unique:candidates.length===1,repairPending});
+            if(candidates.length!==1&&!repairPending)failFlight(req,'tool_binding_audit',candidates.length?'MODEL_TOOL_NAME_AMBIGUOUS':'MODEL_TOOL_NAME_UNDECLARED');
           }
         }
         if(type==='response.failed'||type==='response.incomplete'||type==='error')failFlight(req,'upstream_event',type);
@@ -210,20 +213,25 @@ export async function registerGateway(app: FastifyInstance) {
         if(type==='response.output_text.delta'||type==='response.reasoning_text.delta')requestMilestone(req,'relayFirstText');
         if(type==='response.function_call_arguments.done'||type==='response.custom_tool_call_input.done')requestMilestone(req,'relayToolArgumentsDone');
         observedTextDelta = true; // Even reasoning/tool events prove upstream execution; missing usage must be reviewed.
-        const rewritten = { ...event, ...(event.response_id ? {response_id:responseId}:{}),
-          ...(event.response && typeof event.response==='object' ? {response:{...event.response as Record<string,unknown>, id:responseId, model:body.model}}:{}) };
-        if (!reply.raw.destroyed && !reply.raw.writableEnded) {
-          const ok = reply.raw.write(`event: ${type}\ndata: ${JSON.stringify(rewritten)}\n\n`);
-          if (!ok) await once(reply.raw,'drain',{signal:eventSignal??controller.signal});
+        for (const translated of toolRepair.events(type,event)) {
+          const event = toolRepair.relay(translated.event);
+          const rewritten = { ...event, ...(event.response_id ? {response_id:responseId}:{}),
+            ...(event.response && typeof event.response==='object' ? {response:{...event.response as Record<string,unknown>, id:responseId, model:body.model}}:{}) };
+          if (!reply.raw.destroyed && !reply.raw.writableEnded) {
+            const ok = reply.raw.write(`event: ${translated.type}\ndata: ${JSON.stringify(rewritten)}\n\n`);
+            if (!ok) await once(reply.raw,'drain',{signal:eventSignal??controller.signal});
+          }
         }
       };
       upstreamAttempted = true;
       requestMilestone(req,'upstreamStarted');requestCounts(req,{upstreamAttemptCount:1});
-      const result = native && adapter.executeNative
+      let result = native && adapter.executeNative
         ? await adapter.executeNative(body,ent.model.providerModelId,controller.signal,body.stream?onNativeEvent:undefined)
         : !connection && existing?.modelId === ent.model.id && existing.providerSessionId
         ? await adapter.resumeSession(body, ent.model.providerModelId, existing.providerSessionId, controller.signal, onTextDelta)
         : await adapter.createResponse(body, ent.model.providerModelId, controller.signal, onTextDelta);
+      observedResult = result;
+      result = toolRepair.result(result);
       observedResult = result;
       requestNativeMetrics(req,(result as CanonicalResult&{nativeMetrics?:Record<string,number>}).nativeMetrics);
       requestContext(req,{terminalStatus:result.status??'completed'});
@@ -267,7 +275,7 @@ export async function registerGateway(app: FastifyInstance) {
       if (copilotStreamOpened) {
         if (!reply.raw.destroyed && !reply.raw.writableEnded) {
           if (native) {
-            writeEvent(reply.raw, result.nativeTerminalEvent ?? `response.${response.status}`, {...result.nativeTerminalData,response});
+            writeEvent(reply.raw, result.nativeTerminalEvent ?? `response.${response.status}`, toolRepair.relay({...result.nativeTerminalData,response}));
             ended = true; reply.raw.end(); return;
           }
           result.output.forEach((item, index) => {
@@ -330,7 +338,7 @@ export async function registerGateway(app: FastifyInstance) {
         errorCode: failure.code, durationMs: Date.now() - started, completedAt: new Date() }).where(eq(usageRecords.id, record.id));
       if (copilotStreamOpened) {
         if (!reply.raw.destroyed && !reply.raw.writableEnded) {
-          writeEvent(reply.raw, 'response.failed',nativeFailedEvent(responseId,body.model,failure,v2RequestId??req.id));
+          writeEvent(reply.raw, 'response.failed',toolRepair.relay(nativeFailedEvent(responseId,body.model,failure,v2RequestId??req.id)));
           reply.raw.write('data: [DONE]\n\n');
           ended = true;
           reply.raw.end();
