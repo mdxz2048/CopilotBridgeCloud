@@ -14,11 +14,12 @@ const command = z.strictObject({
   sandbox_permissions: z.enum(['use_default', 'require_escalated']).optional(), shell: z.string().optional(),
   tty: z.boolean().optional(), workdir: z.string().optional(), yield_time_ms: z.number().optional(),
 });
+const wrapperArguments = z.strictObject({ input: z.string().min(1) });
 // A versioned recognition guard, not permission to expose methods found in history.
 const signature = `cmd:string;justification?:string;login?:boolean;max_output_tokens?:number;prefix_rule?:Array<string>;sandbox_permissions?:"use_default"|"require_escalated";shell?:string;tty?:boolean;workdir?:string;yield_time_ms?:number;`;
 const invalid = () => new ApiError(502, 'PROTOCOL_INVALID', '模型返回的内部命令工具调用无法安全转换，请重试本轮请求。');
 
-/** Repackage one known misplaced nested method. Never executes tools or retries a POST. */
+/** Repair a known misplaced method or wrapper name. Never executes tools or retries a POST. */
 export class DeepSeekToolRepair {
   private readonly enabled: boolean;
   private readonly pending = new Map<string, Pending>();
@@ -43,7 +44,8 @@ export class DeepSeekToolRepair {
     if (typeof item.call_id !== 'string' || !item.call_id || typeof item.arguments !== 'string' || Buffer.byteLength(item.arguments) > LIMIT) throw invalid();
     let args: unknown;
     try { args = JSON.parse(item.arguments); } catch { throw invalid(); }
-    if (!command.safeParse(args).success) throw invalid();
+    const isWrapper = wrapperArguments.safeParse(args).success;
+    if (!isWrapper && !command.safeParse(args).success) throw invalid();
     const canonical = JSON.stringify(args), cached = this.repaired.get(item.call_id);
     if (cached) {
       if (cached.canonical !== canonical || cached.item.id !== item.id) throw invalid();
@@ -51,10 +53,13 @@ export class DeepSeekToolRepair {
     }
     // JSON.parse of a string literal preserves JSON keys (including __proto__) and
     // prevents shell text, backticks or ${...} from becoming JavaScript source.
+    // Some responses already contain the declared wrapper's exact {input} shape
+    // but carry the nested method's name. Preserve that source verbatim; wrapping
+    // it again would pass JavaScript as shell arguments instead of restoring it.
     const input = `text(await tools.exec_command(JSON.parse(${JSON.stringify(canonical)})));`;
-    const output = { ...item, name: 'functions__exec', arguments: JSON.stringify({ input }) };
+    const output = { ...item, name: 'functions__exec', arguments: isWrapper ? item.arguments : JSON.stringify({ input }) };
     this.repaired.set(item.call_id, { canonical, item: output });
-    this.audit({ from: 'exec_command', to: 'functions__exec', callId: item.call_id, itemId: item.id, argumentKeys: Object.keys(args as object) });
+    this.audit({ from: 'exec_command', to: 'functions__exec', mode: isWrapper ? 'wrapper_name' : 'nested_command', callId: item.call_id, itemId: item.id, argumentKeys: Object.keys(args as object) });
     return output;
   }
   private keys(event: Item) {

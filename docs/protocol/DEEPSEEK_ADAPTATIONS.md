@@ -75,3 +75,13 @@ API 新增每请求独立的 `DeepSeekToolRepair`，仅同时满足以下条件�
 验证：API 178 项单元测试通过、70 项数据库用例在普通运行跳过；类型检查及构建通过。独立 PostgreSQL 的新签名网关测试和既有原生续接/计费测试均通过，覆盖 SSE、JSON、缓存续接、调用关联、三次真实数据库结算与钱包对账；数据库及测试容器已清理。当前编译 App 的 normalize / stream translator / terminal output 还原合成调用通过，没有执行命令。
 
 扩展 PostgreSQL 运行 29 项通过、1 项旧安装包保留数量断言失败（v2.db.test.ts 的 release 清理测试）；未修改的生产基线镜像在全新独立数据库上同样复现该失败。本次不修改发布生命周期，也不把该项记作通过。上述均非官方 GUI 任务验收，没有重放私人任务或额外付费生成。部署记录见 `docs/acceptance/deepseek-tool-repair-20261021.json`。
+
+## 2026-10-22：修复已带包装器参数但名称错误的调用
+
+北京时间 14:40，0.3.27 / DeepSeek Flash 产生新失败。上次修复已识别该调用（`repairPending: true`），但上游实际返回 `exec_command` 名称和精确的 `{input: string}` 参数，而非内部命令的 `{cmd: string}`。旧转换器按命令 schema 拒绝 input，抛出 PROTOCOL_INVALID，客户端随后显示 stream disconnected；不是网络中断，也不是旧补丁未部署。
+
+在原有 profile、当前工具声明、唯一包装器和版本签名限制内，增加严格 `{input: 非空字符串}` 分支，只恢复名称 `functions__exec`，逐字保留原始参数 JSON 和 JavaScript。不会把 input 再包进 exec_command，也不将其作为 shell 命令执行。混合 cmd/input、额外字段、类型错误、超限、未声明或有歧义工具仍拒绝。新增诊断 mode 区分 `wrapper_name` 和 `nested_command`，不记录代码正文。
+
+API 179 项非数据库测试、类型检查和构建通过。独立 PostgreSQL 定向验证 3 项通过（其余 28 项按筛选跳过），覆盖两种修复的 SSE/JSON/续接、历史和单次结算；测试库及容器已清理。部署后在生产容器内读取加密故障快照，只重放转换器：1,438 个已记录事件通过，2,335 字节原始参数完整保留。因故障快照在参数完成时中止，测试补入 item.done 和成功结果检查；没有重发私人任务、执行原脚本或调用付费模型。该证据不等同官方 GUI 端到端任务验收。
+
+仅更新 API，客户端无须更新。部署和脱敏验收记录见 `docs/acceptance/deepseek-tool-repair-20261022.json`。

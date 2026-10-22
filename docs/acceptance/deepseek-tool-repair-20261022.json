@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-22",
+  "deployed": true,
+  "apiImage": "sha256:fd2b99053be0b6e377492428f56b153a6110e3d3ed795b8f7e90d19a33d25bb7",
+  "previousApiImage": "sha256:449ee3c368d8bd84eac36828bf6d672972acb98b7f3568705b45033c53e74515",
+  "sourceSha256": "f241a6d19800caa21bc9992b63cef9792d692ca4cfaec50c0fedd66ea352f390",
+  "otherServiceImagesUnchanged": true,
+  "health": "ok",
+  "clientVersionObserved": "0.3.27",
+  "clientUpdateRequired": false,
+  "databaseMigration": false,
+  "cause": "Misnamed exec_command call already carried strict wrapper input; existing command schema rejected it",
+  "unitTests": { "passed": 179, "databaseSkipped": 71 },
+  "typecheck": "PASS",
+  "build": "PASS",
+  "isolatedDatabase": {
+    "targetedPassed": 3,
+    "otherTestsFilteredOut": 28,
+    "bothRepairModesSignedGateway": "PASS",
+    "nativeContinuationAndBilling": "PASS",
+    "temporaryDatabaseAndContainerCleaned": true
+  },
+  "productionSnapshotReplay": {
+    "requestId": "2f58c935-5b5b-4f52-9901-ace7f3f13198",
+    "result": "PASS",
+    "argumentKeys": ["input"],
+    "argumentBytes": 2335,
+    "argumentSha256": "de7c1434204fc65aee0acc30d76afdb8de39b03e21c37658ad4cd1608025fa1f",
+    "upstreamEventsReplayed": 1438,
+    "sourcePreserved": true,
+    "sseAndJsonAgree": true,
+    "callIdPreserved": true,
+    "syntheticTerminalAdded": true
+  },
+  "privateToolExecution": false,
+  "privateTaskSentToProvider": false,
+  "paidProviderRequests": 0,
+  "officialClientGui": "NOT_RUN"
+}

@@ -18,6 +18,21 @@ const added = (item=call(),index=0) => ({type:'response.output_item.added',respo
 const done = (item=call(),index=0) => ({type:'response.output_item.done',response_id:'resp_fixture',output_index:index,item});
 
 describe('DeepSeek nested command repair',()=>{
+  it('restores a mislabeled wrapper without changing or executing its JavaScript',()=>{
+    const input='// 中文 😀\nconst args = {cmd: "echo `literal` ${literal}"};\ntext(await tools.exec_command(args));';
+    const item={...call(1,{input}),arguments:JSON.stringify({input},null,2)};
+    const audit=vi.fn(),repair=new DeepSeekToolRepair(request,'deepseek',audit);
+    repair.events('response.output_item.added',added(item));
+    for(const delta of item.arguments)repair.events('response.function_call_arguments.delta',{item_id:item.id,delta});
+    const events=repair.events('response.function_call_arguments.done',{item_id:item.id,arguments:item.arguments});
+    const final=repair.events('response.output_item.done',done(item))[0];
+    const fixed=repair.result(result([item])).output[0];
+    expect(fixed).toEqual({...item,name:'functions__exec'});
+    expect(final.event.item).toEqual(fixed);expect(events[1].event.delta).toBe(item.arguments);
+    expect(JSON.parse(String(fixed.arguments)).input).toBe(input);
+    expect(audit).toHaveBeenCalledTimes(1);expect(audit.mock.calls[0][0].mode).toBe('wrapper_name');
+    expect(JSON.stringify(audit.mock.calls)).not.toContain(input);
+  });
   it('keeps arguments literal, IDs and usage unchanged and invokes only the existing wrapper method',async()=>{
     const args={cmd:'echo `backtick` $(test) ${injected} "quote" \\path\nnext',workdir:'C:\\synthetic',shell:'powershell',login:false,tty:true,max_output_tokens:500,yield_time_ms:10000,justification:'fixture',sandbox_permissions:'use_default',prefix_rule:['echo']};
     const audit=vi.fn(),repair=new DeepSeekToolRepair(request,'deepseek',audit),original=result([call(1,args)]),before=JSON.stringify(original);
@@ -56,7 +71,7 @@ describe('DeepSeek nested command repair',()=>{
     const unknown={...call(),name:'delete_everything'};expect(new DeepSeekToolRepair(request,'deepseek').result(result([unknown])).output[0]).toEqual(unknown);
   });
   it('rejects malformed JSON, extra fields, invalid field types and oversized input without executing anything',()=>{
-    for(const args of [{},{cmd:4},{cmd:''},{cmd:'fixture',unknown:true},{cmd:'fixture',tty:'true'},{cmd:'fixture',prefix_rule:[1]},{cmd:'fixture',sandbox_permissions:'always'},[],null,JSON.parse('{"cmd":"fixture","__proto__":{}}')]){
+    for(const args of [{},{cmd:4},{cmd:''},{cmd:'fixture',unknown:true},{cmd:'fixture',tty:'true'},{cmd:'fixture',prefix_rule:[1]},{cmd:'fixture',sandbox_permissions:'always'},{input:4},{input:''},{input:'text(1)',cmd:'echo mixed'},{input:'text(1)',unknown:true},[],null,JSON.parse('{"cmd":"fixture","__proto__":{}}'),JSON.parse('{"input":"text(1)","__proto__":{}}')]){
       expect(()=>new DeepSeekToolRepair(request,'deepseek').result(result([call(1,args)]))).toThrow('无法安全转换');
     }
     for(const arguments_ of ['not json','{"cmd":','x'.repeat(1024*1024+1)])expect(()=>new DeepSeekToolRepair(request,'deepseek').result(result([{...call(),arguments:arguments_}]))).toThrow();

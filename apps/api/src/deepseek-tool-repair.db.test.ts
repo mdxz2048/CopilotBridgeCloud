@@ -38,9 +38,10 @@ shell?: string; tty?: boolean; workdir?: string; yield_time_ms?: number;
     const dpop=await new SignJWT({htm:'POST',htu:origin+'/v1/responses',iat:Math.floor(Date.now()/1000),jti:randomUUID(),ath:hash(token),bth:hash(JSON.stringify(payload))}).setProtectedHeader({typ:'dpop+jwt',alg:'ES256',jwk}).sign(key.privateKey);
     return app.inject({method:'POST',url:'/v1/responses',payload,headers:{host:'localhost:3001',authorization:`Bearer ${token}`,'x-device-id':deviceId,'x-client-thread-id':thread,dpop}});
   }
-  it('repairs SSE and JSON, settles real usage once, saves repaired history and continues with the same call ID',async()=>{
+  it.each(['nested_command','wrapper_name'])('repairs %s SSE and JSON, settles usage once and continues with the same call ID',async mode=>{
     let posts=0;
-    const call={id:'fc_fixture',type:'function_call',call_id:'call_fixture',name:'exec_command',arguments:JSON.stringify({cmd:'echo synthetic',yield_time_ms:10000}),status:'completed'};
+    const input='text(await tools.exec_command({cmd:"echo synthetic",yield_time_ms:10000}));';
+    const call={id:'fc_fixture',type:'function_call',call_id:'call_fixture',name:'exec_command',arguments:JSON.stringify(mode==='wrapper_name'?{input}:{cmd:'echo synthetic',yield_time_ms:10000}),status:'completed'};
     vi.stubGlobal('fetch',vi.fn(async(url,init)=>{
       if(String(url).endsWith('/user/balance'))return Response.json({is_available:true,balance_infos:[{currency:'CNY',total_balance:'100',granted_balance:'0',topped_up_balance:'100'}]});
       expect(String(url)).toBe('https://repair.example/responses');posts++;const body=JSON.parse(init.body);
@@ -67,7 +68,10 @@ shell?: string; tty?: boolean; workdir?: string; yield_time_ms?: number;
     const second=await post([{type:'function_call_output',call_id:'call_1',output:'synthetic result'}],false,terminal.response.id);expect(second.statusCode,second.body).toBe(200);
     expect(second.json().status).toBe('completed');
     const third=await post([{type:'message',role:'user',content:'new synthetic command'}],false,second.json().id);expect(third.statusCode,third.body).toBe(200);expect(third.json().output[0].name).toBe('functions__exec');
-    expect(posts).toBe(3);const usage=await data.db.select().from(data.usageEvents).where(eq(data.usageEvents.userId,userId));expect(usage).toHaveLength(3);expect(usage.every(u=>u.billingStatus==='SETTLED'&&u.inputTokens===20&&u.outputTokens===8)).toBe(true);
+    if(mode==='wrapper_name'){expect(fixed.arguments).toBe(call.arguments);expect(third.json().output[0].arguments).toBe(call.arguments);}
+    expect(posts).toBe(3);const allUsage=await data.db.select().from(data.usageEvents).where(eq(data.usageEvents.userId,userId));
+    const ids=new Set([first.headers['x-bridge-ai-request-id'],second.headers['x-bridge-ai-request-id'],third.headers['x-bridge-ai-request-id']]);
+    const usage=allUsage.filter(u=>ids.has(u.requestId));expect(usage).toHaveLength(3);expect(usage.every(u=>u.billingStatus==='SETTLED'&&u.inputTokens===20&&u.outputTokens===8)).toBe(true);
     expect(before-(await wallet.walletSummary(userId)).balance).toBe(usage.reduce((n,u)=>n+u.pointsCharged,0));
     const requests=await data.db.select().from(data.aiRequests).where(eq(data.aiRequests.userId,userId));expect(requests.every(r=>r.status==='COMPLETED')).toBe(true);
   });
