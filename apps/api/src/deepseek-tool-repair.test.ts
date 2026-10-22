@@ -18,6 +18,27 @@ const added = (item=call(),index=0) => ({type:'response.output_item.added',respo
 const done = (item=call(),index=0) => ({type:'response.output_item.done',response_id:'resp_fixture',output_index:index,item});
 
 describe('DeepSeek nested command repair',()=>{
+  it.each(['exec','functions__exec'])('withholds invalid %s calls and records only rejection metadata',name=>{
+    for(const args of [{},{input:''},{input:'   \n'},{input:3},{code:'text(1)'},{input:'text(1)',cmd:'echo mixed'}]){
+      const rejected=vi.fn(),repair=new DeepSeekToolRepair(request,'deepseek',vi.fn(),rejected);
+      const item={...call(1,args),name};expect(repair.events('response.output_item.added',added(item))).toEqual([]);
+      expect(repair.events('response.function_call_arguments.delta',{item_id:item.id,delta:item.arguments})).toEqual([]);
+      expect(repair.events('response.function_call_arguments.done',{item_id:item.id,arguments:item.arguments})).toEqual([]);
+      expect(repair.events('response.output_item.done',done(item))).toEqual([]);
+      expect(()=>repair.result(result([item]))).toThrow('工具未执行');
+      expect(rejected).toHaveBeenCalledWith({name,callId:item.call_id,itemId:item.id,reason:'INVALID_ARGUMENTS'});
+      expect(JSON.stringify(rejected.mock.calls)).not.toContain('text(1)');
+      expect(()=>new DeepSeekToolRepair(request,'deepseek').result(result([item]))).toThrow('工具未执行');
+    }
+  });
+  it('preserves valid wrapper sources and parallel calls while refusing ambiguous short names',()=>{
+    const a={...call(1,{input:'text(1);'}),name:'exec'},b={...call(2,{input:'text(2);'}),name:'functions__exec'};
+    const repair=new DeepSeekToolRepair(request,'deepseek');repair.events('response.output_item.added',added(a));repair.events('response.output_item.added',added(b,1));
+    const second=repair.events('response.output_item.done',done(b,1));const first=repair.events('response.output_item.done',done(a));
+    expect(second.at(-1)?.event.item).toEqual(b);expect(first.at(-1)?.event.item).toEqual(a);expect(repair.result(result([a,b])).output).toEqual([a,b]);
+    const ambiguous=new DeepSeekToolRepair({...request,tools:[wrapper,{type:'function',name:'another__exec',parameters:{type:'object'}}]},'deepseek');
+    const empty={...a,arguments:'{}'};expect(ambiguous.candidate(empty)).toBe(false);expect(ambiguous.result(result([empty])).output[0]).toBe(empty);
+  });
   it('restores a mislabeled wrapper without changing or executing its JavaScript',()=>{
     const input='// 中文 😀\nconst args = {cmd: "echo `literal` ${literal}"};\ntext(await tools.exec_command(args));';
     const item={...call(1,{input}),arguments:JSON.stringify({input},null,2)};
@@ -89,7 +110,7 @@ describe('DeepSeek nested command repair',()=>{
     const repair=new DeepSeekToolRepair(request,'deepseek');const text={type:'response.output_text.delta',delta:'fixture'};expect(repair.events(text.type,text)).toEqual([{type:text.type,event:text}]);
     const normal={...call(),name:'functions__exec',arguments:'{"input":"text(1)"}'};expect(repair.result(result([normal])).output[0]).toBe(normal);
     const failed={...result([]),status:'failed' as const,nativeTerminalEvent:'response.failed'};expect(repair.result(failed)).toEqual(failed);
-    const fixed=repair.result(result([call()]));const input=[...fixed.output,{type:'function_call_output',call_id:'call_1',output:'synthetic'}];expect(input[0].call_id).toBe(input[1].call_id);
+    const fixed=new DeepSeekToolRepair(request,'deepseek').result(result([call()]));const input=[...fixed.output,{type:'function_call_output',call_id:'call_1',output:'synthetic'}];expect(input[0].call_id).toBe(input[1].call_id);
   });
   it('numbers relayed interleaved events and the terminal monotonically while leaving OpenAI untouched',()=>{
     const repair=new DeepSeekToolRepair(request,'deepseek');const messages:Record<string,unknown>[]=[];

@@ -12,7 +12,7 @@ describe('DeepSeek desktop wrapper boundary',()=>{
     const request={model:'logical',input,tools:[execWrapper,{type:'function',name:'functions__wait',parameters:{type:'object'}}],instructions:'Keep the original task policy.',stream:true};const original=JSON.stringify(request);
     vi.stubGlobal('fetch',vi.fn(async(_url,init)=>{
       const body=JSON.parse(init.body);expect(body.input).toEqual(input);expect(body.instructions).toContain(request.instructions);expect(body.instructions).toContain('["functions__exec","functions__wait"]');
-      expect(body.instructions).toContain('unless that exact name is separately declared');expect(body.tools[0].parameters).toEqual(execWrapper.parameters);expect(body.tools[0].description).toContain('TOP-LEVEL ENTRY POINT');expect(body.tools[1]).toEqual(request.tools[1]);
+      expect(body.instructions).toContain('unless that exact name is separately declared');expect(body.tools[0].parameters).toEqual(execWrapper.parameters);expect(body.tools[0].strict).toBe(true);expect(body.instructions).toContain('Never emit an empty object');expect(body.tools[0].description).toContain('TOP-LEVEL ENTRY POINT');expect(body.tools[1]).toEqual(request.tools[1]);
       const example=JSON.parse(body.instructions.split('Example wrapper arguments: ')[1].split('. Use the command required')[0]);expect(example.input).toBe('text(await tools.exec_command({cmd: "echo bridge_probe"}));');
       return new Response(`data: ${JSON.stringify({type:'response.completed',response:terminal})}\n\n`);
     }));

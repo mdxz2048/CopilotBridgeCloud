@@ -45,6 +45,7 @@ shell?: string; tty?: boolean; workdir?: string; yield_time_ms?: number;
     vi.stubGlobal('fetch',vi.fn(async(url,init)=>{
       if(String(url).endsWith('/user/balance'))return Response.json({is_available:true,balance_infos:[{currency:'CNY',total_balance:'100',granted_balance:'0',topped_up_balance:'100'}]});
       expect(String(url)).toBe('https://repair.example/responses');posts++;const body=JSON.parse(init.body);
+      expect(body.tools[0].strict).toBe(true);
       const output:Record<string,unknown>[]=posts===2?[{type:'message',role:'assistant',content:[{type:'output_text',text:'synthetic complete'}]}]:[{...call,id:`fc_${posts}`,call_id:`call_${posts}`}];
       if(posts===2){const old=body.input.find((i:Record<string,unknown>)=>i.call_id==='call_1'&&i.type==='function_call');expect(old.name).toBe('functions__exec');expect(JSON.parse(old.arguments).input).toContain('tools.exec_command');expect(body.input.some((i:Record<string,unknown>)=>i.type==='function_call_output'&&i.call_id==='call_1')).toBe(true);}
       const response={id:`upstream_${posts}`,status:'completed',output,usage:{input_tokens:20,output_tokens:8}};
@@ -74,5 +75,29 @@ shell?: string; tty?: boolean; workdir?: string; yield_time_ms?: number;
     const usage=allUsage.filter(u=>ids.has(u.requestId));expect(usage).toHaveLength(3);expect(usage.every(u=>u.billingStatus==='SETTLED'&&u.inputTokens===20&&u.outputTokens===8)).toBe(true);
     expect(before-(await wallet.walletSummary(userId)).balance).toBe(usage.reduce((n,u)=>n+u.pointsCharged,0));
     const requests=await data.db.select().from(data.aiRequests).where(eq(data.aiRequests.userId,userId));expect(requests.every(r=>r.status==='COMPLETED')).toBe(true);
+  });
+  it('fails empty wrapper SSE before releasing a tool call, with one upstream POST and no successful terminal',async()=>{
+    let posts=0;
+    vi.stubGlobal('fetch',vi.fn(async(url,init)=>{
+      if(String(url).endsWith('/user/balance'))return Response.json({is_available:true,balance_infos:[{currency:'CNY',total_balance:'100',granted_balance:'0',topped_up_balance:'100'}]});
+      posts++;const body=JSON.parse(init.body);expect(body.tools[0].strict).toBe(true);
+      const item={id:'fc_empty',call_id:'call_empty',type:'function_call',name:'exec',arguments:'{}'};
+      return new Response([
+        {type:'response.output_item.added',output_index:1,item:{...item,arguments:''}},
+        {type:'response.function_call_arguments.delta',item_id:item.id,output_index:1,delta:'{}'},
+        {type:'response.function_call_arguments.done',item_id:item.id,output_index:1,arguments:'{}'},
+        {type:'response.output_item.done',output_index:1,item},
+        {type:'response.completed',response:{id:'upstream_empty',status:'completed',output:[item],usage:{input_tokens:20,output_tokens:8}}},
+      ].map(e=>`data: ${JSON.stringify(e)}\n\n`).join(''));
+    }));
+    const response=await post('synthetic empty wrapper',true);expect(response.statusCode).toBe(200);expect(posts).toBe(1);
+    const events=response.body.split(/\n\n/).filter(b=>b.includes('data: {')).map(b=>JSON.parse(b.split('\n').find(l=>l.startsWith('data: '))!.slice(6)));
+    expect(events.some(e=>e.type==='response.output_item.added'||e.type==='response.completed')).toBe(false);
+    expect(events.at(-1)).toMatchObject({type:'response.failed',response:{status:'failed',error:{code:'PROTOCOL_INVALID'}}});
+    expect(response.body).toContain('工具未执行');
+    const [request]=await data.db.select().from(data.aiRequests).where(eq(data.aiRequests.id,String(response.headers['x-bridge-ai-request-id'])));
+    expect(request.status).toBe('PROVIDER_ERROR');
+    const usage=await data.db.select().from(data.usageEvents).where(eq(data.usageEvents.requestId,request.id));
+    expect(usage).toHaveLength(1);expect(usage[0]).toMatchObject({inputTokens:20,outputTokens:8,billingStatus:'SETTLED'});
   });
 });

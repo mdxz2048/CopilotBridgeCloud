@@ -162,7 +162,7 @@ export async function registerGateway(app: FastifyInstance) {
     let observedTextDelta = false;
     let upstreamAttempted = false;
     let costObservation:Awaited<ReturnType<typeof beginCostObservation>>|null=null;
-    const toolRepair = new DeepSeekToolRepair(body, profile, data => recordFlight(req,'tool_call_repaired',data));
+    const toolRepair = new DeepSeekToolRepair(body, profile, data => recordFlight(req,'tool_call_repaired',data), data => recordFlight(req,'tool_call_rejected',data));
     reply.raw.on('close', () => {
       if (!ended && !reply.raw.writableEnded) {
         failFlight(req,'client_disconnected','CLIENT_DISCONNECTED');

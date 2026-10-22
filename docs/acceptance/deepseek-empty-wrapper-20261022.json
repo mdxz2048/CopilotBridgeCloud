@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-22",
+  "observedFailure": {
+    "at": "2026-10-22T07:05:18.540Z",
+    "appVersion": "0.3.27",
+    "requestId": "105c6f2e-f6a1-4162-8ef6-f6295c5a57cf",
+    "upstreamRequestId": "83ccc54f-243a-4ed6-8a12-f91122ab0616",
+    "toolName": "exec",
+    "arguments": "{}",
+    "argumentsDoneItemDoneAndResponseAgree": true,
+    "repairAppliedToThisCall": false,
+    "snapshotGaps": ["capacity_eviction"],
+    "cause": "Upstream omitted required wrapper input; Bridge did not lose source"
+  },
+  "rawForwardingProbes": [
+    {"shape":"official_namespace_custom","http":400,"reason":"custom tools are not allowed inside a namespace"},
+    {"shape":"flat_custom","http":400,"reason":"Only apply_patch is supported"},
+    {"shape":"function_wrapper","http":200,"validInput":true,"inputTokens":332,"outputTokens":38},
+    {"shape":"strict_function_wrapper","http":200,"validInput":true,"inputTokens":332,"outputTokens":38}
+  ],
+  "candidateRealProviderProbes": [
+    {"case":"normal_json","strict":true,"status":"completed","validInput":true,"expectedSource":true,"inputTokens":617,"outputTokens":38},
+    {"case":"normal_sse","strict":true,"status":"completed","validInput":true,"expectedSource":true,"sseAgrees":true,"inputTokens":617,"outputTokens":38},
+    {"case":"thinking_high_25_round_history_sse","strict":true,"status":"completed","validInput":true,"expectedSource":true,"sseAgrees":true,"inputTokens":7036,"outputTokens":62}
+  ],
+  "unitTests":{"passed":182,"databaseSkipped":72},
+  "typecheck":"PASS",
+  "build":"PASS",
+  "isolatedDatabase":{"targetedPassed":4,"otherTestsFilteredOut":28,"emptyCallNotReleased":true,"failureTerminal":true,"upstreamPostCountPerRequest":1,"actualUsageSettledOnce":true,"temporaryDatabaseAndContainerCleaned":true},
+  "automaticUpstreamRetries":false,
+  "privateTaskReplayedToProvider":false,
+  "toolExecutionDuringVerification":false,
+  "officialClientGui":"NOT_RUN",
+  "clientUpdateRequired":false,
+  "databaseMigration":false,
+  "deployment": {
+    "deployed":true,
+    "health":"ok",
+    "apiImage":"sha256:b751c0334101f94b30f3813e1147d1df76943585a0da5beb76c8c36917f17d29",
+    "previousApiImage":"sha256:fd2b99053be0b6e377492428f56b153a6110e3d3ed795b8f7e90d19a33d25bb7",
+    "otherServiceImagesUnchanged":true,
+    "sourceSha256":{
+      "deepseek-tool-repair.ts":"2e22d01257bed07070b41aa6e4a86258a4ea1f9df6715541b52440088e04f34f",
+      "native-responses.ts":"f6d9c711fccc4ce60c0c16250e89fecbe17c2a64b82e596e7cc2d3620b8d3f11",
+      "gateway.ts":"4227bb5966286a15cbe01283277715f2dd289752d74352f4c13a8bbd2b15799d"
+    },
+    "serverBundleSha256":"aec1629b73820bc51dc2acd7b6a48203d76250956394c43a0425088f94b16a23",
+    "bundleMatchesLocal":true
+  },
+  "productionSnapshotReplay":{
+    "result":"PASS",
+    "upstreamEventsReplayed":616,
+    "invalidCallWithheld":true,
+    "terminalFailureExpected":true,
+    "strictEnabled":true,
+    "billableUsageAvailable":true,
+    "inputTokens":131085,
+    "outputTokens":629,
+    "snapshotGaps":["capacity_eviction","capacity_eviction"],
+    "providerRequests":0,
+    "toolExecution":false
+  },
+  "deployedRealProviderProbes":[
+    {"case":"normal_json","strict":true,"status":"completed","validInput":true,"expectedSource":true,"inputTokens":617,"outputTokens":38},
+    {"case":"normal_sse","strict":true,"status":"completed","validInput":true,"expectedSource":true,"sseAgrees":true,"inputTokens":617,"outputTokens":38},
+    {"case":"thinking_high_25_round_history_sse","strict":true,"status":"completed","validInput":true,"expectedSource":true,"sseAgrees":true,"inputTokens":7036,"outputTokens":58},
+    {"case":"thinking_high_large_history_sse","strict":true,"status":"completed","validInput":true,"expectedSource":true,"sseAgrees":true,"inputTokens":102036,"outputTokens":84}
+  ],
+  "verificationProviderRequests":{"rawFormatComparison":4,"candidateProbes":3,"deployedProbes":4,"httpRejectedBeforeGeneration":2,"successfulSyntheticGenerations":9},
+  "limitation":"Small synthetic samples do not establish zero failures; invalid upstream input still fails explicitly and requires retry"
+}

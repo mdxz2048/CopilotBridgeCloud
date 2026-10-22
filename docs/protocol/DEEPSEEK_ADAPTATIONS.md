@@ -85,3 +85,45 @@ API 新增每请求独立的 `DeepSeekToolRepair`，仅同时满足以下条件�
 API 179 项非数据库测试、类型检查和构建通过。独立 PostgreSQL 定向验证 3 项通过（其余 28 项按筛选跳过），覆盖两种修复的 SSE/JSON/续接、历史和单次结算；测试库及容器已清理。部署后在生产容器内读取加密故障快照，只重放转换器：1,438 个已记录事件通过，2,335 字节原始参数完整保留。因故障快照在参数完成时中止，测试补入 item.done 和成功结果检查；没有重发私人任务、执行原脚本或调用付费模型。该证据不等同官方 GUI 端到端任务验收。
 
 仅更新 API，客户端无须更新。部署和脱敏验收记录见 `docs/acceptance/deepseek-tool-repair-20261022.json`。
+
+## 2026-10-22 15:05：空包装器参数的预防与校验
+
+0.3.27 的新失败 `105c6f2e-f6a1-4162-8ef6-f6295c5a57cf` 对应上游请求 `83ccc54f-243a-4ed6-8a12-f91122ab0616`。加密快照中 arguments.done、item.done、最终 response 一致返回名称 `exec` 和参数 `{}`，缺少 input。本次没有触发前述内部命令修复；不是转换丢失脚本。快照有 capacity_eviction 缺失标记，因此只对保留的调用及最终结果作结论，不声称完整历史无缺失。
+
+### 原样转发对照
+
+使用同一线上模型连接直接发出四种合成请求，绕过 Bridge 的请求转换；均未执行模型返回的工具，也未重放私人任务：
+
+| 请求形状 | 上游结果 | 结论 |
+| --- | --- | --- |
+| 官方 namespace 中的 custom exec | HTTP 400，custom tools are not allowed inside a namespace | 当前连接不能原样接收官方工具表 |
+| 展开后的 custom functions__exec | HTTP 400，Only apply_patch is supported | 仅去掉 namespace 仍不够 |
+| function functions__exec，必填 input schema | HTTP 200，完整 input | 当前最小适配格式可用 |
+| 同上并设 strict:true | HTTP 200，完整 input | 当前连接接受 strict 参数 |
+
+两个成功请求各报告 332 输入 / 38 输出 tokens。上述对照验证上游是否接受格式，不是官方 Agent 实际执行验收，也不能由单次成功证明严格约束绝不失效。
+
+### 实现
+
+对已识别的 DeepSeek JavaScript 包装器开启 strict:true，并补充完整非空 input、精确工具名、无工具需求时正常回答的边界说明。保持参数 schema、原任务指令、其他工具和 OpenAI 路径。保留已有两个内部命令修复分支。
+
+在已知版本声明及唯一绑定限制内，服务端同时校验精确包装器名及可唯一绑定的 exec 短名。完整参数到达之前暂存该调用；有效调用的代码原文、ID 和并行关联保持不变。空对象、空白 input、错误类型、额外字段不生成工具事件。记录 `tool_call_rejected`，只含名称、调用 ID、条目 ID 和原因，不包含脚本正文。
+
+遇到无效包装器参数时继续读取上游终止和真实用量，再走已有失败结算，返回 response.failed / PROTOCOL_INVALID，提示工具未执行并重试；没有成功终止。没有自动重发 POST、Agent Loop、伪造脚本或空工具成功。严格约束用于预防，校验用于兜底；如果上游仍给出空参数，本轮仍会明确失败，需要重试。
+
+### 验证
+
+- API 全量非数据库测试 182 项通过；72 项数据库测试在普通运行跳过，不记通过。类型检查和构建通过。
+- 全新独立 PostgreSQL 定向 4 项通过，28 项其他用例被筛选跳过。覆盖两种已有修复、SSE/JSON、续接、钱包对账、空包装器的真实失败终止、无工具事件释放、单次上游 POST、读取完整上游用量并只结算一次。测试数据库及容器已清理。
+- 候选原生 Provider 真实合成调用：normal JSON、normal SSE、25 轮工具历史的 thinking/high SSE 均 completed，工具名为 functions__exec、必填 input 完整、输入脚本符合固定合成目标、SSE 与最终结果一致。分别报告 617/38、617/38、7036/62 输入/输出 tokens。未执行任何工具。
+- 生产部署、保留故障快照的本地转换器回放、部署后真实合成调用等最终证据见 `docs/acceptance/deepseek-empty-wrapper-20261022.json`。实际官方 GUI 任务未验证；这些小样本不能量化线上故障率或承诺零失败。
+
+API-only 更新，没有客户端安装包变更、数据库迁移或共享契约变更。
+
+### 空参数补丁部署验收
+
+已部署 API 镜像 `sha256:b751c0334101f94b30f3813e1147d1df76943585a0da5beb76c8c36917f17d29`，health 为 ok，Web/PostgreSQL/Caddy 镜像不变。线上 server.js 与本地构建 SHA256 一致：`aec1629b73820bc51dc2acd7b6a48203d76250956394c43a0425088f94b16a23`。
+
+生产容器内重放该故障快照保留的 616 个事件：空调用未释放，终止校验明确失败，原响应的 131,085 输入 / 629 输出 tokens 可用于结算。快照的两个 capacity_eviction 标记如实保留，没有声称补全丢失记录；回放未向供应商发请求，也未执行原脚本。
+
+部署后再运行 normal JSON、normal SSE、25 轮 thinking/high SSE：均 completed、input 完整且符合合成目标，流式参数与最终输出一致；分别报告 617/38、617/38、7036/58 输入/输出 tokens。额外 large-history thinking/high SSE 报告 102,036 输入 / 84 输出 tokens，也完成相同检查。上述候选与部署后的 7 次生成、原样格式对照的 2 次成功生成均为合成任务；2 次原样格式请求被上游 HTTP 400 拒绝。实际官方 GUI 任务未运行，不承诺模型永不再次违反约束。

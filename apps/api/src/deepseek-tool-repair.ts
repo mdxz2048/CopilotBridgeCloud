@@ -14,7 +14,7 @@ const command = z.strictObject({
   sandbox_permissions: z.enum(['use_default', 'require_escalated']).optional(), shell: z.string().optional(),
   tty: z.boolean().optional(), workdir: z.string().optional(), yield_time_ms: z.number().optional(),
 });
-const wrapperArguments = z.strictObject({ input: z.string().min(1) });
+const wrapperArguments = z.strictObject({ input: z.string().refine(value => value.trim().length > 0) });
 // A versioned recognition guard, not permission to expose methods found in history.
 const signature = `cmd:string;justification?:string;login?:boolean;max_output_tokens?:number;prefix_rule?:Array<string>;sandbox_permissions?:"use_default"|"require_escalated";shell?:string;tty?:boolean;workdir?:string;yield_time_ms?:number;`;
 const invalid = () => new ApiError(502, 'PROTOCOL_INVALID', '模型返回的内部命令工具调用无法安全转换，请重试本轮请求。');
@@ -22,30 +22,45 @@ const invalid = () => new ApiError(502, 'PROTOCOL_INVALID', '模型返回的内�
 /** Repair a known misplaced method or wrapper name. Never executes tools or retries a POST. */
 export class DeepSeekToolRepair {
   private readonly enabled: boolean;
+  private readonly declaredNames: string[];
   private readonly pending = new Map<string, Pending>();
   private readonly calls = new Set<Pending>();
   private readonly repaired = new Map<string, { canonical: string; item: Item }>();
+  private deferredFailure?: ApiError;
   private sequence = 0;
-  constructor(request: CanonicalRequest, profile: ResponsesProfile, private readonly audit: (data: Item) => void = () => {}) {
+  constructor(request: CanonicalRequest, profile: ResponsesProfile, private readonly audit: (data: Item) => void = () => {}, private readonly rejected: (data: Item) => void = () => {}) {
     const tools = nativeToolBoundary(request, profile).tools;
     const wrappers = tools?.filter(t => t.name === 'functions__exec') ?? [];
     const declaration = String(wrappers[0]?.description ?? '').match(/declare const tools: \{ exec_command\(args: \{([\s\S]*?)\}\): Promise</)?.[1];
     const compact = declaration?.replace(/\/\/[^\r\n]*/g, '').replace(/\s/g, '');
     const declared = (request.tools ?? []).filter(t => t.type === 'function' || t.type === 'custom');
+    this.declaredNames = declared.map(t => String(t.name));
     this.enabled = profile === 'deepseek' && wrappers.length === 1 && compact === signature &&
       !declared.some(t => t.name === 'exec_command' || String(t.name).endsWith('__exec_command'));
   }
-  candidate(item: Item) { return this.enabled && item.type === 'function_call' && item.name === 'exec_command'; }
+  private wrapper(item: Item) {
+    const name = String(item.name);
+    const exact = this.declaredNames.filter(n => n === name);
+    const matches = exact.length ? exact : this.declaredNames.filter(n => n.endsWith('__' + name));
+    return matches.length === 1 && matches[0] === 'functions__exec';
+  }
+  candidate(item: Item) { return this.enabled && item.type === 'function_call' && (item.name === 'exec_command' || this.wrapper(item)); }
+  private invalid(item: Item, reason: string): never {
+    this.rejected({ name: item.name, callId: item.call_id, itemId: item.id, reason });
+    if (this.wrapper(item)) throw new ApiError(502, 'PROTOCOL_INVALID', '模型未返回完整的 JavaScript 工具 input，工具未执行，请重试本轮请求。');
+    throw invalid();
+  }
   // Buffering can reorder call events relative to text and can change their count.
   // Number the relayed stream (including its terminal), never reuse upstream numbers.
   relay(event: Item): Item { return this.enabled ? { ...event, sequence_number: this.sequence++ } : event; }
   private rewrite(item: Item): Item {
     if (!this.candidate(item)) return item;
-    if (typeof item.call_id !== 'string' || !item.call_id || typeof item.arguments !== 'string' || Buffer.byteLength(item.arguments) > LIMIT) throw invalid();
+    if (typeof item.call_id !== 'string' || !item.call_id || typeof item.arguments !== 'string' || Buffer.byteLength(item.arguments) > LIMIT) this.invalid(item, 'INVALID_ENVELOPE');
     let args: unknown;
-    try { args = JSON.parse(item.arguments); } catch { throw invalid(); }
+    try { args = JSON.parse(item.arguments); } catch { this.invalid(item, 'INVALID_JSON'); }
     const isWrapper = wrapperArguments.safeParse(args).success;
-    if (!isWrapper && !command.safeParse(args).success) throw invalid();
+    const isDeclaredWrapper = this.wrapper(item);
+    if (isDeclaredWrapper ? !isWrapper : !isWrapper && !command.safeParse(args).success) this.invalid(item, 'INVALID_ARGUMENTS');
     const canonical = JSON.stringify(args), cached = this.repaired.get(item.call_id);
     if (cached) {
       if (cached.canonical !== canonical || cached.item.id !== item.id) throw invalid();
@@ -57,9 +72,9 @@ export class DeepSeekToolRepair {
     // but carry the nested method's name. Preserve that source verbatim; wrapping
     // it again would pass JavaScript as shell arguments instead of restoring it.
     const input = `text(await tools.exec_command(JSON.parse(${JSON.stringify(canonical)})));`;
-    const output = { ...item, name: 'functions__exec', arguments: isWrapper ? item.arguments : JSON.stringify({ input }) };
+    const output = isDeclaredWrapper ? item : { ...item, name: 'functions__exec', arguments: isWrapper ? item.arguments : JSON.stringify({ input }) };
     this.repaired.set(item.call_id, { canonical, item: output });
-    this.audit({ from: 'exec_command', to: 'functions__exec', mode: isWrapper ? 'wrapper_name' : 'nested_command', callId: item.call_id, itemId: item.id, argumentKeys: Object.keys(args as object) });
+    if (!isDeclaredWrapper) this.audit({ from: 'exec_command', to: 'functions__exec', mode: isWrapper ? 'wrapper_name' : 'nested_command', callId: item.call_id, itemId: item.id, argumentKeys: Object.keys(args as object) });
     return output;
   }
   private keys(event: Item) {
@@ -78,6 +93,15 @@ export class DeepSeekToolRepair {
       { type: 'response.function_call_arguments.done', event: { ...common, type: 'response.function_call_arguments.done', arguments: item.arguments } },
     ];
   }
+  private complete(state: Pending, raw: unknown): Event[] {
+    try { return this.finish(state, raw); } catch (error) {
+      if (!this.wrapper(state.item) || !(error instanceof ApiError)) throw error;
+      // Hold the invalid call, but drain the upstream terminal so the gateway can
+      // settle actual usage before returning failure. Never issue another POST.
+      this.deferredFailure ??= error;
+      return [];
+    }
+  }
   events(type: string, event: Item): Event[] {
     const item = event.item as Item | undefined;
     if (type === 'response.output_item.added' && item && this.candidate(item)) {
@@ -90,20 +114,24 @@ export class DeepSeekToolRepair {
       return [];
     }
     const state = this.keys(event).map(k => this.pending.get(k)).find(Boolean);
+    if (state && this.deferredFailure) return [];
     if (state && type === 'response.function_call_arguments.delta') {
       if (state.emitted || typeof event.delta !== 'string') throw invalid();
       state.raw += event.delta;
       if (Buffer.byteLength(state.raw) > LIMIT) throw invalid();
       return [];
     }
-    if (state && type === 'response.function_call_arguments.done') return this.finish(state, event.arguments ?? state.raw);
+    if (state && type === 'response.function_call_arguments.done') return this.complete(state, event.arguments ?? state.raw);
     if (type === 'response.output_item.done' && item && this.candidate(item)) {
       if (!state || item.call_id !== state.item.call_id || item.id !== state.item.id) throw invalid();
-      return [...this.finish(state, item.arguments), { type, event: { ...event, item: this.rewrite(item) } }];
+      const completed = this.complete(state, item.arguments);
+      if (this.deferredFailure) return [];
+      return [...completed, { type, event: { ...event, item: this.rewrite(item) } }];
     }
     return [{ type, event }];
   }
   result(result: CanonicalResult): CanonicalResult {
+    if (this.deferredFailure) throw this.deferredFailure;
     const output = result.output.map(item => this.rewrite(item));
     if (result.status === 'completed') for (const state of this.calls) {
       if (!state.emitted || !output.some(item => item.call_id === state.item.call_id)) throw invalid();
