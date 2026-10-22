@@ -1,0 +1,32 @@
+{
+  "date":"2026-10-22",
+  "observedFailures":[
+    {"requestId":"df0eab53-6ef8-47c6-866a-73190e999655","status":401,"code":"DEVICE_PROOF_INVALID","requestBytes":622943,"durationMs":44},
+    {"requestId":"70d9518f-04ff-4a85-a847-fbe9dc51cc06","status":401,"code":"DEVICE_PROOF_INVALID","requestBytes":622943,"durationMs":43}
+  ],
+  "modelInvokedForRejectedRequests":false,
+  "accountPollingAndFailureUploadSucceeded":true,
+  "userReportedSameConversationRetryRecovered":true,
+  "historicalRootCause":"UNDETERMINED: previous logs did not distinguish proof rejection reasons",
+  "changes":["bounded reason-only internal diagnostics","public device-proof failure message includes administrator email"],
+  "administratorEmail":"zhipeng2048@gmail.com",
+  "proofPolicyRelaxed":false,
+  "proofTimeWindowSeconds":60,
+  "modelPostAutomaticallyRetried":false,
+  "logsContainCredentialsBodyOrBodyHashes":false,
+  "unitTests":{"passed":187,"databaseSkipped":72},
+  "typecheck":"PASS",
+  "build":"PASS",
+  "isolatedDatabase":{"passed":11,"filteredOut":28,"temporaryDatabaseAndContainerCleaned":true,"actualEmailSent":false},
+  "deployment":{
+    "deployed":true,
+    "apiImage":"sha256:55b03476455e8a85f14e307b5b6343e817b19a4124689472db6ea5fc5eb06905",
+    "previousApiImage":"sha256:b751c0334101f94b30f3813e1147d1df76943585a0da5beb76c8c36917f17d29",
+    "sourceSha256":"0729daa6cdcc669bdf89cf5436d3329d07112210e7e59c8c838f697db4ad695f",
+    "health":"ok",
+    "otherServiceImagesUnchanged":true,
+    "databaseMigration":false
+  },
+  "clientRelease":"0.3.28",
+  "limitation":"Diagnostic improvement is deployed; historical intermittent failure is not claimed fixed without a classified recurrence"
+}
