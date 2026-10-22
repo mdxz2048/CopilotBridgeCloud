@@ -18,6 +18,21 @@ const added = (item=call(),index=0) => ({type:'response.output_item.added',respo
 const done = (item=call(),index=0) => ({type:'response.output_item.done',response_id:'resp_fixture',output_index:index,item});
 
 describe('DeepSeek nested command repair',()=>{
+  it('restores only the exact leaked control frame with intact input and matching recipient',()=>{
+    const input='text(await tools.exec_command({cmd:"echo synthetic"}));';
+    const frame='{"name">functions__exec</｜｜DSML｜｜: '+JSON.stringify({input,recipient_name:'functions.exec'})+'</tool_result>';
+    const item={...call(),name:'exec',arguments:frame},audit=vi.fn(),repair=new DeepSeekToolRepair(request,'deepseek',audit);
+    repair.events('response.output_item.added',added(item));repair.events('response.function_call_arguments.delta',{item_id:item.id,delta:frame});
+    const events=repair.events('response.function_call_arguments.done',{item_id:item.id,arguments:frame});repair.events('response.output_item.done',done(item));
+    const fixed=repair.result(result([item])).output[0];expect(JSON.parse(String(fixed.arguments))).toEqual({input});expect(fixed).toMatchObject({id:item.id,call_id:item.call_id,name:'functions__exec'});expect(events[1].event.delta).toBe(fixed.arguments);expect(audit.mock.calls[0][0].mode).toBe('control_envelope');
+    for(const bad of [frame+'trailing','prefix'+frame,frame.replace('functions.exec','other.exec'),frame.replace('recipient_name','other_field')])expect(()=>new DeepSeekToolRepair(request,'deepseek').result(result([{...item,arguments:bad}]))).toThrow();
+  });
+  it.each([true,false])('recovers one unexecuted call without replaying siblings, valid sibling first: %s',goodFirst=>{
+    const repair=new DeepSeekToolRepair(request,'deepseek'),good={...call(1,{input:'text("already");'}),name:'functions__exec'},bad={...call(2,{}),name:'exec'};
+    for(const item of goodFirst?[good,bad]:[bad,good]){const index=item===good?0:1;repair.events('response.output_item.added',added(item,index));repair.events('response.output_item.done',done(item,index));}
+    expect(()=>repair.result(result([good,bad]))).toThrow();const fixed=repair.recover(result([good,bad]),'text("recovered");');
+    expect(fixed.events.filter(e=>e.type==='response.output_item.added')).toHaveLength(1);expect((fixed.events[0].event.item as Record<string,unknown>).call_id).toBe(bad.call_id);expect(fixed.result.output[0]).toEqual(good);expect(fixed.result.output[1]).toMatchObject({id:bad.id,call_id:bad.call_id,name:'functions__exec'});expect(repair.recoveryTarget()).toBeUndefined();
+  });
   it.each(['exec','functions__exec'])('withholds invalid %s calls and records only rejection metadata',name=>{
     for(const args of [{},{input:''},{input:'   \n'},{input:3},{code:'text(1)'},{input:'text(1)',cmd:'echo mixed'}]){
       const rejected=vi.fn(),repair=new DeepSeekToolRepair(request,'deepseek',vi.fn(),rejected);

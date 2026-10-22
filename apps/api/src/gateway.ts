@@ -23,6 +23,8 @@ import { nextContinuationState, pendingContinuation } from './tool-continuation.
 import { chooseInstance,catalogPresentation,responsesProfile,instanceHealthAfterResult,instanceHealthAfterFailure } from './instance-router.js';
 import { nativeReasoning, validateNativeRequest,nativeFailedEvent,nativeToolBoundary } from './native-responses.js';
 import { DeepSeekToolRepair } from './deepseek-tool-repair.js';
+import {regenerateWrapperInput,regeneratedInput,addRecoveryUsage} from './tool-protocol-recovery.js';
+import {recordProtocolRecovery} from './protocol-recovery-diagnostics.js';
 import { NativeTimeoutError } from './native-timeouts.js';
 import { once } from 'node:events';
 import { encryptSecret, decryptSecret } from './security.js';
@@ -162,7 +164,8 @@ export async function registerGateway(app: FastifyInstance) {
     let observedTextDelta = false;
     let upstreamAttempted = false;
     let costObservation:Awaited<ReturnType<typeof beginCostObservation>>|null=null;
-    const toolRepair = new DeepSeekToolRepair(body, profile, data => recordFlight(req,'tool_call_repaired',data), data => recordFlight(req,'tool_call_rejected',data));
+    const recoveryModes:string[]=[];let protocolAttempts=1;
+    const toolRepair = new DeepSeekToolRepair(body, profile, data => {recoveryModes.push(String(data.mode));recordFlight(req,'tool_call_repaired',data);}, data => recordFlight(req,'tool_call_rejected',data));
     reply.raw.on('close', () => {
       if (!ended && !reply.raw.writableEnded) {
         failFlight(req,'client_disconnected','CLIENT_DISCONNECTED');
@@ -196,6 +199,11 @@ export async function registerGateway(app: FastifyInstance) {
           writeEvent(reply.raw, 'response.output_text.delta', { item_id: `msg_${responseId}`, response_id: responseId, output_index: 0, content_index: 0, delta });
         }
       } : undefined;
+      const relayNativeEvent=async(type:string,original:Record<string,unknown>,eventSignal?:AbortSignal)=>{
+        const event=toolRepair.relay(original);
+        const rewritten={...event,...(event.response_id?{response_id:responseId}:{}),...(event.response&&typeof event.response==='object'?{response:{...event.response as Record<string,unknown>,id:responseId,model:body.model}}:{})};
+        if(!reply.raw.destroyed&&!reply.raw.writableEnded){const ok=reply.raw.write(`event: ${type}\ndata: ${JSON.stringify(rewritten)}\n\n`);if(!ok)await once(reply.raw,'drain',{signal:eventSignal??controller.signal});}
+      };
       const onNativeEvent = async (type:string, event:Record<string,unknown>,eventSignal?:AbortSignal) => {
         recordFlight(req,'upstream_event',{type,event});
         if(profile==='deepseek'&&type==='response.output_item.added'&&event.item&&typeof event.item==='object'){
@@ -214,13 +222,7 @@ export async function registerGateway(app: FastifyInstance) {
         if(type==='response.function_call_arguments.done'||type==='response.custom_tool_call_input.done')requestMilestone(req,'relayToolArgumentsDone');
         observedTextDelta = true; // Even reasoning/tool events prove upstream execution; missing usage must be reviewed.
         for (const translated of toolRepair.events(type,event)) {
-          const event = toolRepair.relay(translated.event);
-          const rewritten = { ...event, ...(event.response_id ? {response_id:responseId}:{}),
-            ...(event.response && typeof event.response==='object' ? {response:{...event.response as Record<string,unknown>, id:responseId, model:body.model}}:{}) };
-          if (!reply.raw.destroyed && !reply.raw.writableEnded) {
-            const ok = reply.raw.write(`event: ${translated.type}\ndata: ${JSON.stringify(rewritten)}\n\n`);
-            if (!ok) await once(reply.raw,'drain',{signal:eventSignal??controller.signal});
-          }
+          await relayNativeEvent(translated.type,translated.event,eventSignal);
         }
       };
       upstreamAttempted = true;
@@ -231,7 +233,19 @@ export async function registerGateway(app: FastifyInstance) {
         ? await adapter.resumeSession(body, ent.model.providerModelId, existing.providerSessionId, controller.signal, onTextDelta)
         : await adapter.createResponse(body, ent.model.providerModelId, controller.signal, onTextDelta);
       observedResult = result;
-      result = toolRepair.result(result);
+      try {result = toolRepair.result(result);} catch(error) {
+        const target=toolRepair.recoveryTarget();
+        if(!native||profile!=='deepseek'||result.status!=='completed'||!target||!adapter.executeNative||controller.signal.aborted)throw error;
+        protocolAttempts=2;requestCounts(req,{upstreamAttemptCount:2});
+        recordFlight(req,'protocol_recovery_attempt',{attempt:1,callId:target.call_id,itemId:target.id});
+        let correction:CanonicalResult;
+        try{correction=await regenerateWrapperInput(adapter,body,ent.model.providerModelId,target,controller.signal);}catch(recoveryError){observedResult={...result,usageUnavailable:true};throw recoveryError;}
+        observedResult=addRecoveryUsage(result,correction);
+        const recovered=toolRepair.recover(result,regeneratedInput(correction));
+        result=addRecoveryUsage(recovered.result,correction);recoveryModes.push('regenerated_input');
+        if(body.stream)for(const event of recovered.events)await relayNativeEvent(event.type,event.event);
+        recordFlight(req,'protocol_recovery_completed',{attempt:1,callId:target.call_id,itemId:target.id});
+      }
       observedResult = result;
       requestNativeMetrics(req,(result as CanonicalResult&{nativeMetrics?:Record<string,number>}).nativeMetrics);
       requestContext(req,{terminalStatus:result.status??'completed'});
@@ -271,6 +285,11 @@ export async function registerGateway(app: FastifyInstance) {
         period_limit_rmb:latestUsage.rmbLimit, period_used_rmb:latestUsage.rmbUsed, money_enabled:latestUsage.moneyEnabled,
         limits:{account_rpm:0,device_rpm:0,plan_rpm:0} });
       recordFlight(req,'response',response);
+      if(recoveryModes.length){
+        const diagnostic={userId:a.user.id,deviceId:a.device!.id,email:a.user.email,appVersion:a.device!.appVersion,requestId:req.id,model:body.model,attempts:protocolAttempts,modes:recoveryModes,durationMs:Date.now()-started};
+        req.log.info({event:'protocol_recovered',requestId:req.id,attempts:protocolAttempts,modes:[...new Set(recoveryModes)],durationMs:diagnostic.durationMs},'tool protocol recovered');
+        void recordProtocolRecovery(diagnostic).catch(()=>req.log.warn({event:'protocol_recovery_diagnostic_failed',requestId:req.id},'could not store recovery diagnostic'));
+      }
       if (!body.stream) { ended = true; return response; }
       if (copilotStreamOpened) {
         if (!reply.raw.destroyed && !reply.raw.writableEnded) {

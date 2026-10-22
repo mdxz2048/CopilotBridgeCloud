@@ -6,7 +6,7 @@ import { ApiError } from './errors.js';
 
 type Item = Record<string, unknown>;
 type Event = { type: string; event: Item };
-type Pending = { added: Item; item: Item; raw: string; emitted?: Item };
+type Pending = { added: Item; item: Item; raw: string; emitted?: Item; failed?: boolean };
 const LIMIT = 1024 * 1024;
 const command = z.strictObject({
   cmd: z.string().min(1), justification: z.string().optional(), login: z.boolean().optional(),
@@ -27,6 +27,7 @@ export class DeepSeekToolRepair {
   private readonly calls = new Set<Pending>();
   private readonly repaired = new Map<string, { canonical: string; item: Item }>();
   private deferredFailure?: ApiError;
+  private readonly broken = new Map<string, Item>();
   private sequence = 0;
   constructor(request: CanonicalRequest, profile: ResponsesProfile, private readonly audit: (data: Item) => void = () => {}, private readonly rejected: (data: Item) => void = () => {}) {
     const tools = nativeToolBoundary(request, profile).tools;
@@ -47,7 +48,7 @@ export class DeepSeekToolRepair {
   candidate(item: Item) { return this.enabled && item.type === 'function_call' && (item.name === 'exec_command' || this.wrapper(item)); }
   private invalid(item: Item, reason: string): never {
     this.rejected({ name: item.name, callId: item.call_id, itemId: item.id, reason });
-    if (this.wrapper(item)) throw new ApiError(502, 'PROTOCOL_INVALID', '模型未返回完整的 JavaScript 工具 input，工具未执行，请重试本轮请求。');
+    if (this.wrapper(item)) { this.broken.set(String(item.call_id),item);throw new ApiError(502, 'PROTOCOL_INVALID', '模型未返回完整的 JavaScript 工具 input，工具未执行，请重试本轮请求。'); }
     throw invalid();
   }
   // Buffering can reorder call events relative to text and can change their count.
@@ -57,7 +58,19 @@ export class DeepSeekToolRepair {
     if (!this.candidate(item)) return item;
     if (typeof item.call_id !== 'string' || !item.call_id || typeof item.arguments !== 'string' || Buffer.byteLength(item.arguments) > LIMIT) this.invalid(item, 'INVALID_ENVELOPE');
     let args: unknown;
-    try { args = JSON.parse(item.arguments); } catch { this.invalid(item, 'INVALID_JSON'); }
+    let envelope = false;
+    try { args = JSON.parse(item.arguments); } catch {
+      // Observed DeepSeek control-frame leak. Accept the entire exact frame,
+      // never search for or execute a JSON fragment in arbitrary model text.
+      const prefix='{"name">functions__exec</｜｜DSML｜｜: ',suffix='</tool_result>';
+      if(this.wrapper(item)&&item.arguments.startsWith(prefix)&&item.arguments.endsWith(suffix)) {
+        try {
+          const inner=JSON.parse(item.arguments.slice(prefix.length,-suffix.length));
+          if(inner&&Object.keys(inner).sort().join(',')==='input,recipient_name'&&['functions.exec','functions__exec'].includes(inner.recipient_name)&&wrapperArguments.safeParse({input:inner.input}).success){args={input:inner.input};envelope=true;}
+        }catch{/* The bounded regeneration path handles irrecoverable frames. */}
+      }
+      if(!envelope)this.invalid(item, 'INVALID_JSON');
+    }
     const isWrapper = wrapperArguments.safeParse(args).success;
     const isDeclaredWrapper = this.wrapper(item);
     if (isDeclaredWrapper ? !isWrapper : !isWrapper && !command.safeParse(args).success) this.invalid(item, 'INVALID_ARGUMENTS');
@@ -72,9 +85,9 @@ export class DeepSeekToolRepair {
     // but carry the nested method's name. Preserve that source verbatim; wrapping
     // it again would pass JavaScript as shell arguments instead of restoring it.
     const input = `text(await tools.exec_command(JSON.parse(${JSON.stringify(canonical)})));`;
-    const output = isDeclaredWrapper ? item : { ...item, name: 'functions__exec', arguments: isWrapper ? item.arguments : JSON.stringify({ input }) };
+    const output = envelope?{...item,name:'functions__exec',arguments:canonical}:isDeclaredWrapper ? item : { ...item, name: 'functions__exec', arguments: isWrapper ? item.arguments : JSON.stringify({ input }) };
     this.repaired.set(item.call_id, { canonical, item: output });
-    if (!isDeclaredWrapper) this.audit({ from: 'exec_command', to: 'functions__exec', mode: isWrapper ? 'wrapper_name' : 'nested_command', callId: item.call_id, itemId: item.id, argumentKeys: Object.keys(args as object) });
+    if (envelope||!isDeclaredWrapper) this.audit({ from: item.name, to: 'functions__exec', mode: envelope?'control_envelope':isWrapper ? 'wrapper_name' : 'nested_command', callId: item.call_id, itemId: item.id, argumentKeys: Object.keys(args as object) });
     return output;
   }
   private keys(event: Item) {
@@ -93,11 +106,25 @@ export class DeepSeekToolRepair {
       { type: 'response.function_call_arguments.done', event: { ...common, type: 'response.function_call_arguments.done', arguments: item.arguments } },
     ];
   }
+  recoveryTarget():Item|undefined { return this.enabled&&this.broken.size===1?[...this.broken.values()][0]:undefined; }
+  recover(original:CanonicalResult,input:string):{result:CanonicalResult;events:Event[]} {
+    if(!wrapperArguments.safeParse({input}).success)throw invalid();
+    const broken=this.recoveryTarget();if(!broken)throw invalid();
+    const source=original.output.find(i=>i.id===broken.id&&i.call_id===broken.call_id);if(!source)throw invalid();
+    const fixed={...source,name:'functions__exec',arguments:JSON.stringify({input})};
+    const output=original.output.map(i=>i===source?fixed:i),state=[...this.calls].find(s=>s.item.id===source.id&&s.item.call_id===source.call_id);
+    if(state?.emitted)throw invalid();
+    this.deferredFailure=undefined;this.broken.clear();
+    if(state){state.item={...state.item,name:'functions__exec'};state.failed=false;}
+    const events=state?[...this.finish(state,fixed.arguments),{type:'response.output_item.done',event:{...state.added,type:'response.output_item.done',item:fixed}}]:[];
+    return {result:this.result({...original,output}),events};
+  }
   private complete(state: Pending, raw: unknown): Event[] {
     try { return this.finish(state, raw); } catch (error) {
       if (!this.wrapper(state.item) || !(error instanceof ApiError)) throw error;
       // Hold the invalid call, but drain the upstream terminal so the gateway can
-      // settle actual usage before returning failure. Never issue another POST.
+      // settle actual usage or correct the withheld call after the terminal.
+      state.failed=true;
       this.deferredFailure ??= error;
       return [];
     }
@@ -114,7 +141,7 @@ export class DeepSeekToolRepair {
       return [];
     }
     const state = this.keys(event).map(k => this.pending.get(k)).find(Boolean);
-    if (state && this.deferredFailure) return [];
+    if (state?.failed) return [];
     if (state && type === 'response.function_call_arguments.delta') {
       if (state.emitted || typeof event.delta !== 'string') throw invalid();
       state.raw += event.delta;
@@ -125,7 +152,7 @@ export class DeepSeekToolRepair {
     if (type === 'response.output_item.done' && item && this.candidate(item)) {
       if (!state || item.call_id !== state.item.call_id || item.id !== state.item.id) throw invalid();
       const completed = this.complete(state, item.arguments);
-      if (this.deferredFailure) return [];
+      if (state.failed) return [];
       return [...completed, { type, event: { ...event, item: this.rewrite(item) } }];
     }
     return [{ type, event }];

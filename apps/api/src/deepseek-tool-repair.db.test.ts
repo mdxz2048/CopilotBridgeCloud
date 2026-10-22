@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 
 describe.skipIf(!process.env.V2_TEST_DATABASE_URL)('Nested tool repair signed gateway PostgreSQL',()=>{
   let data:typeof import('@bridge/db'), app:Awaited<ReturnType<typeof import('./server.js').createServer>>;
-  let userId:string,deviceId:string,token:string,modelId:string;
+  let userId:string,deviceId:string,token:string,modelId:string,gatewayRequestId:string;
   const origin='http://localhost:3001',key=generateKeyPairSync('ec',{namedCurve:'prime256v1'}),thread=randomUUID();
   const jwk=key.publicKey.export({format:'jwk'}) as {kty:'EC';crv:'P-256';x:string;y:string};
   const wrapper={type:'function',name:'functions__exec',description:`Run JavaScript code with the global \`tools\` object.
@@ -30,6 +30,7 @@ shell?: string; tty?: boolean; workdir?: string; yield_time_ms?: number;
     const now=new Date();await data.db.insert(data.subscriptions).values({userId,planId:plan.id,status:'ACTIVE',startedAt:now,currentPeriodStart:now,currentPeriodEnd:new Date(Date.now()+86400000)});
     const wallet=await import('./wallet.js');await data.db.transaction(tx=>wallet.applyWalletChange(tx,{userId,points:200000,type:'PURCHASE',referenceType:'TEST',referenceId:userId,idempotencyKey:`repair-${userId}`}));
     app=await(await import('./server.js')).createServer();
+    app.addHook('onRequest',async req=>{gatewayRequestId=req.id;});
   });
   afterAll(async()=>{vi.unstubAllGlobals();await app?.close();await data?.pool.end();});
   async function post(input:unknown,stream:boolean,previous_response_id?:string){
@@ -76,28 +77,43 @@ shell?: string; tty?: boolean; workdir?: string; yield_time_ms?: number;
     expect(before-(await wallet.walletSummary(userId)).balance).toBe(usage.reduce((n,u)=>n+u.pointsCharged,0));
     const requests=await data.db.select().from(data.aiRequests).where(eq(data.aiRequests.userId,userId));expect(requests.every(r=>r.status==='COMPLETED')).toBe(true);
   });
-  it('fails empty wrapper SSE before releasing a tool call, with one upstream POST and no successful terminal',async()=>{
+  it.each([true,false])('recovers one missing input internally (stream=%s) without replaying a completed sibling',async stream=>{
     let posts=0;
     vi.stubGlobal('fetch',vi.fn(async(url,init)=>{
       if(String(url).endsWith('/user/balance'))return Response.json({is_available:true,balance_infos:[{currency:'CNY',total_balance:'100',granted_balance:'0',topped_up_balance:'100'}]});
       posts++;const body=JSON.parse(init.body);expect(body.tools[0].strict).toBe(true);
+      if(posts===2){expect(body.stream).toBe(false);expect(body.tools).toHaveLength(1);expect(body.reasoning.effort).toBe('none');expect(body.tool_choice).toEqual({type:'function',name:'functions__exec'});return Response.json({id:'correction',status:'completed',output:[{id:'correction_item',call_id:'correction_call',type:'function_call',name:'functions__exec',arguments:'{"input":"text(42);"}'}],usage:{input_tokens:10,output_tokens:4}});}
+      expect(posts).toBe(1);
       const item={id:'fc_empty',call_id:'call_empty',type:'function_call',name:'exec',arguments:'{}'};
+      const good={id:'fc_good',call_id:'call_good',type:'function_call',name:'functions__exec',arguments:'{"input":"text(1);"}',status:'completed'};
+      const response={id:'upstream_empty',status:'completed',output:[good,item],usage:{input_tokens:20,output_tokens:8}};
+      if(!stream)return Response.json(response);
       return new Response([
+        {type:'response.output_item.added',output_index:0,item:{...good,arguments:''}},
+        {type:'response.output_item.done',output_index:0,item:good},
         {type:'response.output_item.added',output_index:1,item:{...item,arguments:''}},
         {type:'response.function_call_arguments.delta',item_id:item.id,output_index:1,delta:'{}'},
         {type:'response.function_call_arguments.done',item_id:item.id,output_index:1,arguments:'{}'},
         {type:'response.output_item.done',output_index:1,item},
-        {type:'response.completed',response:{id:'upstream_empty',status:'completed',output:[item],usage:{input_tokens:20,output_tokens:8}}},
+        {type:'response.completed',response},
       ].map(e=>`data: ${JSON.stringify(e)}\n\n`).join(''));
     }));
-    const response=await post('synthetic empty wrapper',true);expect(response.statusCode).toBe(200);expect(posts).toBe(1);
-    const events=response.body.split(/\n\n/).filter(b=>b.includes('data: {')).map(b=>JSON.parse(b.split('\n').find(l=>l.startsWith('data: '))!.slice(6)));
-    expect(events.some(e=>e.type==='response.output_item.added'||e.type==='response.completed')).toBe(false);
-    expect(events.at(-1)).toMatchObject({type:'response.failed',response:{status:'failed',error:{code:'PROTOCOL_INVALID'}}});
-    expect(response.body).toContain('工具未执行');
+    const response=await post('synthetic empty wrapper',stream);expect(response.statusCode,response.body).toBe(200);expect(posts).toBe(2);
+    let completed;
+    if(stream){const events=response.body.split(/\n\n/).filter(b=>b.includes('data: {')).map(b=>JSON.parse(b.split('\n').find(l=>l.startsWith('data: '))!.slice(6)));
+      expect(events.some(e=>e.type==='response.failed')).toBe(false);expect(events.filter(e=>e.type==='response.output_item.added'&&e.item.call_id==='call_good')).toHaveLength(1);expect(events.filter(e=>e.type==='response.output_item.added'&&e.item.call_id==='call_empty')).toHaveLength(1);expect(events.map(e=>e.sequence_number)).toEqual(events.map((_,i)=>i));completed=events.at(-1).response;
+    }else completed=response.json();
+    expect(completed.status).toBe('completed');expect(completed.output.map((i:Record<string,unknown>)=>i.call_id)).toEqual(['call_good','call_empty']);expect(completed.output[1]).toMatchObject({id:'fc_empty',arguments:'{"input":"text(42);"}'});
     const [request]=await data.db.select().from(data.aiRequests).where(eq(data.aiRequests.id,String(response.headers['x-bridge-ai-request-id'])));
-    expect(request.status).toBe('PROVIDER_ERROR');
+    expect(request.status).toBe('COMPLETED');
     const usage=await data.db.select().from(data.usageEvents).where(eq(data.usageEvents.requestId,request.id));
-    expect(usage).toHaveLength(1);expect(usage[0]).toMatchObject({inputTokens:20,outputTokens:8,billingStatus:'SETTLED'});
+    expect(usage).toHaveLength(1);expect(usage[0]).toMatchObject({inputTokens:30,outputTokens:12,billingStatus:'SETTLED'});
+    await vi.waitFor(async()=>{const records=await data.db.select().from(data.failureDiagnostics).where(eq(data.failureDiagnostics.traceId,gatewayRequestId));expect(records).toHaveLength(1);expect(records[0].errorCode).toBe('PROTOCOL_RECOVERED');},{timeout:5000,interval:50});
+  });
+  it('stops after one failed correction and keeps both actual usage records in one settlement',async()=>{
+    let posts=0;
+    vi.stubGlobal('fetch',vi.fn(async url=>{if(String(url).endsWith('/user/balance'))return Response.json({is_available:true,balance_infos:[{currency:'CNY',total_balance:'100',granted_balance:'0',topped_up_balance:'100'}]});posts++;return Response.json({id:'invalid_'+posts,status:'completed',output:[{id:'bad_'+posts,call_id:'bad_call_'+posts,type:'function_call',name:'functions__exec',arguments:'{}'}],usage:{input_tokens:10,output_tokens:4}});}));
+    const response=await post('synthetic bounded correction',false);expect(response.statusCode).toBe(502);expect(posts).toBe(2);
+    const usage=await data.db.select().from(data.usageEvents).where(eq(data.usageEvents.requestId,String(response.headers['x-bridge-ai-request-id'])));expect(usage).toHaveLength(1);expect(usage[0]).toMatchObject({inputTokens:20,outputTokens:8,billingStatus:'SETTLED'});
   });
 });

@@ -1,0 +1,88 @@
+{
+  "date": "2026-10-22",
+  "observedFailure": {
+    "requestId": "21837189-e2a4-4898-ada4-b83a3aad1985",
+    "appVersion": "0.3.28",
+    "cause": "DeepSeek leaked a malformed control frame around intact JavaScript wrapper input",
+    "rawArgumentCharacters": 1391,
+    "intactInputCharacters": 1249
+  },
+  "behavior": {
+    "exactObservedFrameRestoredWithoutProviderRetry": true,
+    "otherwiseSingleCorrectionForOneWithheldCall": true,
+    "correctionTimeoutSeconds": 45,
+    "preserveOriginalItemAndCallIds": true,
+    "replayAlreadyReleasedSiblings": false,
+    "executeToolsOnServer": false,
+    "aggregateActualUsageInOneSettlement": true,
+    "invalidCorrectionRemainsFailure": true
+  },
+  "diagnostics": {
+    "recoveryCode": "PROTOCOL_RECOVERED",
+    "summaryRetentionDays": 14,
+    "summaryMaximumCount": 1000,
+    "summaryMaximumBytes": 134217728,
+    "summaryCleanup": "startup, each insert, hourly",
+    "encryptedSnapshotRetentionHours": 24,
+    "snapshotCleanupSeconds": 60,
+    "plaintextLogsIncludeScriptOrCredentials": false
+  },
+  "verification": {
+    "typecheck": "PASS",
+    "build": "PASS",
+    "nonDatabaseTestsPassed": 192,
+    "databaseTestsSkippedInOrdinaryRun": 74,
+    "isolatedDatabaseTargetedTestsPassed": 6,
+    "isolatedDatabaseOtherTestsFiltered": 28,
+    "isolatedTestDatabaseAndContainerCleaned": true,
+    "covers": [
+      "SSE and JSON correction",
+      "stable IDs",
+      "valid siblings before and after invalid call",
+      "single bounded correction",
+      "no duplicated sibling events",
+      "actual usage aggregation",
+      "one settlement",
+      "successful recovery diagnostic insert",
+      "existing native instance and history isolation"
+    ],
+    "officialClientGuiTask": "NOT RUN",
+    "actualFaultSnapshotReplay": {
+      "status": "NOT RUN",
+      "reason": "Original snapshot was removed by existing bounded snapshot retention before post-deployment replay; exact observed frame is covered by synthetic unit fixtures."
+    },
+    "liveSyntheticCorrection": {
+      "outputTokens": 38,
+      "toolExecuted": false,
+      "elapsedMs": 750,
+      "providerPosts": 1,
+      "privateTaskSentToProvider": false,
+      "status": "PASS",
+      "inputTokens": 408
+    }
+  },
+  "deployment": {
+    "serverBundleMatchesLocal": true,
+    "serverBundleSha256": "aecdd6cfa3a98d1c57da827c498b292a41b45deed19aaf632738b9363740c513",
+    "otherServiceImagesUnchanged": true,
+    "health": "ok",
+    "sourceSha256": {
+      "protocol-recovery-diagnostics.ts": "7f95cc4011f6afc2290c7057d2c9efa1098be40af61a595448afb6ea22ea0236",
+      "deepseek-tool-repair.ts": "d9d0c25f3893a8a049a6d9149f85d5afe9d5f64ef95cbe2e140b63c96847fbb8",
+      "gateway.ts": "cd8b3d272b905c3f42906c845470ec9e88ca391bc06e51bf8f9760c4bbfa94b3",
+      "tool-protocol-recovery.ts": "3b7a51489920e361b0dd103542bc1e97e6f023e36bc5ee0b4f24d30e26760b06"
+    },
+    "apiImage": "sha256:da1e03e90cbef896f9c15495ea4ef8c34073ecb814c4389026fa76aad91fcd85",
+    "previousApiImage": "sha256:55b03476455e8a85f14e307b5b6343e817b19a4124689472db6ea5fc5eb06905",
+    "databaseMigration": false
+  },
+  "observedDeployment502": {
+    "emptyResponseBody": true,
+    "newServerListeningAtBeijing": "2026-10-22 18:01:43",
+    "assessment": "Consistent with brief API replacement window; automatic recovery of this particular request not verified.",
+    "modelRequestIdAvailable": false,
+    "code": "INVALID_SERVER_RESPONSE",
+    "occurredAtBeijing": "2026-10-22 18:01:34",
+    "httpStatus": 502
+  }
+}
