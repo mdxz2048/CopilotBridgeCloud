@@ -2,8 +2,8 @@
 
 ## 2026-10-11 0.3.3 Native Responses platform deployed
 
-PENDING_CONTRACT_VERSION: 2.8.0
-PENDING_OPENAPI_HASH: sha256:4fe835b3140924d071008bd179f47ef54a00a0b8860980a81067b3d9f975440f
+PENDING_CONTRACT_VERSION: 2.9.0
+PENDING_OPENAPI_HASH: sha256:b2431d6c21f1e23b17b5d0af5da7f1a749752e7a0a058d9bf3d34b9a800c4874
 PENDING_GATEWAY_V1_OPENAPI_HASH: sha256:4c72178606ecd71ec047c9618e89eff6581e489f53d80ff54f4035d7152a2d85
 GATEWAY_CURRENT_REVISION: 1.2.0
 GATEWAY_CURRENT_OPENAPI_HASH: sha256:e5b0e179f02f31e9a2402325e73a424e1d872869cd4bd5ce0d2f74bb853aa68d
@@ -23,8 +23,8 @@ Latest-only HTTP426 and official offline ZIP routes are implemented. parallel_to
 This section supersedes the historical deployment assumptions below. Source includes DeepSeek native Responses, logical model instances, encrypted stateless history recovery and capability/error diagnostics. API/Web and migration0010 are deployed; real normal/thinking tool loops, audited billing review, Admin UI and public automatic update download passed.
 
 ```text
-PENDING_CONTRACT_VERSION: 2.8.0
-PENDING_OPENAPI_HASH: sha256:4fe835b3140924d071008bd179f47ef54a00a0b8860980a81067b3d9f975440f
+PENDING_CONTRACT_VERSION: 2.9.0
+PENDING_OPENAPI_HASH: sha256:b2431d6c21f1e23b17b5d0af5da7f1a749752e7a0a058d9bf3d34b9a800c4874
 PENDING_GATEWAY_V1_OPENAPI_HASH: sha256:4c72178606ecd71ec047c9618e89eff6581e489f53d80ff54f4035d7152a2d85
 GATEWAY_CURRENT_REVISION: 1.1.0
 GATEWAY_CURRENT_OPENAPI_HASH: sha256:e522763e7e3cea1a9edc4c9d3aa5b06c047697847b2d9165efef2168c21991f7
@@ -83,8 +83,8 @@ REAL_PROVIDER: BLOCKED (local SDK entitlement verified; production real-provider
 BILLING_MODE: SHADOW (V2_BILLING_ENABLED=false; ENFORCED disabled)
 TEST_WALLET: 10000 AI_POINT via idempotent TEST_GRANT ledger fixture
 PRODUCTION_STATUS: INTERNAL TEST — HTTPS, V2.3 DPoP, account 2/min and device 1/min new-turn policy, same-thread tool continuation, SHADOW settlement and Admin rate reads PASS; real-provider and commercial gates remain CLOSED
-PENDING_CONTRACT_VERSION: 2.8.0
-PENDING_OPENAPI_HASH: sha256:4fe835b3140924d071008bd179f47ef54a00a0b8860980a81067b3d9f975440f
+PENDING_CONTRACT_VERSION: 2.9.0
+PENDING_OPENAPI_HASH: sha256:b2431d6c21f1e23b17b5d0af5da7f1a749752e7a0a058d9bf3d34b9a800c4874
 PENDING_GATEWAY_V1_OPENAPI_HASH: sha256:4c72178606ecd71ec047c9618e89eff6581e489f53d80ff54f4035d7152a2d85
 PENDING_PRODUCTION_STATUS: PARTIAL (staged registration disabled; not deployed)
 GATEWAY_V1_CONTRACT_VERSION: 1.0.0 (frozen documentation only, not currently accepted for Desktop auth)
@@ -113,3 +113,11 @@ The Mock provider is gated to this exact account. Public production ignores `X-M
 ## 2026-10-18 purchase review release
 
 Purchase claim and reward acknowledgement routes of domain contract 2.8.0 are deployed. App 0.3.24 is published; 65 isolated PostgreSQL integration tests and existing-wallet-preserving upgrade passed. Full production HTTPS updater reached READY with SHA-256 verified. See [purchase release evidence](../acceptance/purchase-20261018/release.json). Historical global PARTIAL status still covers unrelated provider/runtime validation.
+
+## 2026-10-26 order notifications and compatible client releases
+
+Domain contract 2.9.0 order notices and migration 0017 are deployed. App 0.3.29 is published; minimum compatible App remains **0.3.28**, independently of latestVersion. Ordinary releases no longer require exact equality with the newest App. Both shared packages, API and Web were rebuilt; compatibility follow-up rebuilt API. API image `38e7d1acf8fc36a35d5460fd7dcb0c391b382d1c729daed032f2483bb29907fe`, Web image `c1f0ea7078d22d823e887a7cf608d0403aa2a89165024751961486537c2c4966`. PostgreSQL and Caddy were not replaced; active requests were checked before replacing API.
+
+Administrator submission email, review receipt, owner result email and durable owner App notices are implemented. Real production SMTP accepted a clearly labelled administrator test email; inbox delivery is not verified. Isolated purchase database 10 tests and version-gate database 1 test passed. Publishing a higher fixture release kept signed 0.3.28 requests past the version check; that account lacked a subscription, so no real old-client generation was demonstrated. Actual Windows public HTTPS differential update from 0.3.28 reached READY with matching installer SHA256, without executing it. Production static Web deep-link UI was exercised with synthetic API fixtures, not real approvals.
+
+See [order notification evidence](../acceptance/order-notifications-20261026.json). Historical deployment snapshots and unrelated runtime/provider acceptance limitations above remain historical; this section records this change, not a blanket certification of those older gates.

@@ -44,4 +44,27 @@ describe.skipIf(!process.env.V2_TEST_DATABASE_URL)('Purchase claims PostgreSQL',
   await data.db.update(data.devices).set({authVersion:device.authVersion+1}).where(eq(data.devices.id,device.id));expect((await app.inject({url:'/api/v1/purchase-mobile/status',headers:phone})).statusCode).toBe(410);
  });
 
+ it('durably queues order mail, retries delivery, scopes unread App notices and never repeats credit',async()=>{
+  await data.db.delete(data.purchaseMailOutbox);const f=await fixture(),a=await fixture('ADMIN'),other=await fixture(),phone=await exchange(await ticket(f)),c=await claim(phone);await claim(phone,c.orderNo);
+  expect(await data.db.select().from(data.purchaseMailOutbox)).toHaveLength(1);
+  const {deliverPurchaseMail}=await import('./purchase-mail.js');expect((await deliverPurchaseMail(async()=>{throw Error('synthetic smtp unavailable');})).failed).toBe(1);
+  let [queued]=await data.db.select().from(data.purchaseMailOutbox);expect(queued).toMatchObject({status:'PENDING',deliveryAttempts:1,lastError:'DELIVERY_FAILED'});
+  await data.db.update(data.purchaseMailOutbox).set({nextAttemptAt:new Date(0)});
+  const sent:string[]=[];const send=async(m:{messageId:string})=>{sent.push(m.messageId);};await Promise.all([deliverPurchaseMail(send),deliverPurchaseMail(send)]);expect(sent).toHaveLength(1);
+  await Promise.all([review(a,c.id),review(a,c.id)]);const rows=await data.db.select().from(data.purchaseMailOutbox);expect(rows).toHaveLength(3);expect(rows.filter(r=>r.kind==='USER_REVIEWED')[0].recipient).toBe(f.user.email);
+  await deliverPurchaseMail(send);await deliverPurchaseMail(send);expect(sent).toHaveLength(3);expect(new Set(sent).size).toBe(3);
+  expect((await app.inject({url:'/api/v1/me/purchase-notices',headers:f.headers})).json().data[0]).toMatchObject({id:c.id,status:'APPROVED',creditedRmb:20.25});expect((await app.inject({url:'/api/v1/me/purchase-notices',headers:other.headers})).json().data).toHaveLength(0);
+  const ack=(headers:Record<string,string>,attempt=1)=>app.inject({method:'POST',url:`/api/v1/me/purchase-notices/${c.id}/ack`,headers,payload:{attempt}});
+  expect((await ack(other.headers)).statusCode).toBe(404);expect((await ack(f.headers,2)).statusCode).toBe(404);expect((await ack(f.headers)).statusCode).toBe(200);expect((await ack(f.headers)).statusCode).toBe(200);expect((await app.inject({url:'/api/v1/me/purchase-notices',headers:f.headers})).json().data).toHaveLength(0);
+  expect((await(await import('./wallet.js')).walletSummary(f.user.id)).balance).toBe(202500);
+ });
+ it('rolls back mail with its transaction and rejects old notification acknowledgements after resubmission',async()=>{
+  const f=await fixture(),a=await fixture('ADMIN'),c=await claim(await exchange(await ticket(f)));const {enqueuePurchaseMail}=await import('./purchase-mail.js');
+  const [row]=await data.db.select().from(data.purchaseClaims).where(eq(data.purchaseClaims.id,c.id));const before=(await data.db.select().from(data.purchaseMailOutbox).where(eq(data.purchaseMailOutbox.claimId,c.id))).length;
+  await expect(data.db.transaction(async tx=>{await enqueuePurchaseMail(tx,{...row,attempt:99},f.user.email);throw Error('synthetic rollback');})).rejects.toThrow('synthetic rollback');expect(await data.db.select().from(data.purchaseMailOutbox).where(eq(data.purchaseMailOutbox.claimId,c.id))).toHaveLength(before);
+  const rejected=await app.inject({method:'POST',url:`/api/v1/admin/purchase-claims/${c.id}/review`,headers:a.headers,payload:{status:'REJECTED',reason:'请核对订单号'}});expect(rejected.statusCode).toBe(200);
+  expect((await app.inject({url:'/api/v1/me/purchase-notices',headers:f.headers})).json().data[0].status).toBe('REJECTED');await claim(await exchange(await ticket(f)),c.orderNo);
+  expect((await app.inject({method:'POST',url:`/api/v1/me/purchase-notices/${c.id}/ack`,headers:f.headers,payload:{attempt:1}})).statusCode).toBe(404);await review(a,c.id);
+  expect((await app.inject({url:'/api/v1/me/purchase-notices',headers:f.headers})).json().data[0]).toMatchObject({id:c.id,attempt:2,status:'APPROVED'});
+ });
 });

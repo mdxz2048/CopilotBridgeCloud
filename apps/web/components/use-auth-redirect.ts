@@ -13,7 +13,7 @@ export function useAuthRedirect() {
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 5000);
     api<{ user: { role: string } }>('/api/v1/auth/me', { signal: controller.signal })
-      .then(({ user }) => { if (active) router.replace(roleHome(user.role)); })
+      .then(({ user }) => { if (active) router.replace(roleHome(user.role,new URLSearchParams(window.location.search).get('reviewOrder'))); })
       .catch(error => {
         if (!active) return;
         const authError = error as { code?: string; status?: number };

@@ -12,6 +12,12 @@ import { ApiError } from './errors.js';
 export async function latestClientRelease() {
   return latestWindowsRelease(await db.select().from(releases));
 }
+// Raise only for an incompatible protocol/security change, never for an ordinary release.
+export const MINIMUM_COMPATIBLE_CLIENT_VERSION = '0.3.28';
 export function requireCurrentClient(version: string, latest: string | undefined) {
-  if(latest && version!==latest) throw new ApiError(426,'CLIENT_UPGRADE_REQUIRED',`请升级 Copilot Bridge 至 ${latest} 后再使用云模型。`);
+  if (!latest) return;
+  const parts = /^\d+\.\d+\.\d+$/.test(version) ? version.split('.').map(Number) : null;
+  const minimum = MINIMUM_COMPATIBLE_CLIENT_VERSION.split('.').map(Number);
+  const comparison = parts?.map((value, index) => value - minimum[index]).find(value => value !== 0) ?? 0;
+  if (!parts || comparison < 0) throw new ApiError(426,'CLIENT_UPGRADE_REQUIRED',`请升级 Copilot Bridge 至 ${MINIMUM_COMPATIBLE_CLIENT_VERSION} 或更新版本后再使用云模型。`);
 }

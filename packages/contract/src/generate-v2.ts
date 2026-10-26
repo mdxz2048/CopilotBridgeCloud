@@ -172,6 +172,8 @@ route('get','/api/v1/purchase-options',generic,undefined,200,false);
 route('post','/api/v1/me/purchase-tickets',PurchaseTicketSchema,z.object({}).strict());
 route('get','/api/v1/me/purchase-tickets/{id}',PurchaseTicketStatusSchema);
 route('get','/api/v1/me/purchase-claims',PurchaseClaimsSchema);
+route('get','/api/v1/me/purchase-notices',z.object({data:z.array(PurchaseClaimSchema)}));
+route('post','/api/v1/me/purchase-notices/{id}/ack',z.object({ok:z.literal(true)}),z.object({attempt:z.number().int().positive()}).strict());
 route('post','/api/v1/purchase-mobile/exchange',PurchaseMobileSchema,z.object({ticket:z.string().regex(/^[A-Za-z0-9_-]{43}$/)}).strict(),200,false);
 route('get','/api/v1/purchase-mobile/status',PurchaseMobileSchema,undefined,200,false);
 route('post','/api/v1/purchase-mobile/claims',z.object({claim:PurchaseClaimSchema,duplicate:z.boolean()}),PurchaseClaimInputSchema,200,false);
@@ -182,7 +184,7 @@ route('post','/api/v1/admin/purchase-claims/{id}/review',z.object({claim:Purchas
 export function buildOpenApiV2(): Record<string, unknown> {
   const base = JSON.parse(readFileSync(new URL('../../../docs/protocol/openapi.v1.json', import.meta.url), 'utf8')) as Record<string, any>;
   const v2 = new OpenApiGeneratorV31(registry.definitions).generateDocument({ openapi: '3.1.0',
-    info: { title: 'Copilot Bridge Cloud App and Gateway API', version: '2.8.0' },
+    info: { title: 'Copilot Bridge Cloud App and Gateway API', version: '2.9.0' },
     servers: [{ url: 'https://ai.mddxz.top' }] });
   return { ...base, info: v2.info, servers: v2.servers,
     paths: { ...base.paths, ...v2.paths },

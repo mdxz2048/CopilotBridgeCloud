@@ -691,7 +691,7 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
     }finally{await db.delete(failureDiagnostics);await db.delete(dbModule.systemSettings).where(eq(dbModule.systemSettings.key,'diagnostic_rate:'+user.id));await app.close();}
   });
 
-  it('enforces the current desktop release and prunes obsolete installer records without touching money data',async()=>{
+  it('keeps compatible desktop versions usable after publishing and prunes obsolete installers without touching money data',async()=>{
     const {db,releases,devices,walletTransactions}=dbModule;const {eq}=await import('drizzle-orm');const security=await import('./security.js');
     const {privateKey,publicKey}=proofKey();const jwk=publicKey.export({format:'jwk'});
     const [device]=await db.insert(devices).values({userId:ids.secondUser,deviceId:randomUUID(),deviceName:'Version Gate',platform:'Windows',appVersion:'0.3.0',publicKeyJwk:{kty:'EC',crv:'P-256',x:jwk.x!,y:jwk.y!}}).returning();
@@ -700,11 +700,12 @@ describe.skipIf(!enabled)('V2 PostgreSQL invariants', () => {
       const headers=await testCookieHeaders(dbModule,ids.admin);
       const publish=async(version:string)=>app.inject({method:'POST',url:'/api/v1/admin/releases',headers,payload:{version,channel:'stable',platform:'windows',arch:'x64',downloadUrl:'https://example.test/fixture.exe',sha256:'a'.repeat(64),published:true}});
       expect((await publish('100.0.0')).statusCode).toBe(201);expect((await publish('100.0.1')).statusCode).toBe(201);
-      const rows=await db.select().from(releases);expect(rows.filter(r=>r.published)).toHaveLength(1);expect(rows[0].version).toBe('100.0.1');
-      expect((await app.inject({url:'/api/v1/client/config'})).json()).toMatchObject({minimumVersion:'100.0.1',latestVersion:'100.0.1'});
+      const rows=await db.select().from(releases);expect(rows.filter(r=>r.published)).toHaveLength(2);expect(rows.some(r=>r.version==='100.0.1')).toBe(true);
+      expect((await app.inject({url:'/api/v1/client/config'})).json()).toMatchObject({minimumVersion:'0.3.28',latestVersion:'100.0.1'});
       const token=await security.issueAccess(ids.secondUser,device.id);
       const desktop=async()=>app.inject({url:'/v1/models',headers:{...await signedHeaders(privateKey,'GET','/v1/models',undefined,token),authorization:`Bearer ${token}`,'x-device-id':device.deviceId}});
       expect((await desktop()).statusCode).toBe(426);
+      await db.update(devices).set({appVersion:'0.3.28'}).where(eq(devices.id,device.id));expect((await desktop()).statusCode).not.toBe(426);
       await db.update(devices).set({appVersion:'100.0.1'}).where(eq(devices.id,device.id));expect((await desktop()).statusCode).not.toBe(426);
       expect((await app.inject({url:'/api/v1/admin/releases',headers})).statusCode).toBe(200);
       expect(await db.select().from(walletTransactions)).toEqual(before);

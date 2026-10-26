@@ -241,12 +241,20 @@ export const purchaseClaims = pgTable('purchase_claims', {
  orderNo:varchar('order_no',{length:64}).notNull().unique(),status:varchar('status',{length:16}).notNull().default('PENDING'),
  points:integer('points'),reason:text('reason'),reviewedBy:uuid('reviewed_by').references(()=>users.id),reviewedAt:timestamp('reviewed_at',{withTimezone:true}),
  attempt:integer('attempt').notNull().default(1),createdAt:created(),submittedAt:timestamp('submitted_at',{withTimezone:true}).notNull().defaultNow(),
+ noticeAcknowledgedAttempt:integer('notice_acknowledged_attempt').notNull().default(0),
  deadlineAt:timestamp('deadline_at',{withTimezone:true}).notNull(),updatedAt:timestamp('updated_at',{withTimezone:true}).notNull().defaultNow(),
 },t=>[index('purchase_claims_user_created_idx').on(t.userId,t.createdAt),index('purchase_claims_status_deadline_idx').on(t.status,t.deadlineAt)]);
 export const purchaseReviews=pgTable('purchase_reviews',{
  id:id(),claimId:uuid('claim_id').notNull().references(()=>purchaseClaims.id,{onDelete:'cascade'}),actorId:uuid('actor_id').notNull().references(()=>users.id),
  status:varchar('status',{length:16}).notNull(),points:integer('points'),reason:text('reason'),createdAt:created(),
 },t=>[index('purchase_reviews_claim_idx').on(t.claimId,t.createdAt)]);
+export const purchaseMailOutbox=pgTable('purchase_mail_outbox',{
+ id:id(),claimId:uuid('claim_id').notNull().references(()=>purchaseClaims.id,{onDelete:'cascade'}),attempt:integer('attempt').notNull(),
+ kind:varchar('kind',{length:32}).notNull(),recipient:text('recipient').notNull(),subject:text('subject').notNull(),body:text('body').notNull(),
+ status:varchar('status',{length:16}).notNull().default('PENDING'),deliveryAttempts:integer('delivery_attempts').notNull().default(0),
+ nextAttemptAt:timestamp('next_attempt_at',{withTimezone:true}).notNull().defaultNow(),leaseToken:uuid('lease_token'),lockedUntil:timestamp('locked_until',{withTimezone:true}),
+ sentAt:timestamp('sent_at',{withTimezone:true}),lastError:varchar('last_error',{length:100}),createdAt:created(),
+},t=>[uniqueIndex('purchase_mail_event_idx').on(t.claimId,t.attempt,t.kind),index('purchase_mail_due_idx').on(t.status,t.nextAttemptAt)]);
 export const purchaseTickets=pgTable('purchase_tickets',{
  id:id(),userId:uuid('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),deviceId:uuid('device_id').references(()=>devices.id,{onDelete:'cascade'}),
  deviceVersion:integer('device_version'),webSessionId:uuid('web_session_id').references(()=>webSessions.id,{onDelete:'cascade'}),

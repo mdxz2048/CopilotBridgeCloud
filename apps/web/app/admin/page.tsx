@@ -59,6 +59,8 @@ function modelAvailability(model: Row, provider: Row | undefined, access: ModelA
 
 export default function AdminPage() {
   const [creatingUser, setCreatingUser] = useState(false);
+  const [initialOrder,setInitialOrder]=useState('');
+  useEffect(()=>{const params=new URLSearchParams(window.location.search),order=params.get('order')??'';if(params.get('section')==='purchases'){setActive('purchases');if(/^[0-9A-Za-z-]{6,64}$/.test(order))setInitialOrder(order.toUpperCase());}},[]);
   const router = useRouter(); const [active, setActive] = useState('models'); const [email, setEmail] = useState(''); const [rows, setRows] = useState<Row[]>([]); const [dashboard, setDashboard] = useState<Record<string, number>>({}); const [system, setSystem] = useState<Record<string, unknown>>({}); const [rateDraft, setRateDraft] = useState<Record<keyof RatePolicy, string> | null>(null); const [loading, setLoading] = useState(true); const [error, setError] = useState(''); const [message, setMessage] = useState(''); const [search, setSearch] = useState(''); const [selected, setSelected] = useState<Row | null>(null); const [form, setForm] = useState<Record<string, string>>({}); const [plans, setPlans] = useState<Plan[]>([]); const [providers, setProviders] = useState<Row[]>([]); const [models, setModels] = useState<Row[]>([]);
   const [planAccess, setPlanAccess] = useState<ModelAccess | null>(null); const [userAccess, setUserAccess] = useState<ModelAccess | null>(null);
   const [userAccessId, setUserAccessId] = useState('');
@@ -146,7 +148,7 @@ export default function AdminPage() {
     {message && <div className="notice" role="status">{message}</div>}{error && <div className="error-text" role="alert">{error} <button className="mini-button" onClick={load}>重试</button></div>}
     {loading && <div className="loading-skeleton"/>}
     {active === 'money-plans' && <MoneyPlanManager/>}
-    {!loading && active === 'purchases' && <AdminPurchases/>}
+    {!loading && active === 'purchases' && <AdminPurchases key={initialOrder} initialOrder={initialOrder}/>}
       {!loading && active === 'failures' && <FailureFeedback/>}
     {!loading && active === 'models' && <AdminModels/>}
     {!loading && active === 'audit' && <AdminActivity/>}

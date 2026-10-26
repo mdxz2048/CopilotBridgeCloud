@@ -1,0 +1,119 @@
+{
+  "date": "2026-10-26",
+  "domainContractVersion": "2.9.0",
+  "appVersion": "0.3.29",
+  "minimumCompatibleApp": "0.3.28",
+  "compatibilityReason": "Additive order notice endpoints and UI; existing authentication, model, tool-continuation and wallet contracts unchanged. Latest release is now independent of minimum compatibility.",
+  "images": {
+    "api": "sha256:38e7d1acf8fc36a35d5460fd7dcb0c391b382d1c729daed032f2483bb29907fe",
+    "web": "sha256:c1f0ea7078d22d823e887a7cf608d0403aa2a89165024751961486537c2c4966"
+  },
+  "migration": "0017_dazzling_the_liberteens",
+  "otherServicesChanged": false,
+  "tests": {
+    "app": {
+      "passed": 295,
+      "skipped": 0
+    },
+    "apiOrdinary": {
+      "passed": 193,
+      "dbSkippedNotCountedAsPassed": 76
+    },
+    "isolatedPurchaseDatabase": {
+      "passed": 10
+    },
+    "isolatedVersionGateDatabase": {
+      "passed": 1,
+      "filteredOut": 28
+    },
+    "versionUnit": {
+      "passed": 3
+    },
+    "web": {
+      "passed": 16
+    },
+    "contract": {
+      "passed": 10
+    },
+    "typechecksAndBuilds": "PASS"
+  },
+  "compatibilityVerification": {
+    "signedFixtureVersion": "0.3.28",
+    "publishedFixtureVersion": "100.0.1",
+    "versionGatePassed": true,
+    "modelRequestStatusAfterGate": 403,
+    "reason": "Fixture account has no subscription; this is not real legacy-client inference validation.",
+    "oldVersionRejected": true,
+    "realOldClientLoginRefreshGenerationToolsBilling": "not re-run; no full compatibility certification"
+  },
+  "ui": {
+    "realReactLightDarkApprovedRejected": "PASS with synthetic IPC/API fixtures",
+    "productionWebStaticLoginAndAdminDeepLink": "PASS with synthetic API fixtures",
+    "linkDoesNotApprove": true,
+    "verifiedAmountStillRequired": true,
+    "realOrderCreatedForUiTest": false
+  },
+  "production": {
+    "health": "ok",
+    "anonymousNoticeStatus": 401,
+    "authenticatedNoticeStatus": 200,
+    "smtpTestAccepted": true,
+    "inboxReceiptVerified": false,
+    "realOrdersCreated": 0,
+    "walletMutations": 0
+  },
+  "package": {
+    "passed": true,
+    "version": "0.3.29",
+    "verifiedFiles": 56,
+    "bytes": 343590971,
+    "sha256": "ed5720dc37593c423bcd2a2b23b3051c24c43ae52dd0446188d3ca8a2bc69425"
+  },
+  "release": {
+    "release": {
+      "id": "b42c9934-ad93-4b69-bf1e-6941dba5e32d",
+      "version": "0.3.29",
+      "channel": "stable",
+      "platform": "windows",
+      "arch": "x64",
+      "downloadUrl": "https://ai.mddxz.top/api/v1/releases/files/b42c9934-ad93-4b69-bf1e-6941dba5e32d",
+      "sha256": "ed5720dc37593c423bcd2a2b23b3051c24c43ae52dd0446188d3ca8a2bc69425",
+      "releaseNotes": "订单审核通知更新：\n1. 提交订单后通知管理员，点击邮件链接登录后台审核。\n2. 审核后发送管理员回执与用户结果邮件。\n3. App 显示待确认的审核结果并同步余额，离线后再次登录仍可查看。\n4. 兼容 0.3.28，更新后台下载，点击安装后才退出 Bridge。",
+      "published": true,
+      "createdAt": "2026-10-26T08:49:29.904Z"
+    },
+    "blockmap": {
+      "size": 348460,
+      "sha256": "cbe2db4c84f412ec73a3f8f8fb96c649d9cba04e34df3cd0a4d0850871ee2806",
+      "blocks": 16349,
+      "installerSize": 343590971
+    }
+  },
+  "updater": {
+    "version": "0.3.29",
+    "platform": "win32",
+    "transport": "actual public HTTPS on developer Windows using the verified previous official installer as baseline",
+    "state": "READY",
+    "rangeRequests": 11,
+    "differentialBytes": 24564181,
+    "mapBytes": 696099,
+    "fullRequests": 0,
+    "modes": [
+      "differential"
+    ],
+    "sha256": "ed5720dc37593c423bcd2a2b23b3051c24c43ae52dd0446188d3ca8a2bc69425",
+    "elapsedMs": 12871,
+    "executedInstaller": false,
+    "userConfigurationChanged": false
+  },
+  "limitations": [
+    "Real official-client UI install and actual purchase-to-customer-inbox flow not exercised.",
+    "SMTP delivery may repeat after a crash following acceptance; financial settlement remains idempotent."
+  ],
+  "retention": {
+    "mailTerminalRowsDays": 30,
+    "successBodyCleared": true,
+    "maxMailAttempts": 10
+  },
+  "updateBehavior": "Check and download in background; update icon/dot, user must click Install. App restart never silently executes installer."
+}

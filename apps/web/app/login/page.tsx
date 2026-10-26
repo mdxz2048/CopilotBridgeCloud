@@ -23,7 +23,7 @@ export default function Login() {
     setBusy(true); setError('');
     try {
       const { user } = await post<{ user: { role: string } }>('/api/v1/auth/login', { email, password, ...(capabilities?.verificationRequired ? { turnstileToken: token } : {}) });
-      router.replace(roleHome(user.role));
+      router.replace(roleHome(user.role,new URLSearchParams(window.location.search).get('reviewOrder')));
     }
     catch (e) {
       const code = (e as { code?: string }).code;

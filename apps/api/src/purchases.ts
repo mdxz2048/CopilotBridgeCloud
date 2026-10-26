@@ -9,6 +9,7 @@ import {config} from './config.js';
 import {hashRefresh} from './security.js';
 import {applyWalletChange,type DbTransaction} from './wallet.js';
 import {qualifyInviteFromCredit} from './signup-rewards.js';
+import {enqueuePurchaseMail,registerPurchaseMailWorker} from './purchase-mail.js';
 const lifetime=10*60000,cookieName='bridge_purchase',cookiePath='/api/v1/purchase-mobile';
 const fresh=()=>randomBytes(32).toString('base64url');
 const id=(value:unknown)=>z.uuid().parse((value as {id:string}).id);
@@ -34,6 +35,7 @@ async function mobileTicket(req:FastifyRequest,tx:DbTransaction,lock=false){
 }
 async function mobileView(tx:DbTransaction,ticket:typeof purchaseTickets.$inferSelect,user:typeof users.$inferSelect){const [claim]=ticket.claimId?await tx.select().from(purchaseClaims).where(eq(purchaseClaims.id,ticket.claimId)).limit(1):[];return {ticketId:ticket.id,maskedAccount:mask(user.email),expiresAt:ticket.expiresAt.toISOString(),claim:claim?publicClaim(claim):null};}
 export async function registerPurchases(app:FastifyInstance){
+ registerPurchaseMailWorker(app);
  app.addHook('onRequest',async(req,reply)=>{if(req.url.split('?')[0].includes('purchase'))reply.header('Cache-Control','no-store').header('Referrer-Policy','no-referrer');});
  app.get('/api/v1/purchase-options',async()=>({productName:'远程学习',amounts:[10,20,50],ratio:1,reviewMinutes:10,qrCodeUrl:new URL('/xianyu-profile.jpg',config.PUBLIC_BASE_URL).href}));
  app.post('/api/v1/me/purchase-tickets',{config:{rateLimit:{max:12,timeWindow:'1 minute'}}},async req=>{
@@ -83,7 +85,7 @@ export async function registerPurchases(app:FastifyInstance){
    if(!claim){[claim]=await tx.insert(purchaseClaims).values({userId:user.id,orderNo,deadlineAt:new Date(at.getTime()+lifetime)}).returning();}
    else if(claim.status==='REJECTED'){[claim]=await tx.update(purchaseClaims).set({status:'PENDING',reason:null,points:null,reviewedAt:null,reviewedBy:null,attempt:claim.attempt+1,submittedAt:at,deadlineAt:new Date(at.getTime()+lifetime),updatedAt:at}).where(eq(purchaseClaims.id,claim.id)).returning();duplicate=false;}
    await tx.update(purchaseTickets).set({claimId:claim.id}).where(eq(purchaseTickets.id,ticket.id));
-   if(!duplicate)await tx.insert(auditLogs).values({actorId:user.id,action:'PURCHASE_ORDER_SUBMITTED',targetType:'PURCHASE_CLAIM',targetId:claim.id,metadata:{attempt:claim.attempt,platform:'XIAN_YU'}});
+   if(!duplicate){await tx.insert(auditLogs).values({actorId:user.id,action:'PURCHASE_ORDER_SUBMITTED',targetType:'PURCHASE_CLAIM',targetId:claim.id,metadata:{attempt:claim.attempt,platform:'XIAN_YU'}});await enqueuePurchaseMail(tx,claim,user.email);}
    return {claim:publicClaim(claim),duplicate};
   });
  });
@@ -109,8 +111,16 @@ export async function registerPurchases(app:FastifyInstance){
    if(transactionId)await qualifyInviteFromCredit(tx,claim.userId,{transactionId});
    await tx.insert(purchaseReviews).values({claimId:claim.id,actorId:a.user.id,status:body.status,points,reason:body.reason||null});
    await tx.insert(auditLogs).values({actorId:a.user.id,action:body.status==='APPROVED'?'PURCHASE_ORDER_CREDITED':'PURCHASE_ORDER_REJECTED',targetType:'PURCHASE_CLAIM',targetId:claim.id,metadata:{userId:claim.userId,points,reason:body.reason||null,attempt:claim.attempt}});
+   await enqueuePurchaseMail(tx,updated,user.email);
    return {claim:publicClaim(updated),duplicate:false};
   });
+ });
+ app.get('/api/v1/me/purchase-notices',async req=>{
+  const a=await actor(req,Boolean(req.headers.authorization));const rows=await db.select().from(purchaseClaims).where(and(eq(purchaseClaims.userId,a.user.id),sql`${purchaseClaims.status} in ('APPROVED','REJECTED')`,sql`${purchaseClaims.noticeAcknowledgedAttempt}<${purchaseClaims.attempt}`)).orderBy(purchaseClaims.reviewedAt).limit(20);return {data:rows.map(publicClaim)};
+ });
+ app.post('/api/v1/me/purchase-notices/:id/ack',async req=>{
+  const a=await actor(req,Boolean(req.headers.authorization)),{attempt}=z.object({attempt:z.number().int().positive()}).strict().parse(req.body);
+  const [row]=await db.update(purchaseClaims).set({noticeAcknowledgedAttempt:attempt}).where(and(eq(purchaseClaims.id,id(req.params)),eq(purchaseClaims.userId,a.user.id),eq(purchaseClaims.attempt,attempt),sql`${purchaseClaims.status} in ('APPROVED','REJECTED')`)).returning({id:purchaseClaims.id});if(!row)throw new ApiError(404,'NOT_FOUND');return {ok:true};
  });
  app.get('/api/v1/me/reward-notices',async req=>{const a=await actor(req,Boolean(req.headers.authorization));const rows=await db.select().from(rewardNotices).where(and(eq(rewardNotices.userId,a.user.id),isNull(rewardNotices.acknowledgedAt))).orderBy(rewardNotices.createdAt).limit(10);return {data:rows.map(row=>({id:row.id,amountRmb:row.points/10000,expiresAt:row.expiresAt.toISOString(),createdAt:row.createdAt.toISOString()}))};});
  app.post('/api/v1/me/reward-notices/:id/ack',async req=>{const a=await actor(req,Boolean(req.headers.authorization));z.object({}).strict().parse(req.body??{});const [row]=await db.update(rewardNotices).set({acknowledgedAt:sql`coalesce(acknowledged_at,now())`}).where(and(eq(rewardNotices.id,id(req.params)),eq(rewardNotices.userId,a.user.id))).returning({id:rewardNotices.id});if(!row)throw new ApiError(404,'NOT_FOUND');return {ok:true};});

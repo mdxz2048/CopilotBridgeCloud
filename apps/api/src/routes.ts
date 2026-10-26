@@ -4,7 +4,7 @@ import {subscriptionActive} from './logic.js';
 import {engagementPolicy,publicEngagement} from './engagement-policy.js';
 import {enrollSignupReward} from './signup-rewards.js';
 import type { FastifyInstance } from 'fastify';
-import { latestWindowsRelease } from './latest-release.js';
+import { latestWindowsRelease, MINIMUM_COMPATIBLE_CLIENT_VERSION } from './latest-release.js';
 import { db, auditLogs, billingOrders, devices, models, plans, refreshTokens, releases, subscriptions, usageRecords, users, webSessions } from '@bridge/db';
 import { and, desc, eq, gte, isNull, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
@@ -246,7 +246,7 @@ export async function registerRoutes(app: FastifyInstance) {
   async function latestRelease() {
     return latestWindowsRelease(await db.select().from(releases).where(and(eq(releases.published, true), eq(releases.channel, 'stable'), eq(releases.platform, 'windows'), eq(releases.arch, 'x64'))));
   }
-  app.get('/api/v1/client/config', async (_req,reply) => {reply.header('Cache-Control','no-store');const version=(await latestRelease())?.version??'0.1.0';return { minimumVersion: version, latestVersion:version, maintenance:false, features:{cloudGateway:true},...publicEngagement(await engagementPolicy()) };});
+  app.get('/api/v1/client/config', async (_req,reply) => {reply.header('Cache-Control','no-store');const version=(await latestRelease())?.version??'0.1.0';return { minimumVersion: MINIMUM_COMPATIBLE_CLIENT_VERSION, latestVersion:version, maintenance:false, features:{cloudGateway:true},...publicEngagement(await engagementPolicy()) };});
   app.get('/api/v1/releases', async () => ({ data: await db.select().from(releases).where(eq(releases.published, true)).orderBy(desc(releases.createdAt)) }));
   app.get('/api/v1/releases/download', async (_req, reply) => {
     const release=await latestRelease();
