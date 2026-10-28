@@ -1,0 +1,327 @@
+{
+  "date": "2026-10-28",
+  "sourceCommit": "3a80ac6",
+  "url": "https://ai.mddxz.top",
+  "image": "sha256:1dc6437c43edd94d798ed78f4ed209d99f975f75e37bc5183d8465d04143cdf5",
+  "previousImage": "sha256:c1f0ea7078d22d823e887a7cf608d0403aa2a89165024751961486537c2c4966",
+  "rollbackTag": "src-web:before-ued-20261028",
+  "buildId": "hcca4XPlRGON8xrCiM9iJ",
+  "nextVersion": "16.3.6",
+  "apiInternalUrl": "http://api:3001",
+  "apiContainerUnchanged": true,
+  "apiSha256": "5211fa69931663fd1b957be7817fe0d483fd1192d4ce750ffb86bd27d6382269",
+  "minimumClientVersion": "0.3.28",
+  "appLatestVersion": "0.3.30",
+  "reviewedSourceFilesCopied": 18,
+  "tests": {
+    "passed": 16,
+    "failed": 0,
+    "typecheck": true,
+    "productionBuild": true
+  },
+  "candidateBrowser": {
+    "base": "http://127.0.0.1:3016",
+    "realPublicApi": true,
+    "syntheticPageViewsSuppressed": true,
+    "themeReloadPassed": true,
+    "pages": [
+      {
+        "theme": "light",
+        "width": 1440,
+        "route": "/",
+        "status": 200,
+        "overflow": false,
+        "pageErrors": [],
+        "assetErrors": []
+      },
+      {
+        "theme": "light",
+        "width": 1440,
+        "route": "/guide",
+        "status": 200,
+        "overflow": false,
+        "pageErrors": [],
+        "assetErrors": []
+      },
+      {
+        "theme": "light",
+        "width": 1440,
+        "route": "/faq",
+        "status": 200,
+        "overflow": false,
+        "pageErrors": [],
+        "assetErrors": []
+      },
+      {
+        "theme": "light",
+        "width": 1440,
+        "route": "/download",
+        "status": 200,
+        "overflow": false,
+        "pageErrors": [],
+        "assetErrors": []
+      },
+      {
+        "theme": "light",
+        "width": 375,
+        "route": "/",
+        "status": 200,
+        "overflow": false,
+        "pageErrors": [],
+        "assetErrors": []
+      },
+      {
+        "theme": "light",
+        "width": 375,
+        "route": "/guide",
+        "status": 200,
+        "overflow": false,
+        "pageErrors": [],
+        "assetErrors": []
+      },
+      {
+        "theme": "light",
+        "width": 375,
+        "route": "/faq",
+        "status": 200,
+        "overflow": false,
+        "pageErrors": [],
+        "assetErrors": []
+      },
+      {
+        "theme": "light",
+        "width": 375,
+        "route": "/download",
+        "status": 200,
+        "overflow": false,
+        "pageErrors": [],
+        "assetErrors": []
+      },
+      {
+        "theme": "dark",
+        "width": 1440,
+        "route": "/",
+        "status": 200,
+        "overflow": false,
+        "pageErrors": [],
+        "assetErrors": []
+      },
+      {
+        "theme": "dark",
+        "width": 1440,
+        "route": "/guide",
+        "status": 200,
+        "overflow": false,
+        "pageErrors": [],
+        "assetErrors": []
+      },
+      {
+        "theme": "dark",
+        "width": 1440,
+        "route": "/faq",
+        "status": 200,
+        "overflow": false,
+        "pageErrors": [],
+        "assetErrors": []
+      },
+      {
+        "theme": "dark",
+        "width": 1440,
+        "route": "/download",
+        "status": 200,
+        "overflow": false,
+        "pageErrors": [],
+        "assetErrors": []
+      },
+      {
+        "theme": "dark",
+        "width": 375,
+        "route": "/",
+        "status": 200,
+        "overflow": false,
+        "pageErrors": [],
+        "assetErrors": []
+      },
+      {
+        "theme": "dark",
+        "width": 375,
+        "route": "/guide",
+        "status": 200,
+        "overflow": false,
+        "pageErrors": [],
+        "assetErrors": []
+      },
+      {
+        "theme": "dark",
+        "width": 375,
+        "route": "/faq",
+        "status": 200,
+        "overflow": false,
+        "pageErrors": [],
+        "assetErrors": []
+      },
+      {
+        "theme": "dark",
+        "width": 375,
+        "route": "/download",
+        "status": 200,
+        "overflow": false,
+        "pageErrors": [],
+        "assetErrors": []
+      }
+    ]
+  },
+  "publicBrowser": {
+    "base": "https://ai.mddxz.top",
+    "realPublicApi": true,
+    "syntheticPageViewsSuppressed": true,
+    "themeReloadPassed": true,
+    "pages": [
+      {
+        "theme": "light",
+        "width": 1440,
+        "route": "/",
+        "status": 200,
+        "overflow": false,
+        "pageErrors": [],
+        "assetErrors": []
+      },
+      {
+        "theme": "light",
+        "width": 1440,
+        "route": "/guide",
+        "status": 200,
+        "overflow": false,
+        "pageErrors": [],
+        "assetErrors": []
+      },
+      {
+        "theme": "light",
+        "width": 1440,
+        "route": "/faq",
+        "status": 200,
+        "overflow": false,
+        "pageErrors": [],
+        "assetErrors": []
+      },
+      {
+        "theme": "light",
+        "width": 1440,
+        "route": "/download",
+        "status": 200,
+        "overflow": false,
+        "pageErrors": [],
+        "assetErrors": []
+      },
+      {
+        "theme": "light",
+        "width": 375,
+        "route": "/",
+        "status": 200,
+        "overflow": false,
+        "pageErrors": [],
+        "assetErrors": []
+      },
+      {
+        "theme": "light",
+        "width": 375,
+        "route": "/guide",
+        "status": 200,
+        "overflow": false,
+        "pageErrors": [],
+        "assetErrors": []
+      },
+      {
+        "theme": "light",
+        "width": 375,
+        "route": "/faq",
+        "status": 200,
+        "overflow": false,
+        "pageErrors": [],
+        "assetErrors": []
+      },
+      {
+        "theme": "light",
+        "width": 375,
+        "route": "/download",
+        "status": 200,
+        "overflow": false,
+        "pageErrors": [],
+        "assetErrors": []
+      },
+      {
+        "theme": "dark",
+        "width": 1440,
+        "route": "/",
+        "status": 200,
+        "overflow": false,
+        "pageErrors": [],
+        "assetErrors": []
+      },
+      {
+        "theme": "dark",
+        "width": 1440,
+        "route": "/guide",
+        "status": 200,
+        "overflow": false,
+        "pageErrors": [],
+        "assetErrors": []
+      },
+      {
+        "theme": "dark",
+        "width": 1440,
+        "route": "/faq",
+        "status": 200,
+        "overflow": false,
+        "pageErrors": [],
+        "assetErrors": []
+      },
+      {
+        "theme": "dark",
+        "width": 1440,
+        "route": "/download",
+        "status": 200,
+        "overflow": false,
+        "pageErrors": [],
+        "assetErrors": []
+      },
+      {
+        "theme": "dark",
+        "width": 375,
+        "route": "/",
+        "status": 200,
+        "overflow": false,
+        "pageErrors": [],
+        "assetErrors": []
+      },
+      {
+        "theme": "dark",
+        "width": 375,
+        "route": "/guide",
+        "status": 200,
+        "overflow": false,
+        "pageErrors": [],
+        "assetErrors": []
+      },
+      {
+        "theme": "dark",
+        "width": 375,
+        "route": "/faq",
+        "status": 200,
+        "overflow": false,
+        "pageErrors": [],
+        "assetErrors": []
+      },
+      {
+        "theme": "dark",
+        "width": 375,
+        "route": "/download",
+        "status": 200,
+        "overflow": false,
+        "pageErrors": [],
+        "assetErrors": []
+      }
+    ]
+  },
+  "scope": "Web service only; no API/database/proxy or other-site replacement; no authenticated user mutations or payment acceptance claimed"
+}
