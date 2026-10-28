@@ -2,9 +2,11 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ArrowUpRight, Layers3 } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 import { api, type ApiError } from '../lib/api';
 import { roleHome } from '../lib/role-home';
+import { AppearanceToggle } from './appearance';
+import { BridgeMark } from './bridge-mark';
 
 export function SiteHeader() {
   const pathname = usePathname();
@@ -54,9 +56,9 @@ export function SiteHeader() {
     };
   }, []);
   return <header className="site-header"><div className="container header-inner">
-    <Link href="/" className="brand"><span className="brand-mark"><Layers3 size={19} strokeWidth={2.2} /></span><span>Copilot Bridge <span className="brand-light">Cloud</span></span></Link>
-    <nav aria-label="主导航">{pathname === '/' ? <><Link href="/#examples">功能演示</Link><Link href="/#how-it-works">开始使用</Link><Link href="/#faq">常见问题</Link></> : <><Link href="/#how-it-works">产品</Link><Link href="/pricing">套餐与余额</Link><Link href="/download">下载</Link></>}</nav>
-    <div className="header-actions" aria-live="polite">{loading ? <span className="header-auth-loading" role="status">正在检查登录状态…</span> : identity ? <>
+    <Link href="/" className="brand"><BridgeMark/><span>Copilot Bridge</span></Link>
+    <nav aria-label="主导航"><Link href="/#features">产品特性</Link><Link href="/guide" aria-current={pathname === '/guide' ? 'page' : undefined}>使用指南</Link><Link href="/faq" aria-current={pathname === '/faq' ? 'page' : undefined}>常见问题</Link><Link href="/download" aria-current={pathname === '/download' ? 'page' : undefined}>下载</Link></nav>
+    <div className="header-actions" aria-live="polite"><AppearanceToggle/>{loading ? <span className="header-auth-loading" role="status">正在检查登录状态…</span> : identity ? <>
       <Link className="header-account" href={roleHome(identity.role)} aria-label={`${identity.role === 'ADMIN' ? '管理后台' : '账号中心'}：${identity.email}`}><span className="header-avatar" aria-hidden="true">{identity.email.charAt(0).toUpperCase()}</span><span className="header-email">{identity.email}</span></Link>
     </> : <><Link className="text-link" href="/login">登录</Link><Link className="button button-small" href="/download">下载 Bridge <ArrowUpRight size={15}/></Link></>}</div>
   </div></header>;
