@@ -1,0 +1,22 @@
+{
+  "release": {
+    "id": "71ccaad0-f16c-4f8b-b3ff-75ca4bc6b1be",
+    "version": "0.3.31",
+    "channel": "stable",
+    "platform": "windows",
+    "arch": "x64",
+    "downloadUrl": "https://ai.mddxz.top/api/v1/releases/files/71ccaad0-f16c-4f8b-b3ff-75ca4bc6b1be",
+    "sha256": "d9d4eca147b8cce7f6653162ea864f7757139cd4c8021f85a71555ee12cc830a",
+    "releaseNotes": "消费记录与反馈更新：\n1. 消费记录按设备查看，支持今天、近 7 天及逐笔模型调用明细，解释实际扣费与计价依据。\n2. 新增意见反馈，可提交功能建议和使用问题，并查看处理状态。\n3. 后台新增用户反馈工作台，重新设计用户列表与用户管理，状态、余额、套餐、模型和设备更清晰。\n4. 充值、奖励与管理员调整单独展示；历史汇总和待核对金额明确区分。\n5. 保持兼容 0.3.28 及以上版本，更新后台下载，确认安装后才退出 Bridge。",
+    "published": true,
+    "createdAt": "2026-10-29T15:26:42.510Z"
+  },
+  "blockmap": {
+    "size": 349011,
+    "sha256": "520c923b2a96379a8ed1ad2dfe071652c2c479c79aadbd278ddf769e856ead84",
+    "blocks": 16371,
+    "installerSize": 343680750
+  },
+  "installerBytes": 343680750,
+  "minimumCompatibleApp": "0.3.28"
+}

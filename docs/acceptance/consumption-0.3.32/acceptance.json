@@ -1,0 +1,18 @@
+{
+  "version": "0.3.32",
+  "installed": true,
+  "installerExit": 0,
+  "installerSha256": "27d3e63b649760b6d932ce67c26c8fba53906315aebc17286e930d04f21effb5",
+  "installerBytes": 343680722,
+  "appTests": 301,
+  "finalFocusedAppTests": 61,
+  "apiUnitTests": 210,
+  "isolatedPostgresTests": 10,
+  "contractTests": 10,
+  "uiAgentReview": "PASS",
+  "minimumCompatibleClient": "0.3.28",
+  "remoteDeployment": false,
+  "uploaded": false,
+  "gitPushed": false,
+  "realPaidModelRequestsTested": false
+}

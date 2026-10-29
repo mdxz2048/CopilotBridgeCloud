@@ -1,0 +1,10 @@
+{
+  "realLocalApi": true,
+  "noRouteMocks": true,
+  "adminLogin": true,
+  "userList": true,
+  "userDetail": true,
+  "feedbackStateUpdate": true,
+  "consumptionRecords": 24,
+  "errors": []
+}

@@ -1,0 +1,10 @@
+{
+  "consumptionRead": true,
+  "ownerIsolation": true,
+  "feedbackCreateReadStatus": true,
+  "adminSummaryFields": true,
+  "anonymousRejected": true,
+  "adminAuthorization": true,
+  "financialMutationsRequested": false,
+  "syntheticFeedbackCleaned": true
+}

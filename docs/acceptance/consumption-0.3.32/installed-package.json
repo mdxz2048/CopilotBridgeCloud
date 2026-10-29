@@ -1,0 +1,9 @@
+{
+  "archive": "C:/Users/MDXZ/AppData/Local/Programs/Copilot Bridge Preview/resources/app.asar",
+  "version": "0.3.32",
+  "name": "copilot-bridge-preview",
+  "entry": "dist-electron/preview-main.js",
+  "verifiedBuildFiles": 59,
+  "externalResourcesVerified": true,
+  "sha256": "c6b5fe450bf83a8897e9aa4d64a4a9ef0b7008a3503979e4c4b6a31233ede9e4"
+}

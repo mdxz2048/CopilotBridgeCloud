@@ -1,0 +1,469 @@
+{
+  "errors": [],
+  "report": [
+    {
+      "name": "app-account-light",
+      "width": 900,
+      "overflow": false,
+      "dialogs": [
+        {
+          "x": 190,
+          "y": 154,
+          "width": 520,
+          "height": 440
+        }
+      ]
+    },
+    {
+      "name": "app-bills-light",
+      "width": 900,
+      "overflow": false,
+      "dialogs": [
+        {
+          "x": 160,
+          "y": 70,
+          "width": 580,
+          "height": 620
+        }
+      ]
+    },
+    {
+      "name": "app-feedback-light",
+      "width": 900,
+      "overflow": false,
+      "dialogs": [
+        {
+          "x": 160,
+          "y": 70,
+          "width": 580,
+          "height": 620
+        }
+      ]
+    },
+    {
+      "name": "app-feedback-history-light",
+      "width": 900,
+      "overflow": false,
+      "dialogs": [
+        {
+          "x": 160,
+          "y": 70,
+          "width": 580,
+          "height": 620
+        }
+      ]
+    },
+    {
+      "name": "app-history-small-light",
+      "width": 720,
+      "overflow": false,
+      "dialogs": [
+        {
+          "x": 70,
+          "y": 64,
+          "width": 580,
+          "height": 440
+        }
+      ]
+    },
+    {
+      "name": "app-form-small-light",
+      "width": 720,
+      "overflow": false,
+      "dialogs": [
+        {
+          "x": 70,
+          "y": 64,
+          "width": 580,
+          "height": 440
+        }
+      ]
+    },
+    {
+      "name": "app-account-dark",
+      "width": 900,
+      "overflow": false,
+      "dialogs": [
+        {
+          "x": 190,
+          "y": 154,
+          "width": 520,
+          "height": 440
+        }
+      ]
+    },
+    {
+      "name": "app-bills-dark",
+      "width": 900,
+      "overflow": false,
+      "dialogs": [
+        {
+          "x": 160,
+          "y": 70,
+          "width": 580,
+          "height": 620
+        }
+      ]
+    },
+    {
+      "name": "app-feedback-dark",
+      "width": 900,
+      "overflow": false,
+      "dialogs": [
+        {
+          "x": 160,
+          "y": 70,
+          "width": 580,
+          "height": 620
+        }
+      ]
+    },
+    {
+      "name": "app-feedback-history-dark",
+      "width": 900,
+      "overflow": false,
+      "dialogs": [
+        {
+          "x": 160,
+          "y": 70,
+          "width": 580,
+          "height": 620
+        }
+      ]
+    },
+    {
+      "name": "app-history-small-dark",
+      "width": 720,
+      "overflow": false,
+      "dialogs": [
+        {
+          "x": 70,
+          "y": 64,
+          "width": 580,
+          "height": 440
+        }
+      ]
+    },
+    {
+      "name": "app-form-small-dark",
+      "width": 720,
+      "overflow": false,
+      "dialogs": [
+        {
+          "x": 70,
+          "y": 64,
+          "width": 580,
+          "height": 440
+        }
+      ]
+    },
+    {
+      "name": "admin-users-1440-light",
+      "width": 1440,
+      "overflow": false,
+      "dialogs": []
+    },
+    {
+      "name": "admin-user-status-1440-light",
+      "width": 1440,
+      "overflow": false,
+      "dialogs": [
+        {
+          "x": 260,
+          "y": 125.8125,
+          "width": 920,
+          "height": 648.375
+        }
+      ]
+    },
+    {
+      "name": "admin-user-余额-1440-light",
+      "width": 1440,
+      "overflow": false,
+      "dialogs": [
+        {
+          "x": 260,
+          "y": 16,
+          "width": 920,
+          "height": 868
+        }
+      ]
+    },
+    {
+      "name": "admin-user-套餐-1440-light",
+      "width": 1440,
+      "overflow": false,
+      "dialogs": [
+        {
+          "x": 260,
+          "y": 129.8125,
+          "width": 920,
+          "height": 640.375
+        }
+      ]
+    },
+    {
+      "name": "admin-user-模型-1440-light",
+      "width": 1440,
+      "overflow": false,
+      "dialogs": [
+        {
+          "x": 260,
+          "y": 152.203125,
+          "width": 920,
+          "height": 595.578125
+        }
+      ]
+    },
+    {
+      "name": "admin-user-设备-1440-light",
+      "width": 1440,
+      "overflow": false,
+      "dialogs": [
+        {
+          "x": 260,
+          "y": 55.90625,
+          "width": 920,
+          "height": 788.171875
+        }
+      ]
+    },
+    {
+      "name": "admin-feedback-1440-light",
+      "width": 1440,
+      "overflow": false,
+      "dialogs": []
+    },
+    {
+      "name": "admin-users-480-light",
+      "width": 480,
+      "overflow": false,
+      "dialogs": []
+    },
+    {
+      "name": "admin-user-status-480-light",
+      "width": 480,
+      "overflow": false,
+      "dialogs": [
+        {
+          "x": 16,
+          "y": 78.71875,
+          "width": 448,
+          "height": 742.5625
+        }
+      ]
+    },
+    {
+      "name": "admin-user-余额-480-light",
+      "width": 480,
+      "overflow": false,
+      "dialogs": [
+        {
+          "x": 16,
+          "y": 16,
+          "width": 448,
+          "height": 868
+        }
+      ]
+    },
+    {
+      "name": "admin-user-套餐-480-light",
+      "width": 480,
+      "overflow": false,
+      "dialogs": [
+        {
+          "x": 16,
+          "y": 71.3125,
+          "width": 448,
+          "height": 757.359375
+        }
+      ]
+    },
+    {
+      "name": "admin-user-模型-480-light",
+      "width": 480,
+      "overflow": false,
+      "dialogs": [
+        {
+          "x": 16,
+          "y": 105.109375,
+          "width": 448,
+          "height": 689.765625
+        }
+      ]
+    },
+    {
+      "name": "admin-user-设备-480-light",
+      "width": 480,
+      "overflow": false,
+      "dialogs": [
+        {
+          "x": 16,
+          "y": 16,
+          "width": 448,
+          "height": 868
+        }
+      ]
+    },
+    {
+      "name": "admin-feedback-480-light",
+      "width": 480,
+      "overflow": false,
+      "dialogs": []
+    },
+    {
+      "name": "admin-users-1440-dark",
+      "width": 1440,
+      "overflow": false,
+      "dialogs": []
+    },
+    {
+      "name": "admin-user-status-1440-dark",
+      "width": 1440,
+      "overflow": false,
+      "dialogs": [
+        {
+          "x": 260,
+          "y": 125.8125,
+          "width": 920,
+          "height": 648.375
+        }
+      ]
+    },
+    {
+      "name": "admin-user-余额-1440-dark",
+      "width": 1440,
+      "overflow": false,
+      "dialogs": [
+        {
+          "x": 260,
+          "y": 16,
+          "width": 920,
+          "height": 868
+        }
+      ]
+    },
+    {
+      "name": "admin-user-套餐-1440-dark",
+      "width": 1440,
+      "overflow": false,
+      "dialogs": [
+        {
+          "x": 260,
+          "y": 129.8125,
+          "width": 920,
+          "height": 640.375
+        }
+      ]
+    },
+    {
+      "name": "admin-user-模型-1440-dark",
+      "width": 1440,
+      "overflow": false,
+      "dialogs": [
+        {
+          "x": 260,
+          "y": 152.203125,
+          "width": 920,
+          "height": 595.578125
+        }
+      ]
+    },
+    {
+      "name": "admin-user-设备-1440-dark",
+      "width": 1440,
+      "overflow": false,
+      "dialogs": [
+        {
+          "x": 260,
+          "y": 55.90625,
+          "width": 920,
+          "height": 788.171875
+        }
+      ]
+    },
+    {
+      "name": "admin-feedback-1440-dark",
+      "width": 1440,
+      "overflow": false,
+      "dialogs": []
+    },
+    {
+      "name": "admin-users-480-dark",
+      "width": 480,
+      "overflow": false,
+      "dialogs": []
+    },
+    {
+      "name": "admin-user-status-480-dark",
+      "width": 480,
+      "overflow": false,
+      "dialogs": [
+        {
+          "x": 16,
+          "y": 78.71875,
+          "width": 448,
+          "height": 742.5625
+        }
+      ]
+    },
+    {
+      "name": "admin-user-余额-480-dark",
+      "width": 480,
+      "overflow": false,
+      "dialogs": [
+        {
+          "x": 16,
+          "y": 16,
+          "width": 448,
+          "height": 868
+        }
+      ]
+    },
+    {
+      "name": "admin-user-套餐-480-dark",
+      "width": 480,
+      "overflow": false,
+      "dialogs": [
+        {
+          "x": 16,
+          "y": 71.3125,
+          "width": 448,
+          "height": 757.359375
+        }
+      ]
+    },
+    {
+      "name": "admin-user-模型-480-dark",
+      "width": 480,
+      "overflow": false,
+      "dialogs": [
+        {
+          "x": 16,
+          "y": 105.109375,
+          "width": 448,
+          "height": 689.765625
+        }
+      ]
+    },
+    {
+      "name": "admin-user-设备-480-dark",
+      "width": 480,
+      "overflow": false,
+      "dialogs": [
+        {
+          "x": 16,
+          "y": 16,
+          "width": 448,
+          "height": 868
+        }
+      ]
+    },
+    {
+      "name": "admin-feedback-480-dark",
+      "width": 480,
+      "overflow": false,
+      "dialogs": []
+    }
+  ]
+}

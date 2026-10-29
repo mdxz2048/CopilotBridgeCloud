@@ -265,3 +265,12 @@ export const purchaseTickets=pgTable('purchase_tickets',{
 export const rewardNotices=pgTable('reward_notices',{
  id:id(),userId:uuid('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),walletTransactionId:uuid('wallet_transaction_id').notNull().references(()=>walletTransactions.id).unique(),points:integer('points').notNull(),expiresAt:timestamp('expires_at',{withTimezone:true}).notNull(),createdAt:created(),acknowledgedAt:timestamp('acknowledged_at',{withTimezone:true}),
 },t=>[index('reward_notices_user_ack_idx').on(t.userId,t.acknowledgedAt)]);
+
+export const userFeedback = pgTable('user_feedback', {
+  id: id(), userId: uuid('user_id').notNull().references(() => users.id),
+  clientId: uuid('client_id').notNull(), kind: varchar('kind', {length:16}).notNull(),
+  status: varchar('status', {length:16}).notNull().default('OPEN'),
+  ciphertext: text('ciphertext').notNull(), iv: text('iv').notNull(), tag: text('tag').notNull(),
+  createdAt: created(), updatedAt: timestamp('updated_at', {withTimezone:true}).notNull().defaultNow(),
+}, t => [uniqueIndex('user_feedback_client_idx').on(t.userId,t.clientId),
+  index('user_feedback_user_date_idx').on(t.userId,t.createdAt), index('user_feedback_status_date_idx').on(t.status,t.createdAt)]);

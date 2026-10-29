@@ -1,9 +1,14 @@
 # PRODUCTION_INTEGRATION_MANIFEST
 
+## 2026-10-29 App 0.3.31 published — consumption, feedback and user management
+
+Domain 2.11.0 / desktop handshake 2.3.0. Latest App 0.3.31; minimum compatible App 0.3.28. API a2a4a4a34227 and Web cce14aaf30d0 deployed; migration 0018 applied. Actual UpdateManager public HTTPS download and SHA256 verification reached READY without installing. API 210 / isolated PostgreSQL 45 / Web 19 / contract 10 / App full 301 and release-focused 48 passed. Candidate API feedback/ownership checks passed; no paid inference was initiated for this additive read/UI release. See [release record](../product/RELEASE_0_3_31.md). Earlier entries below remain historical.
+
+
 ## 2026-10-11 0.3.3 Native Responses platform deployed
 
-PENDING_CONTRACT_VERSION: 2.9.0
-PENDING_OPENAPI_HASH: sha256:b2431d6c21f1e23b17b5d0af5da7f1a749752e7a0a058d9bf3d34b9a800c4874
+PENDING_CONTRACT_VERSION: 2.11.0
+PENDING_OPENAPI_HASH: sha256:bd5618ba617e4e49a40120b547c31f9c32ee82d9b990b125658df8ba010f58e3
 PENDING_GATEWAY_V1_OPENAPI_HASH: sha256:4c72178606ecd71ec047c9618e89eff6581e489f53d80ff54f4035d7152a2d85
 GATEWAY_CURRENT_REVISION: 1.2.0
 GATEWAY_CURRENT_OPENAPI_HASH: sha256:e5b0e179f02f31e9a2402325e73a424e1d872869cd4bd5ce0d2f74bb853aa68d

@@ -1,0 +1,14 @@
+{
+  "appFullTests": 301,
+  "appSubsequentRendererRegression": 61,
+  "formalAppFocusedTests": 48,
+  "apiUnitTests": 210,
+  "isolatedPostgresTests": 45,
+  "webTests": 19,
+  "contractTests": 10,
+  "uiDesignReview": "PASS",
+  "previewInstalledElectron": "PASS",
+  "productionPaidModelInferenceRetested": false,
+  "historicalBinaryOfficialGuiFullyRetested": false,
+  "minimumCompatibleApp": "0.3.28"
+}

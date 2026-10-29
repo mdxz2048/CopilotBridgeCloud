@@ -1,0 +1,9 @@
+'use client';
+import styles from './admin-users.module.css';
+type Row=Record<string,unknown>&{id?:string};
+export function AdminUsers({rows,search,onSearch,onCreate,onManage}:{rows:Row[];search:string;onSearch:(v:string)=>void;onCreate:()=>void;onManage:(row:Row)=>void}){
+  return <div className={styles.users}><div className={styles.toolbar}><div><h2>用户与权限</h2><p>先查看账户状态，再按需管理余额、套餐、模型与设备。</p></div><button className="button button-small" onClick={onCreate}>创建用户</button></div>
+    <div className={styles.search}><input className="search-input" type="search" value={search} onChange={e=>onSearch(e.target.value)} placeholder="按邮箱搜索用户" aria-label="搜索用户"/><span>最近 {rows.length} 位用户 · 最多显示 100 位，请搜索定位</span></div>
+    <section className={`panel ${styles.tablePanel}`}><div className="table-wrap"><table className={`data-table ${styles.userTable}`}><thead><tr><th>用户</th><th>账户状态</th><th>可用余额</th><th>当前套餐</th><th>设备</th><th>操作</th></tr></thead><tbody>{rows.map(row=><tr key={String(row.id)}><td><strong>{String(row.email)}</strong><small>{row.role==='ADMIN'?'管理员':'普通用户'} · {String(row.id).slice(0,8)}</small></td><td><span className={row.status==='ACTIVE'?styles.active:styles.locked}>{row.status==='ACTIVE'?'正常':'已锁定'}</span></td><td><b className={Number(row.balance)<=0?styles.warning:''}>{row.balance==null?'—':`¥${(Number(row.balance)/10000).toFixed(4)}`}</b>{Number(row.balance)<=0&&<small>余额不足</small>}</td><td>{String(row.planName??'未分配')}</td><td><strong>{Number(row.onlineDevices??0)} 在线</strong><small>{Number(row.authorizedDevices??0)} 已授权</small></td><td><button className="mini-button" onClick={()=>onManage(row)} aria-label={`管理 ${row.email}`}>管理用户 →</button></td></tr>)}</tbody></table></div>{rows.length===0&&<div className="empty">{search?'没有找到匹配的用户。':'暂无用户。'}</div>}</section>
+  </div>;
+}

@@ -1,0 +1,17 @@
+{
+  "version": "0.3.32",
+  "realInstalledElectron": true,
+  "noIpcMocks": true,
+  "deviceOverview": true,
+  "callPagination": true,
+  "exactBreakdown": true,
+  "unknownNotZero": true,
+  "historicalSummary": true,
+  "lightDark": true,
+  "smallWindow": true,
+  "deviceRenameRestored": true,
+  "balanceHistorySeparate": true,
+  "noOverflow": true,
+  "noPageErrors": true,
+  "localOnly": true
+}

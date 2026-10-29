@@ -1,4 +1,6 @@
 import {registerPurchases} from './purchases.js';
+import {registerUserFeedback} from './user-feedback.js';
+import {registerConsumption} from './consumption.js';
 import { registerBillingRoutes } from './billing-routes.js';
 import { registerPasswordRoutes } from './passwords.js';
 import {registerOnlineEvents} from './online-events.js';
@@ -56,6 +58,8 @@ export async function createServer() {
   await registerRoutes(app);
   registerPasswordRoutes(app);
   registerBillingRoutes(app);
+  registerConsumption(app);
+  registerUserFeedback(app);
   await registerPurchases(app);
   await registerAdmin(app);
   registerMoneyAdmin(app);

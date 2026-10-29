@@ -1,0 +1,8 @@
+import {z} from 'zod';
+
+export const ConsumptionQuerySchema=z.object({range:z.enum(['today','week']).default('today'),deviceId:z.uuid().optional(),page:z.coerce.number().int().min(1).max(100000).default(1)});
+export const ConsumptionRowSchema=z.object({id:z.string(),kind:z.enum(['CALL','HISTORICAL']),deviceId:z.uuid(),deviceName:z.string(),platform:z.string(),occurredAt:z.string(),model:z.string().nullable(),chargedPoints:z.number().int().nonnegative().nullable(),status:z.string(),needsReview:z.boolean()});
+export const ConsumptionSchema=z.object({range:z.enum(['today','week']),from:z.string(),to:z.string(),chargedPoints:z.number().int().nonnegative(),reviewCount:z.number().int(),devices:z.array(z.object({id:z.uuid(),name:z.string(),platform:z.string(),lastUsedAt:z.string(),chargedPoints:z.number().int().nonnegative(),reviewCount:z.number().int(),count:z.number().int()})),data:z.array(ConsumptionRowSchema),total:z.number().int(),page:z.number().int(),pageSize:z.number().int()});
+export const ConsumptionDetailSchema=ConsumptionRowSchema.extend({breakdown:z.object({inputPoints:z.number().int(),outputPoints:z.number().int()}).nullable(),usage:z.object({inputTokens:z.number(),cachedInputTokens:z.number(),outputTokens:z.number(),reasoningTokens:z.number(),imageInput:z.number(),imageOutput:z.number(),toolCalls:z.number()}).nullable(),rates:z.object({inputRate:z.string(),cachedInputRate:z.string(),outputRate:z.string(),reasoningRate:z.string(),imageInputRate:z.string(),imageOutputRate:z.string(),toolRate:z.string(),minimumCharge:z.number()}).nullable(),ratedPoints:z.number().nullable()});
+export type Consumption=z.infer<typeof ConsumptionSchema>;
+export type ConsumptionDetail=z.infer<typeof ConsumptionDetailSchema>;

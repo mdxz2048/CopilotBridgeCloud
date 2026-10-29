@@ -1,4 +1,6 @@
 'use client';
+import {AdminUsers} from '../../components/admin-users';
+import {AdminFeedback} from '../../components/admin-feedback';
 import {AdminPurchases} from '../../components/admin-purchases';
 import {AdminModels} from '../../components/admin-models';
 import {AdminActivity} from '../../components/admin-activity';
@@ -25,6 +27,7 @@ const items: NavItem[] = [
   {id:'v2-rates',label:'模型售价',icon:'Boxes'},
 
   {id:'engagement',label:'活动与通知',icon:'BadgeCheck'},
+  {id:'feedback',label:'用户反馈',icon:'ScrollText'},
   {id:'failures',label:'失败反馈',icon:'Activity'},
   {id:'audit',label:'操作记录',icon:'ScrollText'},
 ];
@@ -78,7 +81,7 @@ export default function AdminPage() {
       if (version !== loadVersion.current) return false;
       if (me.user.role !== 'ADMIN') { router.replace('/dashboard'); return false; }
       setEmail(me.user.email);
-      if (active === 'models' || active === 'audit' || active === 'engagement' || active.startsWith('v2-') || active === 'website-settings' || active === 'money-plans' || active === 'failures' || active === 'purchases') return true;
+      if (active === 'models' || active === 'audit' || active === 'engagement' || active.startsWith('v2-') || active === 'website-settings' || active === 'money-plans' || active === 'failures' || active === 'feedback' || active === 'purchases') return true;
       if (active === 'dashboard') {
         const result = await api<Record<string, number>>('/api/v1/admin/dashboard');
         if (version !== loadVersion.current) return false;
@@ -144,7 +147,7 @@ export default function AdminPage() {
     {error ? <><h1>暂时无法验证管理员身份</h1><p role="alert">{error}</p><button className="button" onClick={() => void load()}>重试</button></>
       : <p role="status">正在验证管理员身份…</p>}
   </div></div>;
-  return <AppShell title={title} description="管理账号、权限、模型与服务状态。" items={items} active={active} onChange={id => {setLoading(true);setRows([]);setActive(id);setSelected(null);setForm({});setSearch('');setMessage('');setSetupProvider(null);setModelProviderReady('');}} email={email} admin>
+  return <AppShell title={title} description={active==='feedback'?'查看用户的功能建议与意见，跟进处理进度。':active==='users'?'查看账户状态、余额与设备，管理套餐和模型权限。':'管理账号、权限、模型与服务状态。'} items={items} active={active} onChange={id => {setLoading(true);setRows([]);setActive(id);setSelected(null);setForm({});setSearch('');setMessage('');setSetupProvider(null);setModelProviderReady('');}} email={email} admin>
     {message && <div className="notice" role="status">{message}</div>}{error && <div className="error-text" role="alert">{error} <button className="mini-button" onClick={load}>重试</button></div>}
     {loading && <div className="loading-skeleton"/>}
     {active === 'money-plans' && <MoneyPlanManager/>}
@@ -172,8 +175,9 @@ export default function AdminPage() {
       </section>}
     </>}
     {!loading && active === 'providers' && rows.some(row => row.code === 'COPILOT') && <CopilotAuthCard/>}
-    {active === 'users' && <button className="button button-small" onClick={() => setCreatingUser(true)}>创建用户</button>}
-    {!loading && resourcePaths[active] && !['models','audit'].includes(active) && <><div className="toolbar"><h2>{title} <span style={{fontSize:12,color:'#9aa69b'}}>({rows.length})</span></h2>{active === 'users' && <input className="search-input" value={search} onChange={e => {setRows([]);setSelected(null);setSearch(e.target.value);}} placeholder="搜索邮箱" aria-label="搜索用户"/>}</div><section className="panel" style={{marginTop:0,padding:0}}>{rows.length ? <div className="table-wrap"><table className="data-table"><thead><tr>{columns[active]?.map(c => <th key={c}>{c}</th>)}<th>操作</th></tr></thead><tbody>{rows.map((row, idx) => <tr key={row.id ?? idx}>{columns[active]?.map(c => <td key={c}>{c === 'status' || c === 'enabled' || c === 'published' ? <span className={`badge ${row[c] === 'ACTIVE' || row[c] === true || row[c] === 'COMPLETED' ? '' : 'muted'}`}>{active==='users'&&c==='status'?(row[c]==='ACTIVE'?'正常':'锁定'):display(row[c])}</span> : display(row[c])}</td>)}<td><div className="inline-actions">
+    {active === 'users' && <AdminUsers rows={rows} search={search} onSearch={value=>{setSelected(null);setSearch(value);}} onCreate={()=>setCreatingUser(true)} onManage={row=>setSelected(row)}/>}
+    {active === 'feedback' && <AdminFeedback/>}
+    {!loading && resourcePaths[active] && !['models','audit','users'].includes(active) && <><div className="toolbar"><h2>{title} <span style={{fontSize:12,color:'#9aa69b'}}>({rows.length})</span></h2>{active === 'users' && <input className="search-input" value={search} onChange={e => {setRows([]);setSelected(null);setSearch(e.target.value);}} placeholder="搜索邮箱" aria-label="搜索用户"/>}</div><section className="panel" style={{marginTop:0,padding:0}}>{rows.length ? <div className="table-wrap"><table className="data-table"><thead><tr>{columns[active]?.map(c => <th key={c}>{c}</th>)}<th>操作</th></tr></thead><tbody>{rows.map((row, idx) => <tr key={row.id ?? idx}>{columns[active]?.map(c => <td key={c}>{c === 'status' || c === 'enabled' || c === 'published' ? <span className={`badge ${row[c] === 'ACTIVE' || row[c] === true || row[c] === 'COMPLETED' ? '' : 'muted'}`}>{active==='users'&&c==='status'?(row[c]==='ACTIVE'?'正常':'锁定'):display(row[c])}</span> : display(row[c])}</td>)}<td><div className="inline-actions">
       {active === 'providers' && row.code === 'COPILOT' ? <span>见上方认证卡</span> : ['users','plans','providers','models','releases'].includes(active) && <button className="mini-button" onClick={() => {setSelected(row);setForm({});setUserAccess(null);setUserAccessId('');}}>管理</button>}
       {active === 'devices' && <button className="mini-button" onClick={() => run(() => patch(`/api/v1/admin/devices/${row.id}`, { status: row.status === 'ACTIVE' ? 'REVOKED' : 'ACTIVE' }))}>{row.status === 'ACTIVE' ? '停用' : '恢复'}</button>}
       {active === 'orders' && row.status === 'PENDING' && row.provider === 'MANUAL' && <button className="mini-button" onClick={() => run(() => post(`/api/v1/admin/orders/${row.id}/mark-paid`, {}), '手工订单已入账')}>确认收款</button>}

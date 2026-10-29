@@ -1,0 +1,11 @@
+{
+  "publicProduction": true,
+  "adminAuthenticated": true,
+  "userListRedesign": true,
+  "fiveManagementTabs": true,
+  "feedbackWorkbench": true,
+  "version": "0.3.31",
+  "noPageErrors": true,
+  "noAccountChanges": true,
+  "privateScreenshotsExcludedFromGit": true
+}

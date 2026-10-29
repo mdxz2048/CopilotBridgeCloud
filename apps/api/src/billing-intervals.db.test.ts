@@ -43,6 +43,53 @@ describe.skipIf(!process.env.V2_TEST_DATABASE_URL)('Device interval billing and 
       await (await import('./online-events.js')).recordOnlineEvent({ userId: f.user.id, device, ip: '192.0.2.1', source: 'APP_START', loginSessionId: randomUUID() }, tx);
     });
   }
+  it('uses Beijing midnight and seven calendar days for consumption filters',async()=>{
+    const {consumptionWindow}=await import('./consumption.js');
+    expect(consumptionWindow('today',new Date('2026-10-28T16:00:00Z')).from.toISOString()).toBe('2026-10-28T16:00:00.000Z');
+    expect(consumptionWindow('today',new Date('2026-10-28T15:59:59Z')).from.toISOString()).toBe('2026-10-27T16:00:00.000Z');
+    expect(consumptionWindow('week',new Date('2026-10-28T16:00:00Z')).from.toISOString()).toBe('2026-10-22T16:00:00.000Z');
+  });
+  it('shows request debits before interval closure and never counts the interval twice', async()=>{
+    const f=await fixture(),[a,b]=f.devices,headers=await cookie(f.user.id);
+    await online(f,a);const first=await charge(f,a,19);await charge(f,b,7);
+    let response=await app.inject({url:'/api/v1/me/consumption',headers});
+    expect(response.statusCode,response.body).toBe(200);expect(response.headers['cache-control']).toBe('no-store');
+    expect(response.json().chargedPoints).toBe(26);expect(response.json().devices).toHaveLength(2);expect(response.json().total).toBe(2);
+    await online(f,a);
+    response=await app.inject({url:`/api/v1/me/consumption?deviceId=${a.id}`,headers});
+    expect(response.json().chargedPoints).toBe(19);expect(response.json().data.map((r:{kind:string})=>r.kind)).toEqual(['CALL']);
+    const detail=await app.inject({url:`/api/v1/me/consumption/${first.event.id}`,headers});
+    expect(detail.statusCode,detail.body).toBe(200);expect(detail.json().usage.inputTokens).toBe(19);expect(detail.json().rates.inputRate).toBe('1000.000000');
+    expect(detail.body).not.toMatch(/providerCost|providerReportedUsage|responseId|walletBefore/);
+    const stranger=await fixture(),other=await cookie(stranger.user.id);
+    expect((await app.inject({url:`/api/v1/me/consumption/${first.event.id}`,headers:other})).statusCode).toBe(404);
+    expect((await app.inject({url:`/api/v1/me/consumption?deviceId=${a.id}`,headers:other})).statusCode).toBe(404);
+    expect((await app.inject({url:'/api/v1/me/consumption?range=invalid',headers})).statusCode).toBe(400);
+    expect((await app.inject({url:'/api/v1/me/consumption?page=0',headers})).statusCode).toBe(400);
+  });
+  it('paginates stable call rows and exposes only unmatched historical charges',async()=>{
+    const f=await fixture(),[a]=f.devices,headers=await cookie(f.user.id);
+    await online(f,a);for(let i=0;i<21;i++)await charge(f,a,1);await online(f,a);
+    await data.db.insert(data.deviceBillingPeriods).values({userId:f.user.id,deviceId:a.id,deviceName:a.deviceName,bindingId:a.deviceId,kind:'HISTORICAL',endedAt:new Date(),chargedPoints:13});
+    const response=await app.inject({url:`/api/v1/me/consumption?deviceId=${a.id}`,headers});
+    expect(response.statusCode,response.body).toBe(200);expect(response.json().total).toBe(22);expect(response.json().data).toHaveLength(20);expect(response.json().chargedPoints).toBe(34);
+    const second=await app.inject({url:`/api/v1/me/consumption?deviceId=${a.id}&page=2`,headers});
+    expect(second.json().data).toHaveLength(2);expect(new Set([...response.json().data,...second.json().data].map(r=>r.id)).size).toBe(22);
+    const detail=await app.inject({url:`/api/v1/me/consumption/history:${a.id}`,headers});
+    expect(detail.statusCode,detail.body).toBe(200);expect(detail.json()).toMatchObject({kind:'HISTORICAL',chargedPoints:13,usage:null,model:null,rates:null});
+  });
+  it('keeps metering unknowns distinct from zero and preserves partially debited amounts',async()=>{
+    const f=await fixture(),[a]=f.devices,headers=await cookie(f.user.id);
+    const {createAiRequest,settleAiRequest}=await import('./metering.js');
+    const request=await createAiRequest({responseId:`resp_${randomUUID()}`,userId:f.user.id,deviceId:a.id,providerId:f.provider.id,modelId:f.model.id,billingPolicy:'MANAGED_USAGE',rateCardVersionId:f.rate.id});
+    const unknown=await settleAiRequest(request.id,'CLIENT_DISCONNECTED',{usageUnavailable:true});
+    await charge(f,a,100001);
+    const response=await app.inject({url:'/api/v1/me/consumption',headers});
+    expect(response.statusCode,response.body).toBe(200);expect(response.json().chargedPoints).toBe(100000);expect(response.json().reviewCount).toBe(2);
+    expect(response.json().data.find((r:{id:string})=>r.id===unknown.id).chargedPoints).toBeNull();
+    const detail=await app.inject({url:`/api/v1/me/consumption/${unknown.id}`,headers});expect(detail.json().usage).toBeNull();
+    expect(response.json().data.find((r:{status:string})=>r.status==='UNPAID').chargedPoints).toBe(100000);
+  });
   it('separates devices, ignores topups/expiry, closes only on device online and never debits twice', async () => {
     const f = await fixture(), [a, b] = f.devices;
     await online(f, a); await online(f, b);

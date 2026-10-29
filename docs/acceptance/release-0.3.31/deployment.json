@@ -1,0 +1,31 @@
+{
+  "deployed": true,
+  "version": "0.3.31",
+  "migration": "0018_gray_senator_kelly",
+  "previous": {
+    "api": "sha256:00d4928559f3eb71484553b93743236c7cc3693d4166a48234c20be30c23f1e5",
+    "web": "sha256:de1280cd01b9d438abeb3cc863c11b742a12fc2c1d14a6e7bdf2d349ea8b6dd8",
+    "postgres": "sha256:639ab7ceb90e13123085b741fb31ef493fba25463002f6da665352e7b534b652",
+    "caddy": "sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b"
+  },
+  "current": {
+    "api": "sha256:a2a4a4a34227923965a98ca6d5c1a753b93a3cc9f1e181de95451d5f7039f568",
+    "web": "sha256:cce14aaf30d0b943d99e8cea45e51fbd68fd25f615247e0d3a41add08a55b772",
+    "postgres": "sha256:639ab7ceb90e13123085b741fb31ef493fba25463002f6da665352e7b534b652",
+    "caddy": "sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b"
+  },
+  "otherServicesChanged": false,
+  "candidateApi": {
+    "consumptionRead": true,
+    "ownerIsolation": true,
+    "feedbackCreateReadStatus": true,
+    "adminSummaryFields": true,
+    "anonymousRejected": true,
+    "adminAuthorization": true,
+    "financialMutationsRequested": false,
+    "syntheticFeedbackCleaned": true
+  },
+  "candidateWeb": true,
+  "minimumCompatibleApp": "0.3.28",
+  "buildDependencyLockVerified": true
+}

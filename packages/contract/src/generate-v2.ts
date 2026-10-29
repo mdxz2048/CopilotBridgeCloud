@@ -1,4 +1,6 @@
+import {ConsumptionSchema,ConsumptionDetailSchema,ConsumptionQuerySchema} from './consumption.js';
 import {PurchaseClaimSchema,PurchaseClaimInputSchema,PurchaseClaimsSchema,PurchaseTicketSchema,PurchaseTicketStatusSchema,PurchaseMobileSchema,PurchaseReviewSchema} from './purchases.js';
+import {FeedbackInputSchema,FeedbackListSchema,FeedbackListQuerySchema,FeedbackSchema,FeedbackUpdateSchema} from './feedback.js';
 import { OpenAPIRegistry, OpenApiGeneratorV31, extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -28,8 +30,8 @@ const success = (schema: z.ZodType, status = 200) => ({
 });
 type Method = 'get' | 'post' | 'put' | 'patch' | 'delete';
 function route(method: Method, path: string, output: z.ZodType, body?: z.ZodType, status = 200, auth = true) {
-  const query=path==='/api/v1/me/bills'?z.object({kind:z.enum(['all','recharge','consumption']).default('all'),page:z.coerce.number().int().min(1).max(100000).default(1),pageSize:z.coerce.number().int().min(1).max(100).default(20)}):path==='/api/v1/me/wallet/transactions'?z.object({kind:z.enum(['all','account']).default('all')}):path==='/api/v1/admin/online-events'?z.object({email:z.string().max(320).optional(),page:z.coerce.number().int().min(1).default(1),pageSize:z.coerce.number().int().min(1).max(100).default(30)}):undefined;
-  const params = path === '/api/v1/usage/responses/{id}'
+  const query=path==='/api/v1/me/consumption'?ConsumptionQuerySchema:['/api/v1/me/feedback','/api/v1/admin/feedback'].includes(path)?FeedbackListQuerySchema:path==='/api/v1/me/bills'?z.object({kind:z.enum(['all','recharge','consumption']).default('all'),page:z.coerce.number().int().min(1).max(100000).default(1),pageSize:z.coerce.number().int().min(1).max(100).default(20)}):path==='/api/v1/me/wallet/transactions'?z.object({kind:z.enum(['all','account']).default('all')}):path==='/api/v1/admin/online-events'?z.object({email:z.string().max(320).optional(),page:z.coerce.number().int().min(1).default(1),pageSize:z.coerce.number().int().min(1).max(100).default(30)}):undefined;
+  const params = path === '/api/v1/me/consumption/{id}' ? z.object({id:z.string().regex(/^(history:)?[0-9a-f-]{36}$/i)}) : path === '/api/v1/usage/responses/{id}'
     ? z.object({ id: z.string().regex(/^resp_[0-9a-f]{32}$/) })
     : path.includes('{id}') ? uuidParams : undefined;
   registry.registerPath({ method, path, summary: `${method.toUpperCase()} ${path}`,
@@ -177,6 +179,12 @@ route('post','/api/v1/me/purchase-notices/{id}/ack',z.object({ok:z.literal(true)
 route('post','/api/v1/purchase-mobile/exchange',PurchaseMobileSchema,z.object({ticket:z.string().regex(/^[A-Za-z0-9_-]{43}$/)}).strict(),200,false);
 route('get','/api/v1/purchase-mobile/status',PurchaseMobileSchema,undefined,200,false);
 route('post','/api/v1/purchase-mobile/claims',z.object({claim:PurchaseClaimSchema,duplicate:z.boolean()}),PurchaseClaimInputSchema,200,false);
+route('post','/api/v1/me/feedback',z.object({feedback:FeedbackSchema}),FeedbackInputSchema,201);
+route('get','/api/v1/me/feedback',FeedbackListSchema);
+route('get','/api/v1/me/consumption',ConsumptionSchema);
+route('get','/api/v1/me/consumption/{id}',ConsumptionDetailSchema);
+route('get','/api/v1/admin/feedback',FeedbackListSchema.extend({data:z.array(FeedbackSchema.extend({email:z.string(),userId:z.uuid()}))}));
+route('patch','/api/v1/admin/feedback/{id}',z.object({feedback:FeedbackSchema}),FeedbackUpdateSchema);
 route('get','/api/v1/admin/purchase-claims',generic);
 route('get','/api/v1/admin/purchase-claims/{id}/reviews',generic);
 route('post','/api/v1/admin/purchase-claims/{id}/review',z.object({claim:PurchaseClaimSchema,duplicate:z.boolean()}),PurchaseReviewSchema);
@@ -184,7 +192,7 @@ route('post','/api/v1/admin/purchase-claims/{id}/review',z.object({claim:Purchas
 export function buildOpenApiV2(): Record<string, unknown> {
   const base = JSON.parse(readFileSync(new URL('../../../docs/protocol/openapi.v1.json', import.meta.url), 'utf8')) as Record<string, any>;
   const v2 = new OpenApiGeneratorV31(registry.definitions).generateDocument({ openapi: '3.1.0',
-    info: { title: 'Copilot Bridge Cloud App and Gateway API', version: '2.9.0' },
+    info: { title: 'Copilot Bridge Cloud App and Gateway API', version: '2.11.0' },
     servers: [{ url: 'https://ai.mddxz.top' }] });
   return { ...base, info: v2.info, servers: v2.servers,
     paths: { ...base.paths, ...v2.paths },

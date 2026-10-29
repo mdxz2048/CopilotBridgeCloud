@@ -1,0 +1,14 @@
+{
+  "version": "0.3.31",
+  "realInstalledElectron": true,
+  "noIpcMocks": true,
+  "login": true,
+  "billPagination": true,
+  "feedbackSubmitted": true,
+  "feedbackVisibleToAdmin": true,
+  "adminStatusReturnedToApp": true,
+  "profileIsolated": true,
+  "autoLaunch": false,
+  "autoBridgeStart": false,
+  "feedbackId": "5391d9aa-a7fe-42f5-b3f5-b6d2799db6ca"
+}

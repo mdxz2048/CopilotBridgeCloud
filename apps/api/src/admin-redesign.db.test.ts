@@ -64,11 +64,16 @@ describe.skipIf(!enabled)('Admin redesign PostgreSQL integration',()=>{
    const {db,auditLogs,users,devices,subscriptions,plans,webSessions,refreshTokens,deviceProofs,releases,siteDownloadStats}=database;
    const {inArray}=await import('drizzle-orm');const whereEq=await eq();const ids=[owner.id,adminUser.id];
    const ownedDevices=await db.select({id:devices.id}).from(devices).where(whereEq(devices.userId,owner.id));
+   await db.delete(database.userFeedback).where(inArray(database.userFeedback.userId,ids));
+   // Ledger rows are immutable. Keep their synthetic owners until the disposable database is dropped.
+   const ownedWallets=await db.select({userId:database.wallets.userId}).from(database.wallets).where(inArray(database.wallets.userId,ids));
+   const retainedUserIds=ownedWallets.map(row=>row.userId);
    await db.delete(auditLogs).where(inArray(auditLogs.actorId,ids));
    await db.delete(webSessions).where(inArray(webSessions.userId,ids));await db.delete(refreshTokens).where(inArray(refreshTokens.userId,ids));
    if(ownedDevices.length)await db.delete(deviceProofs).where(inArray(deviceProofs.deviceId,ownedDevices.map(d=>d.id)));
    await db.delete(subscriptions).where(whereEq(subscriptions.userId,owner.id));await db.delete(devices).where(whereEq(devices.userId,owner.id));
-   await db.delete(users).where(inArray(users.id,ids));await db.delete(plans).where(whereEq(plans.id,planId));
+   if(retainedUserIds.length)await db.update(users).set({status:'DELETED'}).where(inArray(users.id,retainedUserIds));
+   const deletableIds=ids.filter(id=>!retainedUserIds.includes(id));if(deletableIds.length)await db.delete(users).where(inArray(users.id,deletableIds));await db.delete(plans).where(whereEq(plans.id,planId));
    await db.delete(releases).where(inArray(releases.id,[releaseId,missingReleaseId]));await db.delete(siteDownloadStats).where(inArray(siteDownloadStats.version,[version,missingVersion]));
    if(insertedTrackingStart)await db.delete(database.systemSettings).where(whereEq(database.systemSettings.key,'admin_telemetry_started'));
   }
@@ -81,6 +86,43 @@ describe.skipIf(!enabled)('Admin redesign PostgreSQL integration',()=>{
    expect((await app.inject({url:path})).statusCode).toBe(401);
    expect((await app.inject({url:path,headers:userHeaders})).statusCode).toBe(403);
   }
+ });
+
+ it('stores private user feedback once, isolates owners and audits concurrent admin updates',async()=>{
+  const input={clientId:randomUUID(),kind:'FEATURE',title:'增加扣费筛选',content:'希望按设备筛选消费扣费记录。'};
+  const {applyWalletChange}=await import('./wallet.js');
+  await database.db.transaction(async tx=>{
+   await applyWalletChange(tx,{userId:owner.id,points:10000,type:'ADMIN_ADJUSTMENT',referenceType:'TEST',referenceId:owner.id,idempotencyKey:`feedback-credit:${owner.id}`});
+   await applyWalletChange(tx,{userId:owner.id,points:5000,type:'REFERRAL_REWARD',referenceType:'TEST',referenceId:owner.id,idempotencyKey:`feedback-expired:${owner.id}`,expiresAt:new Date(Date.now()-1000)});
+  });
+  const usersResponse=await app.inject({url:`/api/v1/admin/users?search=${encodeURIComponent(owner.email)}`,headers});
+  expect(usersResponse.statusCode).toBe(200);
+  expect(usersResponse.json().data).toEqual([expect.objectContaining({id:owner.id,balance:10000,planName:'Admin redesign fixture',onlineDevices:1,authorizedDevices:1})]);
+  const submit=(payload=input,customHeaders=userHeaders)=>app.inject({method:'POST',url:'/api/v1/me/feedback',headers:customHeaders,payload});
+  expect((await submit(input,{})).statusCode).toBe(401);
+  expect((await submit(input,{...userHeaders,origin:'https://untrusted.example.test'})).statusCode).toBe(403);
+  expect((await submit({...input,content:'短'})).statusCode).toBe(400);
+  const response=await submit();expect(response.statusCode).toBe(201);expect(response.headers['cache-control']).toBe('no-store');const value=response.json().feedback;
+  expect(value).toMatchObject({kind:'FEATURE',status:'OPEN',title:input.title,content:input.content});
+  expect((await submit()).json().feedback.id).toBe(value.id);
+  expect((await submit({...input,title:'另一条意见'})).statusCode).toBe(409);
+  const {db,userFeedback}=database;const whereEq=await eq();
+  const [stored]=await db.select().from(userFeedback).where(whereEq(userFeedback.id,value.id));
+  expect(JSON.stringify(stored)).not.toContain(input.content);expect(JSON.stringify(stored)).not.toContain(input.title);
+  expect((await app.inject({url:'/api/v1/me/feedback',headers})).json().data).toHaveLength(0);
+  expect((await app.inject({url:'/api/v1/me/feedback',headers:userHeaders})).json().data).toHaveLength(1);
+  expect((await app.inject({url:'/api/v1/admin/feedback',headers:userHeaders})).statusCode).toBe(403);
+  const change={method:'PATCH' as const,url:`/api/v1/admin/feedback/${value.id}`,payload:{status:'IN_PROGRESS',expectedUpdatedAt:value.updatedAt}};
+  expect((await app.inject({...change,headers:userHeaders})).statusCode).toBe(403);
+  const changed=await app.inject({...change,headers});expect(changed.statusCode).toBe(200);expect(changed.json().feedback.status).toBe('IN_PROGRESS');
+  expect((await app.inject({...change,headers})).statusCode).toBe(409);
+  expect((await app.inject({url:'/api/v1/admin/feedback?status=IN_PROGRESS',headers})).json().data.some((row:{id:string;email:string})=>row.id===value.id&&row.email===owner.email)).toBe(true);
+  expect((await app.inject({url:'/api/v1/me/feedback?status=OPEN',headers:userHeaders})).json().total).toBe(0);
+  for(let i=0;i<9;i++)expect((await submit({...input,clientId:randomUUID()})).statusCode).toBe(201);
+  expect((await submit({...input,clientId:randomUUID()})).statusCode).toBe(429);
+  expect((await submit()).statusCode).toBe(200);
+  const audit=await db.select().from(database.auditLogs).where(whereEq(database.auditLogs.targetId,value.id));
+  expect(audit).toHaveLength(1);expect(audit[0].metadata).toMatchObject({previous:'OPEN',status:'IN_PROGRESS'});
  });
 
  it('records successful web and App logins, ignores failures, and uses the trusted request IP',async()=>{

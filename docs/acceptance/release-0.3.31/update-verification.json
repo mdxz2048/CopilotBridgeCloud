@@ -1,0 +1,9 @@
+{
+  "version": "0.3.31",
+  "previousVersion": "0.3.30",
+  "state": "READY",
+  "publicHttpsDownload": true,
+  "sha256Verified": true,
+  "automaticInstallTriggered": false,
+  "minimumCompatibleApp": "0.3.28"
+}

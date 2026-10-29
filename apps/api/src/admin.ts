@@ -131,7 +131,13 @@ export async function registerAdmin(app: FastifyInstance) {
   app.get('/api/v1/admin/users', async req => {
     await admin(req);
     const q = z.object({ search: z.string().optional() }).parse(req.query);
-    return { data: await db.select({ id: users.id, email: users.email, role: users.role, status: users.status, createdAt: users.createdAt }).from(users).where(and(ne(users.status, 'DELETED'), q.search ? ilike(users.email, `%${q.search}%`) : undefined)).orderBy(desc(users.createdAt)).limit(100) };
+    // Explicitly qualify the outer users.id inside correlated SQL; selection rendering can strip a Column's table qualifier.
+    return { data: await db.select({ id: users.id, email: users.email, role: users.role, status: users.status, createdAt: users.createdAt,
+      balance:sql<number>`coalesce((select sum(l.remaining_points) from wallet_lots l join wallets w on w.id=l.wallet_id where w.user_id="users"."id" and (l.expires_at is null or l.expires_at>now())),0)::integer`,
+      planName:sql<string|null>`(select p.name from subscriptions s join plans p on p.id=s.plan_id where s.id=(select latest.id from subscriptions latest where latest.user_id="users"."id" order by latest.created_at desc limit 1) and s.status in ('ACTIVE','TRIAL') and p.enabled=true order by s.created_at desc limit 1)`,
+      onlineDevices:sql<number>`(select count(*)::integer from devices d where d.user_id="users"."id" and d.status='ACTIVE' and d.last_seen_at>now()-interval '5 minutes')`,
+      authorizedDevices:sql<number>`(select count(*)::integer from devices d where d.user_id="users"."id" and d.status='ACTIVE')`,
+    }).from(users).where(and(ne(users.status, 'DELETED'), q.search ? ilike(users.email, `%${q.search}%`) : undefined)).orderBy(desc(users.createdAt)).limit(100) };
   });
   app.post('/api/v1/admin/users', async (req, reply) => {
     const a = await admin(req);

@@ -1,0 +1,9 @@
+{
+  "archive": "H:\\8_code\\copilot-bridge-app\\release\\win-unpacked\\resources\\app.asar",
+  "version": "0.3.31",
+  "name": "copilot-bridge-app",
+  "entry": "dist-electron/main.js",
+  "verifiedBuildFiles": 59,
+  "externalResourcesVerified": true,
+  "sha256": "9fb16305d94e6f90eb2873f3ad883adbe45eadfdae3af2e8cdc801cfcfd28ab9"
+}

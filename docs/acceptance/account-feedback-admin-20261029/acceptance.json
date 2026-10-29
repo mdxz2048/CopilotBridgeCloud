@@ -1,0 +1,36 @@
+{
+  "date": "2026-10-29",
+  "status": "LOCAL_CANDIDATE_NOT_DEPLOYED",
+  "tests": {
+    "app": 300,
+    "apiUnit": 208,
+    "isolatedPostgres": 35,
+    "web": 19,
+    "contract": 10,
+    "finalFeedbackDbRegression": 6
+  },
+  "unitRetry": "Two initial local timeout failures passed unchanged on isolated rerun.",
+  "ui": {
+    "fullScreenshots": 40,
+    "finalWebScreenshots": 28,
+    "pageErrors": [],
+    "data": "synthetic IPC/API fixtures"
+  },
+  "migration": "0018_gray_senator_kelly",
+  "domainContract": "2.10.0",
+  "productionObserved": {
+    "latestVersion": "0.3.30",
+    "minimumVersion": "0.3.28"
+  },
+  "packaged": false,
+  "deployed": false,
+  "gitCommittedOrPushed": false,
+  "officialClientOrFullElectronVerified": false,
+  "testDatabaseDropped": true,
+  "notes": [
+    "Migration and feedback privacy/idempotency/authorization exercised against a disposable database.",
+    "Admin summary verified with positive wallet credit and expired reward excluded.",
+    "Immutable fixture ledger was retained until the disposable database was dropped.",
+    "All feedback responses are Cache-Control: no-store; final dedicated DB regression passed."
+  ]
+}
