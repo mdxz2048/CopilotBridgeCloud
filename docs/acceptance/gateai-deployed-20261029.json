@@ -1,0 +1,128 @@
+{
+  "scope": "PUBLIC_HTTPS_REAL_SUPPLIERS_SYNTHETIC_TOOLS_NOT_OFFICIAL_GUI",
+  "checks": [
+    {
+      "version": "0.3.28",
+      "login": "PASS",
+      "refresh": "PASS"
+    },
+    {
+      "version": "0.3.28",
+      "profile": "gateai",
+      "transport": "JSON",
+      "toolRoundTrip": "PASS"
+    },
+    {
+      "version": "0.3.28",
+      "profile": "deepseek",
+      "transport": "JSON",
+      "toolRoundTrip": "PASS"
+    },
+    {
+      "version": "0.3.30",
+      "login": "PASS",
+      "refresh": "PASS"
+    },
+    {
+      "version": "0.3.30",
+      "profile": "gateai",
+      "transport": "SSE",
+      "toolRoundTrip": "PASS"
+    },
+    {
+      "version": "0.3.30",
+      "profile": "deepseek",
+      "transport": "SSE",
+      "toolRoundTrip": "PASS"
+    },
+    {
+      "version": "0.3.27",
+      "login": "PASS",
+      "refresh": "PASS"
+    },
+    {
+      "version": "0.3.27",
+      "belowMinimum": "PASS"
+    }
+  ],
+  "requests": [
+    {
+      "version": "0.3.28",
+      "profile": "gateai",
+      "requestId": "9312937f-9879-4a08-bdfa-e110c151c6f8",
+      "status": "completed"
+    },
+    {
+      "version": "0.3.28",
+      "profile": "gateai",
+      "requestId": "27c21505-0254-4e2c-9ff6-ccc2a959471e",
+      "status": "completed"
+    },
+    {
+      "version": "0.3.28",
+      "profile": "deepseek",
+      "requestId": "2340f3e2-dab6-41e0-90b0-da556a53125b",
+      "status": "completed"
+    },
+    {
+      "version": "0.3.28",
+      "profile": "deepseek",
+      "requestId": "cbab657e-9a1c-4ed0-84e5-109d67d5b570",
+      "status": "completed"
+    },
+    {
+      "version": "0.3.30",
+      "profile": "gateai",
+      "requestId": "8114f751-4cfd-4f8e-8a94-5fe682f1832d",
+      "status": "completed"
+    },
+    {
+      "version": "0.3.30",
+      "profile": "gateai",
+      "requestId": "962e24f6-b559-4064-b85f-eea01afead17",
+      "status": "completed"
+    },
+    {
+      "version": "0.3.30",
+      "profile": "deepseek",
+      "requestId": "f9fab64b-abe8-41f4-9108-00d093ba8f7e",
+      "status": "completed"
+    },
+    {
+      "version": "0.3.30",
+      "profile": "deepseek",
+      "requestId": "7a9a7372-8ac2-40f5-9d14-f4451e0ab305",
+      "status": "completed"
+    }
+  ],
+  "fixtureUser": "88337e9b-2b3c-4149-89c9-0140eaa69e5c",
+  "release": {
+    "minimum": "0.3.28",
+    "latest": "0.3.30"
+  },
+  "billing": {
+    "requests": 8,
+    "status": "SETTLED",
+    "pointsCharged": 484,
+    "walletReconciled": true
+  },
+  "status": "PASS",
+  "fixtureSoftDeleted": true,
+  "deployment": {
+    "apiImage": "ac8a1a175583589e5c0a6d0e79b7c000581379e8da0985e27aebf9c62e45a9b1",
+    "sourceSHA256": "2e4c7bc0b18922bd20980c93d89ec5a1cb9160b095bbee3c07f5f07989fa2949",
+    "bundleSHA256": "3ef43501de2c25426d703a6e4a99e0e7b93ecc7b92539beb947d7d47a8a87999",
+    "deepseekSHA256Unchanged": "7262afa7e738c7fa9443ad3e395d308837556f261dcec52b100c19dd1c2d9d1e",
+    "inFlightAtReplacement": {
+      "ai": 0,
+      "usage": 0
+    },
+    "healthAfterStartup": 200,
+    "initialStartupHealth": 502,
+    "appChanged": false,
+    "deepseekChanged": false,
+    "databaseMigration": false,
+    "activeFixtureUsersAfterCleanup": 0,
+    "activeFixtureDevicesAfterCleanup": 0
+  }
+}

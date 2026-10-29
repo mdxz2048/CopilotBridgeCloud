@@ -1,0 +1,1520 @@
+{
+  "date": "2026-10-29",
+  "timezone": "Asia/Shanghai",
+  "scope": "Real GateAI upstream with synthetic fixtures; local App plus candidate provider integration uses a synthetic upstream. No official GUI acceptance.",
+  "deployment": "DEPLOYED_AFTER_USER_AUTHORIZATION_SEE_gateai-deployed-20261029.json",
+  "app": "UNCHANGED",
+  "deepseek": "UNCHANGED_NO_LIVE_REQUESTS",
+  "cloudHead": "bf92f0e5c62a435422059ade03e5aec9a2c8e454",
+  "appHead": "027875df09fcbb27e4968dfee6c123f43d4743c5",
+  "release": {
+    "latest": "0.3.30",
+    "minimum": "0.3.28",
+    "change": "NONE"
+  },
+  "models": {
+    "active": "gpt-6-sol",
+    "diagnosticOnlyDisabled": "gpt-6.1-sol",
+    "configurationChanged": false
+  },
+  "cause": "Configured emptyToolsWorkaround forced tool_choice=none despite nonempty input.additional_tools. Direct API tests bypassed this provider adapter.",
+  "baseline": {
+    "kind": "report",
+    "at": "2026-10-29T02:58:29.094Z",
+    "provider": "GateAI",
+    "scope": "REAL_PROVIDER_SYNTHETIC_TOOLS_NO_LOCAL_EXECUTION",
+    "rows": [
+      {
+        "model": "gpt-6-sol",
+        "case": "namespace_custom",
+        "status": "FAIL",
+        "requests": [
+          {
+            "ms": 1925,
+            "status": "completed",
+            "inputTokens": 4551,
+            "outputTokens": 13,
+            "eventCount": 8,
+            "calls": [
+              {
+                "type": "custom_tool_call",
+                "name": "probe",
+                "namespace": "fixture"
+              }
+            ],
+            "upstreamId": "resp_0e2aa8a9a274a8a3016ae2b655dfc88197a8a1f71536da7f58"
+          }
+        ],
+        "errorCode": "RAW_INPUT_MISMATCH"
+      },
+      {
+        "model": "gpt-6-sol",
+        "case": "additional_custom",
+        "status": "FAIL",
+        "requests": [
+          {
+            "ms": 1654,
+            "status": "completed",
+            "inputTokens": 4672,
+            "outputTokens": 8,
+            "eventCount": 12,
+            "calls": [],
+            "upstreamId": "resp_0df16651e0ae3668016ae2b657b82c8198bb450bdb2783ee3e"
+          }
+        ],
+        "errorCode": "MISSING_EXPECTED_CALL"
+      }
+    ],
+    "posts": 2,
+    "inputTokens": 9223,
+    "outputTokens": 21
+  },
+  "candidate": {
+    "kind": "report",
+    "at": "2026-10-29T02:59:15.131Z",
+    "provider": "GateAI",
+    "scope": "REAL_PROVIDER_SYNTHETIC_TOOLS_NO_LOCAL_EXECUTION",
+    "rows": [
+      {
+        "model": "gpt-6-sol",
+        "case": "function_json",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 2008,
+            "status": "completed",
+            "inputTokens": 4529,
+            "outputTokens": 14,
+            "eventCount": 0,
+            "calls": [
+              {
+                "type": "function_call",
+                "name": "probe",
+                "arguments": "{}"
+              }
+            ],
+            "upstreamId": "resp_045032bb30489a1e016ae2b684305081948fd70a39596c82f6"
+          },
+          {
+            "ms": 2466,
+            "status": "completed",
+            "inputTokens": 4568,
+            "outputTokens": 18,
+            "eventCount": 0,
+            "calls": [],
+            "upstreamId": "resp_045032bb30489a1e016ae2b6859aa88194a08007de41793d8e"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6-sol",
+        "case": "function_sse",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 1839,
+            "status": "completed",
+            "inputTokens": 4529,
+            "outputTokens": 14,
+            "eventCount": 7,
+            "calls": [
+              {
+                "type": "function_call",
+                "name": "probe",
+                "arguments": "{}"
+              }
+            ],
+            "upstreamId": "resp_0211e9a5a075d208016ae2b68844b48193805c727ed6cd2fe4"
+          },
+          {
+            "ms": 1635,
+            "status": "completed",
+            "inputTokens": 4571,
+            "outputTokens": 21,
+            "eventCount": 25,
+            "calls": [],
+            "upstreamId": "resp_0211e9a5a075d208016ae2b689f3e08193b4d6464dee3b6f88"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6-sol",
+        "case": "namespace_function",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 1747,
+            "status": "completed",
+            "inputTokens": 4529,
+            "outputTokens": 14,
+            "eventCount": 7,
+            "calls": [
+              {
+                "type": "function_call",
+                "name": "probe",
+                "namespace": "fixture",
+                "arguments": "{}"
+              }
+            ],
+            "upstreamId": "resp_0d97837723673035016ae2b68bd38c81978648ccc25a404cc4"
+          },
+          {
+            "ms": 1728,
+            "status": "completed",
+            "inputTokens": 4570,
+            "outputTokens": 20,
+            "eventCount": 24,
+            "calls": [],
+            "upstreamId": "resp_0d97837723673035016ae2b68d55bc81979ce96866a97fa048"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6-sol",
+        "case": "namespace_custom",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 1499,
+            "status": "completed",
+            "inputTokens": 4559,
+            "outputTokens": 12,
+            "eventCount": 7,
+            "calls": [
+              {
+                "type": "custom_tool_call",
+                "name": "probe",
+                "namespace": "fixture",
+                "input": "ping"
+              }
+            ],
+            "upstreamId": "resp_0b6d5029e22bb9da016ae2b68f295c81969b95534b742a07b0"
+          },
+          {
+            "ms": 1824,
+            "status": "completed",
+            "inputTokens": 4602,
+            "outputTokens": 24,
+            "eventCount": 28,
+            "calls": [],
+            "upstreamId": "resp_0b6d5029e22bb9da016ae2b690e170819697dac9483f7e7a27"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6-sol",
+        "case": "additional_function",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 2020,
+            "status": "completed",
+            "inputTokens": 4540,
+            "outputTokens": 14,
+            "eventCount": 7,
+            "calls": [
+              {
+                "type": "function_call",
+                "name": "probe",
+                "namespace": "fixture",
+                "arguments": "{}"
+              }
+            ],
+            "upstreamId": "resp_09cc4406b49ff4cb016ae2b6926d30819985f3406d96630bd6"
+          },
+          {
+            "ms": 1546,
+            "status": "completed",
+            "inputTokens": 4579,
+            "outputTokens": 18,
+            "eventCount": 22,
+            "calls": [],
+            "upstreamId": "resp_09cc4406b49ff4cb016ae2b69472b0819998199f6d0f192757"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6-sol",
+        "case": "additional_custom",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 2026,
+            "status": "completed",
+            "inputTokens": 4570,
+            "outputTokens": 12,
+            "eventCount": 7,
+            "calls": [
+              {
+                "type": "custom_tool_call",
+                "name": "probe",
+                "namespace": "fixture",
+                "input": "ping"
+              }
+            ],
+            "upstreamId": "resp_04077579cee3a5a2016ae2b69671448193a77731622ec78413"
+          },
+          {
+            "ms": 1945,
+            "status": "completed",
+            "inputTokens": 4609,
+            "outputTokens": 20,
+            "eventCount": 24,
+            "calls": [],
+            "upstreamId": "resp_04077579cee3a5a2016ae2b6980ec881938842fa39f793e2b7"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6-sol",
+        "case": "mixed_top_and_additional",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 1515,
+            "status": "completed",
+            "inputTokens": 4681,
+            "outputTokens": 12,
+            "eventCount": 7,
+            "calls": [
+              {
+                "type": "custom_tool_call",
+                "name": "probe",
+                "namespace": "fixture",
+                "input": "ping"
+              }
+            ],
+            "upstreamId": "resp_00a6e5d8b0ffc1b3016ae2b69a0f788198bde3ed57da09e1c7"
+          },
+          {
+            "ms": 1539,
+            "status": "completed",
+            "inputTokens": 4718,
+            "outputTokens": 18,
+            "eventCount": 22,
+            "calls": [],
+            "upstreamId": "resp_00a6e5d8b0ffc1b3016ae2b69ba420819889c5953cb1371617"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6-sol",
+        "case": "required_function",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 1554,
+            "status": "completed",
+            "inputTokens": 4529,
+            "outputTokens": 14,
+            "eventCount": 7,
+            "calls": [
+              {
+                "type": "function_call",
+                "name": "probe",
+                "arguments": "{}"
+              }
+            ],
+            "upstreamId": "resp_01e3520430347b68016ae2b69d0f4081979ab37e6dc2a2072e"
+          },
+          {
+            "ms": 1713,
+            "status": "completed",
+            "inputTokens": 4566,
+            "outputTokens": 16,
+            "eventCount": 20,
+            "calls": [],
+            "upstreamId": "resp_01e3520430347b68016ae2b69e9c788197b923ee5d915c1b54"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6-sol",
+        "case": "named_function",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 1545,
+            "status": "completed",
+            "inputTokens": 4529,
+            "outputTokens": 14,
+            "eventCount": 7,
+            "calls": [
+              {
+                "type": "function_call",
+                "name": "probe",
+                "arguments": "{}"
+              }
+            ],
+            "upstreamId": "resp_078c7a4b4c002fd0016ae2b6a0563c81908a5bfdaf22136928"
+          },
+          {
+            "ms": 1838,
+            "status": "completed",
+            "inputTokens": 4570,
+            "outputTokens": 20,
+            "eventCount": 24,
+            "calls": [],
+            "upstreamId": "resp_078c7a4b4c002fd0016ae2b6a1e9cc8190aa4c16832d806b41"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6-sol",
+        "case": "native_grammar_wrapper",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 2632,
+            "status": "completed",
+            "inputTokens": 4595,
+            "outputTokens": 14,
+            "eventCount": 10,
+            "calls": [
+              {
+                "type": "custom_tool_call",
+                "name": "exec",
+                "input": "text(1)"
+              }
+            ],
+            "upstreamId": "resp_0805a4ebaa63c2ee016ae2b6a3d4e4819bb996e28974623886"
+          },
+          {
+            "ms": 1487,
+            "status": "completed",
+            "inputTokens": 4634,
+            "outputTokens": 19,
+            "eventCount": 23,
+            "calls": [],
+            "upstreamId": "resp_0805a4ebaa63c2ee016ae2b6a65a7c819bb4b5938252f37998"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6-sol",
+        "case": "parallel_results",
+        "status": "FAIL",
+        "requests": [],
+        "errorCode": "SSE_ARGUMENT_MISMATCH"
+      },
+      {
+        "model": "gpt-6-sol",
+        "case": "long_output",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 1564,
+            "status": "completed",
+            "inputTokens": 4529,
+            "outputTokens": 14,
+            "eventCount": 7,
+            "calls": [
+              {
+                "type": "function_call",
+                "name": "probe",
+                "arguments": "{}"
+              }
+            ],
+            "upstreamId": "resp_0fd1c5a5e7280e8c016ae2b6a983c88193b9a9e05a0748a23c"
+          },
+          {
+            "ms": 2509,
+            "status": "completed",
+            "inputTokens": 10573,
+            "outputTokens": 19,
+            "eventCount": 23,
+            "calls": [],
+            "upstreamId": "resp_0fd1c5a5e7280e8c016ae2b6ab82d08193abc1bbd7150f9120"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6-sol",
+        "case": "text_array_output",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 1495,
+            "status": "completed",
+            "inputTokens": 4529,
+            "outputTokens": 14,
+            "eventCount": 7,
+            "calls": [
+              {
+                "type": "function_call",
+                "name": "probe",
+                "arguments": "{}"
+              }
+            ],
+            "upstreamId": "resp_0b2d38bfc70d70d1016ae2b6ad7c34819381cda61cc7dc57cc"
+          },
+          {
+            "ms": 1543,
+            "status": "completed",
+            "inputTokens": 4570,
+            "outputTokens": 20,
+            "eventCount": 24,
+            "calls": [],
+            "upstreamId": "resp_0b2d38bfc70d70d1016ae2b6af007881938db560ae734832cf"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6-sol",
+        "case": "tool_error_result",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 1584,
+            "status": "completed",
+            "inputTokens": 4529,
+            "outputTokens": 14,
+            "eventCount": 7,
+            "calls": [
+              {
+                "type": "function_call",
+                "name": "probe",
+                "arguments": "{}"
+              }
+            ],
+            "upstreamId": "resp_081e0b3e723980ff016ae2b6b08d1481978a645203ece53df6"
+          },
+          {
+            "ms": 2070,
+            "status": "completed",
+            "inputTokens": 4588,
+            "outputTokens": 19,
+            "eventCount": 23,
+            "calls": [],
+            "upstreamId": "resp_081e0b3e723980ff016ae2b6b219b08197adbb8e247176ec7d"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6-sol",
+        "case": "three_tool_rounds",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 1600,
+            "status": "completed",
+            "inputTokens": 4523,
+            "outputTokens": 14,
+            "eventCount": 7,
+            "calls": [
+              {
+                "type": "function_call",
+                "name": "probe",
+                "arguments": "{}"
+              }
+            ],
+            "upstreamId": "resp_01c24f95d6aac086016ae2b6b451148196a52514fe64518073"
+          },
+          {
+            "ms": 1511,
+            "status": "completed",
+            "inputTokens": 4564,
+            "outputTokens": 14,
+            "eventCount": 7,
+            "calls": [
+              {
+                "type": "function_call",
+                "name": "probe",
+                "arguments": "{}"
+              }
+            ],
+            "upstreamId": "resp_01c24f95d6aac086016ae2b6b5c67c8196b142805669b65077"
+          },
+          {
+            "ms": 1510,
+            "status": "completed",
+            "inputTokens": 4601,
+            "outputTokens": 14,
+            "eventCount": 7,
+            "calls": [
+              {
+                "type": "function_call",
+                "name": "probe",
+                "arguments": "{}"
+              }
+            ],
+            "upstreamId": "resp_01c24f95d6aac086016ae2b6b756c88196aab9ad9485c74173"
+          },
+          {
+            "ms": 1928,
+            "status": "completed",
+            "inputTokens": 4641,
+            "outputTokens": 19,
+            "eventCount": 23,
+            "calls": [],
+            "upstreamId": "resp_01c24f95d6aac086016ae2b6b8d1e48196a2e3dc6447bf92b8"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6-sol",
+        "case": "no_tools_placeholder",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 1405,
+            "status": "completed",
+            "inputTokens": 4500,
+            "outputTokens": 5,
+            "eventCount": 9,
+            "calls": [],
+            "upstreamId": "resp_0f0e5235ef88d900016ae2b6bac52c8199882496ddd70ad6e6"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6-sol",
+        "case": "additional_explicit_none",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 2513,
+            "status": "completed",
+            "inputTokens": 22404,
+            "outputTokens": 6,
+            "eventCount": 9,
+            "calls": [],
+            "upstreamId": "resp_00b4516f1b7f0a65016ae2b6bc8f1887d184af95ef80a0937e"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6.1-sol",
+        "case": "function_json",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 1730,
+            "status": "completed",
+            "inputTokens": 4529,
+            "outputTokens": 14,
+            "eventCount": 0,
+            "calls": [
+              {
+                "type": "function_call",
+                "name": "probe",
+                "arguments": "{}"
+              }
+            ],
+            "upstreamId": "resp_046358c310e0a5ea016ae2b6beeaf8819880e5ff794e89b430"
+          },
+          {
+            "ms": 1749,
+            "status": "completed",
+            "inputTokens": 4569,
+            "outputTokens": 19,
+            "eventCount": 0,
+            "calls": [],
+            "upstreamId": "resp_046358c310e0a5ea016ae2b6c08d6481988b1d91c4318a42c1"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6.1-sol",
+        "case": "function_sse",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 1454,
+            "status": "completed",
+            "inputTokens": 4529,
+            "outputTokens": 14,
+            "eventCount": 7,
+            "calls": [
+              {
+                "type": "function_call",
+                "name": "probe",
+                "arguments": "{}"
+              }
+            ],
+            "upstreamId": "resp_09c09fb9f713e6a1016ae2b6c218ec819bb8d6815e565603d5"
+          },
+          {
+            "ms": 1317,
+            "status": "completed",
+            "inputTokens": 4568,
+            "outputTokens": 18,
+            "eventCount": 22,
+            "calls": [],
+            "upstreamId": "resp_09c09fb9f713e6a1016ae2b6c38868819b9738dbf7fc3ec211"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6.1-sol",
+        "case": "namespace_function",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 1540,
+            "status": "completed",
+            "inputTokens": 4529,
+            "outputTokens": 14,
+            "eventCount": 7,
+            "calls": [
+              {
+                "type": "function_call",
+                "name": "probe",
+                "namespace": "fixture",
+                "arguments": "{}"
+              }
+            ],
+            "upstreamId": "resp_053a9bc5b54bd3e0016ae2b6c4ef54819896c6335ce768edc4"
+          },
+          {
+            "ms": 2687,
+            "status": "completed",
+            "inputTokens": 4567,
+            "outputTokens": 17,
+            "eventCount": 21,
+            "calls": [],
+            "upstreamId": "resp_053a9bc5b54bd3e0016ae2b6c6a4588198bf5d03b932f31c4e"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6.1-sol",
+        "case": "namespace_custom",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 1835,
+            "status": "completed",
+            "inputTokens": 4559,
+            "outputTokens": 12,
+            "eventCount": 7,
+            "calls": [
+              {
+                "type": "custom_tool_call",
+                "name": "probe",
+                "namespace": "fixture",
+                "input": "ping"
+              }
+            ],
+            "upstreamId": "resp_02e42c2a27111d47016ae2b6c937508199b0e96e3be97ea4fe"
+          },
+          {
+            "ms": 2241,
+            "status": "completed",
+            "inputTokens": 4597,
+            "outputTokens": 19,
+            "eventCount": 23,
+            "calls": [],
+            "upstreamId": "resp_02e42c2a27111d47016ae2b6cb916481999cd0a3b829969bf1"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6.1-sol",
+        "case": "additional_function",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 1623,
+            "status": "completed",
+            "inputTokens": 4540,
+            "outputTokens": 14,
+            "eventCount": 7,
+            "calls": [
+              {
+                "type": "function_call",
+                "name": "probe",
+                "namespace": "fixture",
+                "arguments": "{}"
+              }
+            ],
+            "upstreamId": "resp_09b3845741ab70b3016ae2b6cd35a88190ac88daa11bf43084"
+          },
+          {
+            "ms": 1616,
+            "status": "completed",
+            "inputTokens": 4578,
+            "outputTokens": 17,
+            "eventCount": 21,
+            "calls": [],
+            "upstreamId": "resp_09b3845741ab70b3016ae2b6ced43c8190bcae9df8a285207c"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6.1-sol",
+        "case": "additional_custom",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 1235,
+            "status": "completed",
+            "inputTokens": 4570,
+            "outputTokens": 12,
+            "eventCount": 7,
+            "calls": [
+              {
+                "type": "custom_tool_call",
+                "name": "probe",
+                "namespace": "fixture",
+                "input": "ping"
+              }
+            ],
+            "upstreamId": "resp_08e5d98725361b06016ae2b6d080fc81938a24506730a1a587"
+          },
+          {
+            "ms": 3965,
+            "status": "completed",
+            "inputTokens": 4608,
+            "outputTokens": 19,
+            "eventCount": 23,
+            "calls": [],
+            "upstreamId": "resp_08e5d98725361b06016ae2b6d396c4819397ca6e36db0f837b"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6.1-sol",
+        "case": "mixed_top_and_additional",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 1763,
+            "status": "completed",
+            "inputTokens": 4681,
+            "outputTokens": 12,
+            "eventCount": 7,
+            "calls": [
+              {
+                "type": "custom_tool_call",
+                "name": "probe",
+                "namespace": "fixture",
+                "input": "ping"
+              }
+            ],
+            "upstreamId": "resp_0f67606ed5597fb9016ae2b6d5aaac8196801990cfc6ebc6d4"
+          },
+          {
+            "ms": 1708,
+            "status": "completed",
+            "inputTokens": 4719,
+            "outputTokens": 19,
+            "eventCount": 23,
+            "calls": [],
+            "upstreamId": "resp_0f67606ed5597fb9016ae2b6d768e88196b71f8855f696fe30"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6.1-sol",
+        "case": "required_function",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 1702,
+            "status": "completed",
+            "inputTokens": 4529,
+            "outputTokens": 14,
+            "eventCount": 7,
+            "calls": [
+              {
+                "type": "function_call",
+                "name": "probe",
+                "arguments": "{}"
+              }
+            ],
+            "upstreamId": "resp_0280b0b61ff3a9b5016ae2b6d943448198a070ef8440231c41"
+          },
+          {
+            "ms": 1840,
+            "status": "completed",
+            "inputTokens": 4570,
+            "outputTokens": 20,
+            "eventCount": 24,
+            "calls": [],
+            "upstreamId": "resp_0280b0b61ff3a9b5016ae2b6db153081988f132719fc2ed594"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6.1-sol",
+        "case": "named_function",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 1482,
+            "status": "completed",
+            "inputTokens": 4529,
+            "outputTokens": 14,
+            "eventCount": 7,
+            "calls": [
+              {
+                "type": "function_call",
+                "name": "probe",
+                "arguments": "{}"
+              }
+            ],
+            "upstreamId": "resp_0d69deea68defdc1016ae2b6dcb01c8199bad0a2d1b9b6e3fe"
+          },
+          {
+            "ms": 1429,
+            "status": "completed",
+            "inputTokens": 4567,
+            "outputTokens": 17,
+            "eventCount": 21,
+            "calls": [],
+            "upstreamId": "resp_0d69deea68defdc1016ae2b6de2d6c81998f63f8a271836c8b"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6.1-sol",
+        "case": "native_grammar_wrapper",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 1483,
+            "status": "completed",
+            "inputTokens": 4595,
+            "outputTokens": 14,
+            "eventCount": 10,
+            "calls": [
+              {
+                "type": "custom_tool_call",
+                "name": "exec",
+                "input": "text(1)"
+              }
+            ],
+            "upstreamId": "resp_0b5a0c8574d37706016ae2b6dfb74081989f5189377368d7c5"
+          },
+          {
+            "ms": 1540,
+            "status": "completed",
+            "inputTokens": 4632,
+            "outputTokens": 17,
+            "eventCount": 21,
+            "calls": [],
+            "upstreamId": "resp_0b5a0c8574d37706016ae2b6e11a848198a9a561ab5d9c8e44"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6.1-sol",
+        "case": "parallel_results",
+        "status": "FAIL",
+        "requests": [],
+        "errorCode": "SSE_ARGUMENT_MISMATCH"
+      },
+      {
+        "model": "gpt-6.1-sol",
+        "case": "long_output",
+        "status": "FAIL",
+        "requests": [
+          {
+            "ms": 1778,
+            "status": "completed",
+            "inputTokens": 4529,
+            "outputTokens": 14,
+            "eventCount": 7,
+            "calls": [
+              {
+                "type": "function_call",
+                "name": "probe",
+                "arguments": "{}"
+              }
+            ],
+            "upstreamId": "resp_06ae2f6dfa079038016ae2b6e573b88199a5d3691a68dc443c"
+          },
+          {
+            "ms": 15072,
+            "status": "completed",
+            "inputTokens": 10577,
+            "outputTokens": 2550,
+            "eventCount": 2554,
+            "calls": [],
+            "upstreamId": "resp_06ae2f6dfa079038016ae2b6e719c08199aab738c65291a4b8"
+          }
+        ],
+        "errorCode": "RESULT_MARKER_MISMATCH"
+      },
+      {
+        "model": "gpt-6.1-sol",
+        "case": "text_array_output",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 1496,
+            "status": "completed",
+            "inputTokens": 4529,
+            "outputTokens": 14,
+            "eventCount": 7,
+            "calls": [
+              {
+                "type": "function_call",
+                "name": "probe",
+                "arguments": "{}"
+              }
+            ],
+            "upstreamId": "resp_0cc6ffacbfcdc068016ae2b6f6216481998e4dcd45ca1d54b9"
+          },
+          {
+            "ms": 1767,
+            "status": "completed",
+            "inputTokens": 4569,
+            "outputTokens": 19,
+            "eventCount": 23,
+            "calls": [],
+            "upstreamId": "resp_0cc6ffacbfcdc068016ae2b6f7adfc81998e5b3d9b21539e28"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6.1-sol",
+        "case": "tool_error_result",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 2811,
+            "status": "completed",
+            "inputTokens": 4529,
+            "outputTokens": 14,
+            "eventCount": 7,
+            "calls": [
+              {
+                "type": "function_call",
+                "name": "probe",
+                "arguments": "{}"
+              }
+            ],
+            "upstreamId": "resp_037b311b9ae091cc016ae2b6fa6b8c819a836772691891bfc0"
+          },
+          {
+            "ms": 1579,
+            "status": "completed",
+            "inputTokens": 4588,
+            "outputTokens": 19,
+            "eventCount": 23,
+            "calls": [],
+            "upstreamId": "resp_037b311b9ae091cc016ae2b6fc2eb0819a9dfa02f94fbfeab2"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6.1-sol",
+        "case": "three_tool_rounds",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 1398,
+            "status": "completed",
+            "inputTokens": 4523,
+            "outputTokens": 14,
+            "eventCount": 7,
+            "calls": [
+              {
+                "type": "function_call",
+                "name": "probe",
+                "arguments": "{}"
+              }
+            ],
+            "upstreamId": "resp_05b0654047bc2536016ae2b6fdce648198a77421f2a3995759"
+          },
+          {
+            "ms": 1604,
+            "status": "completed",
+            "inputTokens": 4563,
+            "outputTokens": 14,
+            "eventCount": 7,
+            "calls": [
+              {
+                "type": "function_call",
+                "name": "probe",
+                "arguments": "{}"
+              }
+            ],
+            "upstreamId": "resp_05b0654047bc2536016ae2b6ff5c408198aa64865f4ae72398"
+          },
+          {
+            "ms": 1693,
+            "status": "completed",
+            "inputTokens": 4602,
+            "outputTokens": 14,
+            "eventCount": 7,
+            "calls": [
+              {
+                "type": "function_call",
+                "name": "probe",
+                "arguments": "{}"
+              }
+            ],
+            "upstreamId": "resp_05b0654047bc2536016ae2b700b5708198a9b8e2cf283795c4"
+          },
+          {
+            "ms": 1377,
+            "status": "completed",
+            "inputTokens": 4642,
+            "outputTokens": 19,
+            "eventCount": 23,
+            "calls": [],
+            "upstreamId": "resp_05b0654047bc2536016ae2b7027ce081989324990aaaab7f5e"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6.1-sol",
+        "case": "no_tools_placeholder",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 2609,
+            "status": "completed",
+            "inputTokens": 4500,
+            "outputTokens": 5,
+            "eventCount": 9,
+            "calls": [],
+            "upstreamId": "resp_09ce0b82c20144d1016ae2b703ef40819ba6ab8a14852f07f9"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6.1-sol",
+        "case": "additional_explicit_none",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 11515,
+            "status": "completed",
+            "inputTokens": 4542,
+            "outputTokens": 5,
+            "eventCount": 14,
+            "calls": [],
+            "upstreamId": "resp_002dd8f40785c2d3016ae2b707a4448190af5f7b8f6e5f5c3b"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6.1-sol",
+        "case": "additional_thinking",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 3013,
+            "status": "completed",
+            "inputTokens": 4570,
+            "outputTokens": 12,
+            "eventCount": 7,
+            "calls": [
+              {
+                "type": "custom_tool_call",
+                "name": "probe",
+                "namespace": "fixture",
+                "input": "ping"
+              }
+            ],
+            "upstreamId": "resp_0ff3da3f856ec5dc016ae2b7131b848195963a9c116c5d2d13"
+          },
+          {
+            "ms": 1511,
+            "status": "completed",
+            "inputTokens": 4609,
+            "outputTokens": 20,
+            "eventCount": 24,
+            "calls": [],
+            "upstreamId": "resp_0ff3da3f856ec5dc016ae2b7152af08195957b014dbd570a7d"
+          }
+        ]
+      }
+    ],
+    "posts": 68,
+    "inputTokens": 340517,
+    "outputTokens": 3639
+  },
+  "parallelObservation": [
+    {
+      "model": "gpt-6-sol",
+      "initialChecker": "Over-strict: required delta chunks despite complete arguments.done",
+      "calls": [
+        {
+          "name": "probe_a",
+          "arguments": "{}",
+          "deltaCount": 0,
+          "doneMatches": true
+        },
+        {
+          "name": "probe_b",
+          "arguments": "{}",
+          "deltaCount": 0,
+          "doneMatches": true
+        }
+      ]
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "initialChecker": "Over-strict: required delta chunks despite complete arguments.done",
+      "calls": [
+        {
+          "name": "probe_a",
+          "arguments": "{}",
+          "deltaCount": 0,
+          "doneMatches": true
+        },
+        {
+          "name": "probe_b",
+          "arguments": "{}",
+          "deltaCount": 0,
+          "doneMatches": true
+        }
+      ]
+    }
+  ],
+  "confirmation": {
+    "kind": "report",
+    "at": "2026-10-29T03:03:39.075Z",
+    "provider": "GateAI",
+    "scope": "REAL_PROVIDER_SYNTHETIC_TOOLS_NO_LOCAL_EXECUTION",
+    "rows": [
+      {
+        "model": "gpt-6-sol",
+        "case": "parallel_results",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 1965,
+            "status": "completed",
+            "inputTokens": 4476,
+            "outputTokens": 45,
+            "eventCount": 9,
+            "calls": [
+              {
+                "type": "function_call",
+                "name": "probe_a",
+                "arguments": "{}"
+              },
+              {
+                "type": "function_call",
+                "name": "probe_b",
+                "arguments": "{}"
+              }
+            ],
+            "upstreamId": "resp_0e43224e81d2af68016ae2b78bc5cc819ab6c1b7627caf5bc0"
+          },
+          {
+            "ms": 1802,
+            "status": "completed",
+            "inputTokens": 4574,
+            "outputTokens": 35,
+            "eventCount": 39,
+            "calls": [],
+            "upstreamId": "resp_0e43224e81d2af68016ae2b78ddcb8819aa88d87d295861921"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6-sol",
+        "case": "long_output",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 1789,
+            "status": "completed",
+            "inputTokens": 4529,
+            "outputTokens": 14,
+            "eventCount": 7,
+            "calls": [
+              {
+                "type": "function_call",
+                "name": "probe",
+                "arguments": "{}"
+              }
+            ],
+            "upstreamId": "resp_03bf8d36724a62f7016ae2b78f648c8195a74e6f721dbfdde4"
+          },
+          {
+            "ms": 2006,
+            "status": "completed",
+            "inputTokens": 10574,
+            "outputTokens": 20,
+            "eventCount": 24,
+            "calls": [],
+            "upstreamId": "resp_03bf8d36724a62f7016ae2b7914a208195a0cde4358dd2582f"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6.1-sol",
+        "case": "parallel_results",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 2070,
+            "status": "completed",
+            "inputTokens": 4476,
+            "outputTokens": 45,
+            "eventCount": 9,
+            "calls": [
+              {
+                "type": "function_call",
+                "name": "probe_a",
+                "arguments": "{}"
+              },
+              {
+                "type": "function_call",
+                "name": "probe_b",
+                "arguments": "{}"
+              }
+            ],
+            "upstreamId": "resp_0ea0a60022c50136016ae2b79361f8819788b356e194bc1bbf"
+          },
+          {
+            "ms": 1465,
+            "status": "completed",
+            "inputTokens": 4573,
+            "outputTokens": 34,
+            "eventCount": 38,
+            "calls": [],
+            "upstreamId": "resp_0ea0a60022c50136016ae2b7954374819795b5de09038541be"
+          }
+        ]
+      },
+      {
+        "model": "gpt-6.1-sol",
+        "case": "long_output",
+        "status": "PASS",
+        "requests": [
+          {
+            "ms": 1970,
+            "status": "completed",
+            "inputTokens": 4529,
+            "outputTokens": 14,
+            "eventCount": 7,
+            "calls": [
+              {
+                "type": "function_call",
+                "name": "probe",
+                "arguments": "{}"
+              }
+            ],
+            "upstreamId": "resp_0fe216f588b2e93a016ae2b796ca30819b8fb86597de125eba"
+          },
+          {
+            "ms": 3170,
+            "status": "completed",
+            "inputTokens": 10575,
+            "outputTokens": 21,
+            "eventCount": 25,
+            "calls": [],
+            "upstreamId": "resp_0fe216f588b2e93a016ae2b798d458819b826a8d5992564e5f"
+          }
+        ]
+      }
+    ],
+    "posts": 8,
+    "inputTokens": 48306,
+    "outputTokens": 228
+  },
+  "latestPerCase": [
+    {
+      "model": "gpt-6-sol",
+      "case": "function_json",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6-sol",
+      "case": "function_sse",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6-sol",
+      "case": "namespace_function",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6-sol",
+      "case": "namespace_custom",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6-sol",
+      "case": "additional_function",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6-sol",
+      "case": "additional_custom",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6-sol",
+      "case": "mixed_top_and_additional",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6-sol",
+      "case": "required_function",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6-sol",
+      "case": "named_function",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6-sol",
+      "case": "native_grammar_wrapper",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6-sol",
+      "case": "parallel_results",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6-sol",
+      "case": "long_output",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6-sol",
+      "case": "text_array_output",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6-sol",
+      "case": "tool_error_result",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6-sol",
+      "case": "three_tool_rounds",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6-sol",
+      "case": "no_tools_placeholder",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6-sol",
+      "case": "additional_explicit_none",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "case": "function_json",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "case": "function_sse",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "case": "namespace_function",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "case": "namespace_custom",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "case": "additional_function",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "case": "additional_custom",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "case": "mixed_top_and_additional",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "case": "required_function",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "case": "named_function",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "case": "native_grammar_wrapper",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "case": "parallel_results",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "case": "long_output",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "case": "text_array_output",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "case": "tool_error_result",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "case": "three_tool_rounds",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "case": "no_tools_placeholder",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "case": "additional_explicit_none",
+      "status": "PASS"
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "case": "additional_thinking",
+      "status": "PASS"
+    }
+  ],
+  "limitations": [
+    "One original gpt-6.1-sol long-output result failed marker validation; confirmation passed. This is retained as a model/provider reliability limitation, not silently erased.",
+    "No original private task replay, local model-generated code execution, official GUI or production gateway deployment.",
+    "No billing/database integration changes; 76 skipped DB tests were not run.",
+    "Successful reasoning-mode requests do not prove the provider actually performed reasoning."
+  ],
+  "checks": {
+    "api": {
+      "passed": 198,
+      "skippedDatabase": 76,
+      "typecheck": "PASS",
+      "build": "PASS"
+    },
+    "appProtocol": {
+      "passed": 26
+    },
+    "appCandidateAdapterSyntheticIntegration": {
+      "passed": 2
+    }
+  },
+  "paidDiagnostic": {
+    "posts": 80,
+    "inputTokens": 406998,
+    "outputTokens": 3978,
+    "chargedUserWallet": false,
+    "supplierCostKnown": false
+  },
+  "git": "Recorded with release implementation on codex/ued-v3-1-implementation; see Git history"
+}

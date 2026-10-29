@@ -20,6 +20,33 @@ describe('OpenAI native Responses adapter',()=>{
     await expect(adapter.executeNative({model:'x',input:'OK',tool_choice:'required'},'x',new AbortController().signal)).rejects.toMatchObject({code:'UNSUPPORTED_CAPABILITY'});
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
+  it.each(['auto','required','none'])('does not disable native additional_tools on configured GateAI connections (%s)',async choice=>{
+    const tools=[{type:'namespace',name:'functions',tools:[{type:'custom',name:'exec',format:{type:'grammar',syntax:'lark',definition:'start: /.+/'}}]}];
+    const request={model:'logical',tools:[],tool_choice:choice,input:[{type:'additional_tools',id:'at_fixture',role:'system',tools},{role:'user',content:'synthetic'}]};
+    const original=structuredClone(request);
+    const fetcher=vi.fn(async(_url:string,init:{body:string})=>{
+      const body=JSON.parse(init.body);expect(body.tools).toEqual([]);expect(body.input).toEqual(request.input);expect(body.tool_choice).toBe(choice);
+      return Response.json(output);
+    });vi.stubGlobal('fetch',fetcher);
+    await new OpenAIProvider('https://gateai.example/v1','fixture',10000,[],true).executeNative(request,'gpt-fixture',new AbortController().signal);
+    expect(request).toEqual(original);expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+  it('allows native custom calls from additional_tools through the SSE and final response guards',async()=>{
+    const call={type:'custom_tool_call',id:'ctc_fixture',call_id:'call_fixture',name:'exec',namespace:'functions',input:'text(1)'};
+    const response={...output,output:[call]};
+    const events=[{type:'response.output_item.added',item:call},{type:'response.completed',response}];
+    vi.stubGlobal('fetch',vi.fn(async()=>new Response(events.map(event=>`data: ${JSON.stringify(event)}\n\n`).join(''))));
+    const observed:unknown[]=[];
+    const result=await new OpenAIProvider('https://gateai.example/v1','fixture',10000,[],true).executeNative({model:'logical',stream:true,tools:[],input:[{type:'additional_tools',tools:[{type:'namespace',name:'functions',tools:[{type:'custom',name:'exec'}]}]}]},'gpt-fixture',new AbortController().signal,async(_type,event)=>{observed.push(event);});
+    expect(result.output).toEqual([call]);expect(observed).toEqual([events[0]]);
+  });
+  it('keeps the empty-tool workaround for empty additional_tools and rejects placeholder execution',async()=>{
+    const fetcher=vi.fn(async(_url:string,init:{body:string})=>{
+      const body=JSON.parse(init.body);expect(body.tool_choice).toBe('none');expect(body.tools[0].name).toBe('bridge_disabled_placeholder');
+      return Response.json({...output,output:[{type:'function_call',name:'bridge_disabled_placeholder',call_id:'c',arguments:'{}'}]});
+    });vi.stubGlobal('fetch',fetcher);
+    await expect(new OpenAIProvider('https://gateai.example/v1','fixture',10000,[],true).executeNative({model:'x',tools:[],input:[{type:'additional_tools',tools:[]}]},'x',new AbortController().signal)).rejects.toMatchObject({code:'PROTOCOL_INVALID'});
+  });
   it('reports unpaid API quota distinctly without affecting later requests',async()=>{
     const fetchMock=vi.fn().mockResolvedValueOnce(Response.json({error:{code:'insufficient_quota',message:'private'}},{status:429})).mockResolvedValueOnce(Response.json(output));vi.stubGlobal('fetch',fetchMock);
     const adapter=new OpenAIProvider('https://api.openai.com/v1','fixture',10000);

@@ -10,7 +10,10 @@ export class OpenAIProvider implements ProviderAdapter {
     // Some compatible gateways reject an empty tool list. The placeholder is
     // explicitly disabled; it must never become a client-executable tool.
     let wire=request;
-    if(this.emptyToolsWorkaround && !request.tools?.length) {
+    // Codex may declare native namespace/custom tools inside input rather than
+    // the top-level list. GateAI accepts these; disabling them breaks tool use.
+    const additionalTools=Array.isArray(request.input)&&request.input.some(item=>item.type==='additional_tools'&&Array.isArray(item.tools)&&item.tools.length>0);
+    if(this.emptyToolsWorkaround && !request.tools?.length && !additionalTools) {
       if(request.tool_choice && request.tool_choice!=='auto' && request.tool_choice!=='none')throw new ApiError(422,'UNSUPPORTED_CAPABILITY','空工具列表不能指定工具调用。');
       wire={...request,tools:[{type:'function',name:'bridge_disabled_placeholder',description:'Disabled compatibility placeholder. Never call.',parameters:{type:'object',properties:{},required:[],additionalProperties:false},strict:true}],tool_choice:'none'};
     }

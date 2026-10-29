@@ -1,0 +1,1 @@
+{"scope":"PUBLIC_HTTPS_REAL_SUPPLIERS_SYNTHETIC_TOOLS_NOT_OFFICIAL_GUI","checks":[{"version":"0.3.28","login":"PASS","refresh":"PASS"}],"requests":[],"fixtureUser":"629f05ac-54c4-4607-83bb-80b6c25bcbe9","release":{"minimum":"0.3.28","latest":"0.3.30"},"status":"FAIL","errorCode":"FIRST_gateai_PROTOCOL_INVALID","fixtureSoftDeleted":true}
