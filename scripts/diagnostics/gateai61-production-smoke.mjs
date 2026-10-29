@@ -74,7 +74,7 @@ try{
   const {rows:usage}=await db.query('select request_id,billing_status,points_charged from usage_events where user_id=$1',[uid]);
   assert(usage.length===8&&usage.every(x=>x.billing_status==='SETTLED'),'SETTLEMENT_MISMATCH');
   const {rows:gptAudits}=await db.query("select u.provider_reported_usage->'bridge_cost_audit' audit from usage_events u join models m on m.id=u.model_id where u.user_id=$1 and m.public_id='openai/gpt-6.1-sol'",[uid]);
-  assert(gptAudits.length===4&&gptAudits.every(x=>x.audit?.costSource==='USER_PROVIDED_RATE_ESTIMATE'&&x.audit?.rateSnapshot?.supplierDiscount===.1&&x.audit.estimatedCostRmb>0),'GATEAI_COST_AUDIT_MISSING');report.costReference={supplierDiscount:.1,source:'USER_PROVIDED_RATE_ESTIMATE',pricedRequests:gptAudits.length};
+  assert(gptAudits.length===4&&gptAudits.every(x=>x.audit?.costSource==='USER_PROVIDED_RATE_ESTIMATE'&&x.audit?.rateSnapshot?.supplierDiscount===.1&&x.audit.rateSnapshot.referenceCurrency==='CNY'&&!('usdCny' in x.audit.rateSnapshot)&&x.audit.estimatedCostRmb>0),'GATEAI_COST_AUDIT_MISSING');report.costReference={referenceCurrency:'CNY',supplierDiscount:.1,source:'USER_PROVIDED_RATE_ESTIMATE',pricedRequests:gptAudits.length};
   const charged=usage.reduce((n,x)=>n+x.points_charged,0),{rows:[after]}=await db.query('select balance from wallets where user_id=$1',[uid]);
   assert(after.balance===20000-charged,'WALLET_RECONCILIATION');report.billing={requests:usage.length,status:'SETTLED',pointsCharged:charged,walletReconciled:true};report.status='PASS';
 }catch(error){await db.query('rollback').catch(()=>{});report.status='FAIL';report.errorCode=error.code??error.message;}

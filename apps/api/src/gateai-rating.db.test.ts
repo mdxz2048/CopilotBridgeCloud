@@ -14,7 +14,7 @@ describe.skipIf(!process.env.V2_TEST_DATABASE_URL)('GateAI tier settlement on is
     const [p]=await data.db.insert(data.providers).values({code:'OPENAI_'+randomUUID().replaceAll('-','').slice(0,12).toUpperCase(),name:'GateAI isolated fixture'}).returning();provider=p.id;
     const [m]=await data.db.insert(data.models).values({providerId:provider,providerModelId:'gpt-6.1-sol',publicId:'fixture/'+randomUUID(),displayName:'fixture'}).returning();model=m.id;
     const [card]=await data.db.insert(data.rateCards).values({providerId:provider,modelId:model,billingPolicy:'MANAGED_USAGE'}).returning();
-    const [v]=await data.db.insert(data.rateCardVersions).values({rateCardId:card.id,version:1,status:'ACTIVE',inputRate:'18.2',cachedInputRate:'0.91',outputRate:'91',reasoningRate:'91'}).returning();version=v.id;
+    const [v]=await data.db.insert(data.rateCardVersions).values({rateCardId:card.id,version:1,status:'ACTIVE',inputRate:'2.6',cachedInputRate:'0.13',outputRate:'13',reasoningRate:'13'}).returning();version=v.id;
     await data.db.transaction(tx=>wallet.applyWalletChange(tx,{userId:uid,points:20000,type:'TEST_GRANT',referenceType:'DIAGNOSTIC',referenceId:uid,idempotencyKey:'gateai-db:'+uid}));
   });
   afterAll(async()=>{await data?.pool.end();});
@@ -28,18 +28,18 @@ describe.skipIf(!process.env.V2_TEST_DATABASE_URL)('GateAI tier settlement on is
     const result={usage:{inputTokens:272001,outputTokens:1},costAudit:audit()};
     const first=await meter.settleAiRequest(r.id,'COMPLETED',result);
     const repeat=await meter.settleAiRequest(r.id,'COMPLETED',result);
-    expect(first.pointsCharged).toBe(9901);expect(repeat.id).toBe(first.id);
-    expect((await wallet.walletSummary(uid)).balance).toBe(10099);
+    expect(first.pointsCharged).toBe(1415);expect(repeat.id).toBe(first.id);
+    expect((await wallet.walletSummary(uid)).balance).toBe(18585);
     expect(await data.db.select().from(data.walletTransactions).where(eq(data.walletTransactions.referenceId,r.id))).toHaveLength(1);
   });
   it('keeps legacy non-GateAI settlement on the existing flat formula',async()=>{
     const r=await request();const event=await meter.settleAiRequest(r.id,'COMPLETED',{usage:{inputTokens:272001,outputTokens:1}});
-    expect(event.pointsCharged).toBe(4951);expect((await wallet.walletSummary(uid)).balance).toBe(5148);
+    expect(event.pointsCharged).toBe(708);expect((await wallet.walletSummary(uid)).balance).toBe(17877);
   });
   it('settles disjoint cache writes and leaves invalid write counters uncharged',async()=>{
     const r=await request();const event=await meter.settleAiRequest(r.id,'COMPLETED',{usage:{inputTokens:100000,cachedInputTokens:40000,outputTokens:10000,reasoningTokens:5000},costAudit:audit(10000)});
-    expect(event.pointsCharged).toBe(2084);expect((await wallet.walletSummary(uid)).balance).toBe(3064);
+    expect(event.pointsCharged).toBe(298);expect((await wallet.walletSummary(uid)).balance).toBe(17579);
     const bad=await request();const rejected=await meter.settleAiRequest(bad.id,'COMPLETED',{usage:{inputTokens:1},costAudit:audit(2)});
-    expect(rejected.billingStatus).toBe('UNRATED');expect(rejected.pointsCharged).toBe(0);expect((await wallet.walletSummary(uid)).balance).toBe(3064);
+    expect(rejected.billingStatus).toBe('UNRATED');expect(rejected.pointsCharged).toBe(0);expect((await wallet.walletSummary(uid)).balance).toBe(17579);
   });
 });

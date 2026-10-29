@@ -24,7 +24,7 @@ describe('per-model multiplier pricing',()=>{
  it('supports the confirmed 0.13 user markup for GPT-6.1 standard prices',()=>{
   const ref=modelPriceReference('openai','gpt-6.1-sol',defaultMoneyPolicy.prices)!;
   expect(ref.source).toBe('USER_PROVIDED_REFERENCE');
-  expect(referenceRates(ref,.13,[])).toMatchObject({inputRate:'18.200000',cachedInputRate:'0.910000',outputRate:'91.000000'});
+  expect(referenceRates(ref,.13,[])).toMatchObject({inputRate:'2.600000',cachedInputRate:'0.130000',outputRate:'13.000000'});
  });
  it('labels custom references and never mutates source prices across models',()=>{
   const prices=structuredClone(defaultMoneyPolicy.prices);prices['deepseek-flash'].peak.input=3;

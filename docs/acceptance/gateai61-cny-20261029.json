@@ -1,0 +1,123 @@
+{
+  "scope": "PUBLIC_HTTPS_REAL_SUPPLIERS_SYNTHETIC_TOOLS_NOT_OFFICIAL_GUI",
+  "checks": [
+    {
+      "version": "0.3.28",
+      "login": "PASS",
+      "refresh": "PASS"
+    },
+    {
+      "version": "0.3.28",
+      "profile": "gateai",
+      "transport": "JSON",
+      "toolRoundTrip": "PASS"
+    },
+    {
+      "version": "0.3.28",
+      "profile": "deepseek",
+      "transport": "JSON",
+      "toolRoundTrip": "PASS"
+    },
+    {
+      "version": "0.3.30",
+      "login": "PASS",
+      "refresh": "PASS"
+    },
+    {
+      "version": "0.3.30",
+      "profile": "gateai",
+      "transport": "SSE",
+      "toolRoundTrip": "PASS"
+    },
+    {
+      "version": "0.3.30",
+      "profile": "deepseek",
+      "transport": "SSE",
+      "toolRoundTrip": "PASS"
+    },
+    {
+      "version": "0.3.27",
+      "login": "PASS",
+      "refresh": "PASS"
+    },
+    {
+      "version": "0.3.27",
+      "belowMinimum": "PASS"
+    }
+  ],
+  "requests": [
+    {
+      "version": "0.3.28",
+      "profile": "gateai",
+      "status": "completed"
+    },
+    {
+      "version": "0.3.28",
+      "profile": "gateai",
+      "status": "completed"
+    },
+    {
+      "version": "0.3.28",
+      "profile": "deepseek",
+      "status": "completed"
+    },
+    {
+      "version": "0.3.28",
+      "profile": "deepseek",
+      "status": "completed"
+    },
+    {
+      "version": "0.3.30",
+      "profile": "gateai",
+      "status": "completed"
+    },
+    {
+      "version": "0.3.30",
+      "profile": "gateai",
+      "status": "completed"
+    },
+    {
+      "version": "0.3.30",
+      "profile": "deepseek",
+      "status": "completed"
+    },
+    {
+      "version": "0.3.30",
+      "profile": "deepseek",
+      "status": "completed"
+    }
+  ],
+  "release": {
+    "minimum": "0.3.28",
+    "latest": "0.3.30"
+  },
+  "costReference": {
+    "referenceCurrency": "CNY",
+    "supplierDiscount": 0.1,
+    "source": "USER_PROVIDED_RATE_ESTIMATE",
+    "pricedRequests": 4
+  },
+  "billing": {
+    "requests": 8,
+    "status": "SETTLED",
+    "pointsCharged": 36,
+    "walletReconciled": true
+  },
+  "status": "PASS",
+  "fixtureSoftDeleted": true,
+  "apiImage": "sha256:00d4928559f3eb71484553b93743236c7cc3693d4166a48234c20be30c23f1e5",
+  "webImage": "sha256:de1280cd01b9d438abeb3cc863c11b742a12fc2c1d14a6e7bdf2d349ea8b6dd8",
+  "apiBundleSha256": "8e6741caee944dba0e43c0a8abd292eada45cf512de77d4d1611a8e42d5b54a7",
+  "apiUnits": 208,
+  "webUnits": 19,
+  "isolatedDbTests": 3,
+  "realGpt61RequestsBeforeCorrection": 0,
+  "saleMultiplier": 0.13,
+  "markupRevision": 2,
+  "visualViewports": [
+    1440,
+    800,
+    390
+  ],
+  "marginPercent": 23.08
+}

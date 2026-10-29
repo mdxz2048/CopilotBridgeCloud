@@ -2,7 +2,11 @@
 
 The operator requested GPT-6.1 Sol as the only user-facing GPT model, supplied its GateAI price card, confirmed their upstream discount is 0.1, and explicitly selected a 0.13 user multiplier. DeepSeek must remain unchanged.
 
-## Prices and cost provenance
+## Currency correction
+
+The operator subsequently clarified that every number on the card is **CNY**; its dollar symbol was wrong. The initial USD interpretation below was superseded by [the CNY correction](GATEAI61_CNY_CORRECTION_2026_10_29.md). It is retained only as the initial release record.
+
+## Initial prices and cost provenance (superseded)
 
 The reference is the operator's attached price card, not an independently verified supplier invoice. USD/CNY remains 7. Per million tokens:
 
