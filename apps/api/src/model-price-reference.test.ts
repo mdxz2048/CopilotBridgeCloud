@@ -21,6 +21,11 @@ describe('per-model multiplier pricing',()=>{
   expect(ModelMarkupSchema.safeParse({multiplier:.8,revision:0}).success).toBe(true);
   for(const multiplier of [0,-1,NaN,Infinity,101])expect(ModelMarkupSchema.safeParse({multiplier,revision:0}).success).toBe(false);
  });
+ it('supports the confirmed 0.13 user markup for GPT-6.1 standard prices',()=>{
+  const ref=modelPriceReference('openai','gpt-6.1-sol',defaultMoneyPolicy.prices)!;
+  expect(ref.source).toBe('USER_PROVIDED_REFERENCE');
+  expect(referenceRates(ref,.13,[])).toMatchObject({inputRate:'18.200000',cachedInputRate:'0.910000',outputRate:'91.000000'});
+ });
  it('labels custom references and never mutates source prices across models',()=>{
   const prices=structuredClone(defaultMoneyPolicy.prices);prices['deepseek-flash'].peak.input=3;
   expect(modelPriceReference('deepseek','deepseek-flash',prices)?.source).toBe('CONFIGURED_REFERENCE');

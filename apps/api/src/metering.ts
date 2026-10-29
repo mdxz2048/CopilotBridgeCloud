@@ -5,6 +5,7 @@ import { ApiError } from './core.js';
 import { normalizeUsage, ratePoints, type BillingPolicy, type NormalizedUsage, type PointRates } from './rating.js';
 import { applyWalletChange, walletSummary } from './wallet.js';
 import type { BillingMode } from './billing-mode.js';
+import {rateGateAI61Points} from './gateai-rating.js';
 
 export type RequestState = 'COMPLETED' | 'CLIENT_DISCONNECTED' | 'PROVIDER_ERROR';
 export type MeteredResult = {
@@ -29,7 +30,12 @@ export function evaluateMeteredUsage(result: MeteredResult, policy: BillingPolic
   let rated = 0;
   let ratingError = false;
   if (hasObservedUsage && !meteringError) {
-    try { rated = ratePoints(policy, usage, version); }
+    try {
+      const snapshot=result.costAudit?.rateSnapshot as Record<string,unknown>|undefined;
+      const gateai=policy==='MANAGED_USAGE'&&snapshot?.source==='USER_PROVIDED_GATEAI_PRICE_CARD'&&snapshot.model==='gpt-6.1-sol';
+      if(gateai){if(!version)throw new Error('RATE_CARD_REQUIRED');rated=rateGateAI61Points(usage,version,snapshot.cacheWriteTokens??0);}
+      else rated = ratePoints(policy, usage, version);
+    }
     catch { ratingError = true; }
   }
   const billingStatus = meteringError ? 'METERING_ERROR' : ratingError ? 'UNRATED' : !hasObservedUsage ? 'NO_USAGE' : mode === 'SHADOW' ? 'SHADOW' : 'SETTLED';

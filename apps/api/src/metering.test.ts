@@ -11,6 +11,15 @@ const rate = { inputRate: '10', outputRate: '20', cachedInputRate: '2', reasonin
   imageInputRate: '3', imageOutputRate: '4', toolRate: '1', minimumCharge: 1 };
 
 describe('interrupted response metering', () => {
+  it('isolates GateAI tiers to its server cost snapshot and leaves other providers and BYOS unchanged',()=>{
+    const usage={inputTokens:272001,outputTokens:1};
+    const costAudit={rateSnapshot:{source:'USER_PROVIDED_GATEAI_PRICE_CARD',model:'gpt-6.1-sol',cacheWriteTokens:0}};
+    const adjusted=evaluateMeteredUsage({usage,costAudit},'MANAGED_USAGE',rate,'ENFORCED');
+    expect(adjusted.rated).toBe(5441);
+    expect(evaluateMeteredUsage({usage},'MANAGED_USAGE',rate,'ENFORCED').rated).toBe(2721);
+    expect(evaluateMeteredUsage({usage,costAudit},'BYOS_USAGE',rate,'ENFORCED').rated).toBe(2721);
+    expect(evaluateMeteredUsage({usage,costAudit:{rateSnapshot:{source:'OFFICIAL_DEEPSEEK'}}},'MANAGED_USAGE',rate,'ENFORCED').rated).toBe(2721);
+  });
   it('flags an upstream delta after client disconnect even when it cannot be written', () => {
     let observed = hasObservedUpstreamTextDelta(false, '');
     expect(observed).toBe(false);

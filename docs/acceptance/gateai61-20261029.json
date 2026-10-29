@@ -1,0 +1,258 @@
+{
+  "date": "2026-10-29",
+  "timezone": "Asia/Shanghai",
+  "status": "DEPLOYED",
+  "operatorConfirmed": {
+    "supplierDiscount": 0.1,
+    "userMultiplier": 0.13,
+    "scope": "Only GPT-6.1 Sol exposed among GPT; DeepSeek unchanged"
+  },
+  "prices": {
+    "currency": "CNY",
+    "perMillion": {
+      "supplier": {
+        "input": 1.4,
+        "cached": 0.07,
+        "cacheWrite": 1.75,
+        "output": 7,
+        "extendedInput": 2.8,
+        "extendedOutput": 10.5
+      },
+      "user": {
+        "input": 1.82,
+        "cached": 0.091,
+        "cacheWrite": 2.275,
+        "output": 9.1,
+        "extendedInput": 3.64,
+        "extendedOutput": 13.65
+      }
+    },
+    "threshold": 272000,
+    "thresholdOperator": ">",
+    "exchangeRate": 7,
+    "provenance": "OPERATOR_PROVIDED_CARD_AND_DISCOUNT_NOT_SUPPLIER_RECEIPT",
+    "cacheWriteMissing": "Included at ordinary input rate; explicit assumption recorded",
+    "extendedCacheRates": "Assumed unchanged because reference card gives no extended cache rates"
+  },
+  "rollout": {
+    "date": "2026-10-29T06:53:17.232Z",
+    "scope": "AUTHORIZED_GPT_CATALOG_AND_RATE_CONFIGURATION",
+    "oldPublicId": "openai/gpt-6-sol",
+    "newPublicId": "openai/gpt-6.1-sol",
+    "capabilities": {
+      "tools": true,
+      "streaming": true,
+      "vision": true,
+      "visionProbe": "passed",
+      "reasoning": false,
+      "reasoningModes": [
+        "normal"
+      ],
+      "defaultReasoningMode": "normal",
+      "responsesProfile": "openai",
+      "evidence": "openai-native-capability-probe"
+    },
+    "probeTokens": {
+      "input": 13305,
+      "output": 29
+    },
+    "deepseekBefore": "c27b3309eaf489c7b869918d187c4422daf403690b21065b8aea1369e1e1c5a0",
+    "rollbackRehearsal": "PASS",
+    "configuration": {
+      "oldModelId": "16298e41-3f93-4dd1-9cab-8f5534e3a1d7",
+      "newModelId": "fc28e1db-9073-4ae7-9b1c-7cca12a96143",
+      "model": "gpt-6.1-sol",
+      "supplier": "GateAI",
+      "multiplier": 0.13,
+      "supplierDiscount": 0.1,
+      "userPricesRmbPerMillion": {
+        "input": 1.82,
+        "cached": 0.091,
+        "output": 9.1,
+        "cacheWrite": 2.275,
+        "extendedInput": 3.64,
+        "extendedOutput": 13.65
+      },
+      "costReference": "USER_PROVIDED_GATEAI_PRICE_CARD_20261029",
+      "permissionPolicy": "COPY_OLD_PRESERVE_EITHER_EXPLICIT_DENY",
+      "capabilityEvidence": "openai-native-capability-probe"
+    },
+    "committed": true,
+    "deepseekAfter": "c27b3309eaf489c7b869918d187c4422daf403690b21065b8aea1369e1e1c5a0",
+    "status": "PASS"
+  },
+  "deferredAttempt": {
+    "date": "2026-10-29T06:51:06.562Z",
+    "scope": "AUTHORIZED_GPT_CATALOG_AND_RATE_CONFIGURATION",
+    "oldPublicId": "openai/gpt-6-sol",
+    "newPublicId": "openai/gpt-6.1-sol",
+    "capabilities": {
+      "tools": true,
+      "streaming": true,
+      "vision": true,
+      "visionProbe": "passed",
+      "reasoning": false,
+      "reasoningModes": [
+        "normal"
+      ],
+      "defaultReasoningMode": "normal",
+      "responsesProfile": "openai",
+      "evidence": "openai-native-capability-probe"
+    },
+    "probeTokens": {
+      "input": 13305,
+      "output": 29
+    },
+    "deepseekBefore": "c27b3309eaf489c7b869918d187c4422daf403690b21065b8aea1369e1e1c5a0",
+    "rollbackRehearsal": "PASS",
+    "status": "FAIL",
+    "errorCode": "ACTIVE_GENERATIONS_DEFER_MODEL_SWITCH"
+  },
+  "publicAcceptance": {
+    "scope": "PUBLIC_HTTPS_REAL_SUPPLIERS_SYNTHETIC_TOOLS_NOT_OFFICIAL_GUI",
+    "checks": [
+      {
+        "version": "0.3.28",
+        "login": "PASS",
+        "refresh": "PASS"
+      },
+      {
+        "version": "0.3.28",
+        "profile": "gateai",
+        "transport": "JSON",
+        "toolRoundTrip": "PASS"
+      },
+      {
+        "version": "0.3.28",
+        "profile": "deepseek",
+        "transport": "JSON",
+        "toolRoundTrip": "PASS"
+      },
+      {
+        "version": "0.3.30",
+        "login": "PASS",
+        "refresh": "PASS"
+      },
+      {
+        "version": "0.3.30",
+        "profile": "gateai",
+        "transport": "SSE",
+        "toolRoundTrip": "PASS"
+      },
+      {
+        "version": "0.3.30",
+        "profile": "deepseek",
+        "transport": "SSE",
+        "toolRoundTrip": "PASS"
+      },
+      {
+        "version": "0.3.27",
+        "login": "PASS",
+        "refresh": "PASS"
+      },
+      {
+        "version": "0.3.27",
+        "belowMinimum": "PASS"
+      }
+    ],
+    "requests": [
+      {
+        "version": "0.3.28",
+        "profile": "gateai",
+        "requestId": "0194c10d-e58a-4593-95f0-bf0f6555c22d",
+        "status": "completed"
+      },
+      {
+        "version": "0.3.28",
+        "profile": "gateai",
+        "requestId": "464b34e4-0a0f-4f97-8dbc-a99206a665c8",
+        "status": "completed"
+      },
+      {
+        "version": "0.3.28",
+        "profile": "deepseek",
+        "requestId": "66d8d089-6d15-484c-ba31-bcc823b0e1eb",
+        "status": "completed"
+      },
+      {
+        "version": "0.3.28",
+        "profile": "deepseek",
+        "requestId": "ec09a178-404d-4290-80f3-2fd8dd9a95ad",
+        "status": "completed"
+      },
+      {
+        "version": "0.3.30",
+        "profile": "gateai",
+        "requestId": "2ede2b78-ba30-40c6-b035-90994d113890",
+        "status": "completed"
+      },
+      {
+        "version": "0.3.30",
+        "profile": "gateai",
+        "requestId": "a2856b5d-de47-4757-8274-000a79d176f7",
+        "status": "completed"
+      },
+      {
+        "version": "0.3.30",
+        "profile": "deepseek",
+        "requestId": "f849a7b4-5254-43fd-b449-4053dde8ef3b",
+        "status": "completed"
+      },
+      {
+        "version": "0.3.30",
+        "profile": "deepseek",
+        "requestId": "5de22284-1052-47f3-a1bc-1e9d9cb0e642",
+        "status": "completed"
+      }
+    ],
+    "fixtureUser": "e3009b5f-2164-42cc-939f-3c8d0c6e873e",
+    "release": {
+      "minimum": "0.3.28",
+      "latest": "0.3.30"
+    },
+    "costReference": {
+      "supplierDiscount": 0.1,
+      "source": "USER_PROVIDED_RATE_ESTIMATE",
+      "pricedRequests": 4
+    },
+    "billing": {
+      "requests": 8,
+      "status": "SETTLED",
+      "pointsCharged": 74,
+      "walletReconciled": true
+    },
+    "status": "PASS",
+    "fixtureSoftDeleted": true
+  },
+  "checks": {
+    "apiUnit": 208,
+    "webUnit": 16,
+    "typecheck": "PASS",
+    "apiBuild": "PASS",
+    "webBuild": "PASS",
+    "isolatedDb": {
+      "firstRunPassed": 31,
+      "firstRunFailed": 1,
+      "reason": "Stale production-image release test expected forced installer pruning; current checkout already has compatible-client fixture",
+      "targetedRerunPassed": 4,
+      "targetedRerunSkipped": 28,
+      "uniqueDbCasesPassing": 32,
+      "temporaryDatabasesDropped": true
+    },
+    "appExistingDisplayHelper": "GPT-6.1 Sol",
+    "officialGui": "NOT_RUN"
+  },
+  "deployment": {
+    "apiImage": "731f247275a5db595c454228dcad75e1baf5ec35bd0d0c242efcd688f000e807",
+    "webImage": "2acdee18d14b059e0bafa4775d2004ac50ac0193a3dc05249a25438f4ab83830",
+    "apiBundleSHA256": "4cee290adc208e1535770e45b62ce6edbe54ebafcdd78d6ba278d92ea14d1fe5",
+    "deepseekProviderSHA256": "7262afa7e738c7fa9443ad3e395d308837556f261dcec52b100c19dd1c2d9d1e",
+    "inFlightAtServiceReplacement": 0,
+    "appVersion": "0.3.30",
+    "minimumVersion": "0.3.28",
+    "appSourceOrInstallerChanged": false,
+    "dbMigration": false
+  },
+  "historyRepriced": false,
+  "realUserWalletsEdited": false
+}

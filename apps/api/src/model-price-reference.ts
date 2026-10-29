@@ -12,7 +12,7 @@ export function modelPriceReference(family:string,model:string,prices:Record<str
   return {source:official?'OFFICIAL_DEEPSEEK':'CONFIGURED_REFERENCE',label:official?'DeepSeek 人民币峰谷基准':'已配置价格基准（不是已核对的供应商账单）',periods:[{id:'offPeak',label:'空闲时段',prices:prices[model].offPeak},{id:'peak',label:'高峰时段',prices:prices[model].peak}]};
  }
  // Explicit prices supplied by the operator; never treated as measured supplier cost.
- if(family==='openai'&&model==='gpt-6-sol')return {source:'USER_PROVIDED_REFERENCE',label:'已提供中转价目 · USD 2 / 0.1 / 10，汇率 7；实际成本未验证',periods:[{id:'standard',label:'标准',prices:{input:14,cached:.7,output:70}}]};
+ if(family==='openai'&&['gpt-6-sol','gpt-6.1-sol'].includes(model))return {source:'USER_PROVIDED_REFERENCE',label:`已提供 ${model} 中转价目 · USD 2 / 0.1 / 10，汇率 7；实际成本未验证`,periods:[{id:'standard',label:'标准',prices:{input:14,cached:.7,output:70}}]};
  return null;
 }
 export function referenceRates(reference:PriceReference,multiplier:number,holidays:string[],at=new Date()) {

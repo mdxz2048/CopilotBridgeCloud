@@ -6,6 +6,9 @@ import { ApiError } from './errors.js';
 export class OpenAIProvider implements ProviderAdapter {
   readonly nativeProtocols = ['responses'] as const;
   constructor(private readonly baseUrl: string, private readonly key: string, private readonly timeoutMs: number, private readonly reasoningModels: string[] = [], private readonly emptyToolsWorkaround = false) {}
+  get costEstimateProfile() {
+    try{return new URL(this.baseUrl).hostname==='gateai.cc'?'gateai' as const:undefined;}catch{return undefined;}
+  }
   async executeNative(request: CanonicalRequest, modelId: string, signal: AbortSignal, onEvent?: Parameters<typeof executeNativeResponses>[5]) {
     // Some compatible gateways reject an empty tool list. The placeholder is
     // explicitly disabled; it must never become a client-executable tool.
