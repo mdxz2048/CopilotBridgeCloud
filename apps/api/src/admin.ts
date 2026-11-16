@@ -466,21 +466,23 @@ export async function registerAdmin(app: FastifyInstance) {
         if (result.status === 'MISSING') continue;
         const { preset } = result;
         const isReady = result.status === 'READY';
+        // The probe sends a synthetic red square; a passing check is authoritative,
+        // an unverified one keeps the reviewed declaration instead of hiding images.
         const capabilities = isReady && result.checked
-          ? { ...result.checked.capabilities, vision: false, responsesProfile: 'openai',
+          ? { ...result.checked.capabilities, vision: result.checked.capabilities.vision === true ? true : preset.vision, responsesProfile: 'openai',
               reasoningModes: preset.reasoning ? ['normal', 'thinking', 'auto'] : ['normal'],
               defaultReasoningMode: preset.reasoning ? 'auto' : 'normal', generationVerified: true, evidence: 'bailian-responses-probe' }
-          : { tools: true, streaming: true, vision: false, reasoning: preset.reasoning,
+          : { tools: true, streaming: true, vision: preset.vision, reasoning: preset.reasoning,
               reasoningModes: preset.reasoning ? ['normal', 'thinking', 'auto'] : ['normal'],
               defaultReasoningMode: preset.reasoning ? 'auto' : 'normal', responsesProfile: 'openai',
               generationVerified: false, evidence: 'bailian-unverified' };
         const publicId = `bailian/${preset.id}`;
         const values = { providerId: id, providerModelId: preset.id, publicId, displayName: preset.name,
-          enabled: isReady, supportsTools: true, supportsVision: false, supportsReasoning: preset.reasoning,
+          enabled: isReady, supportsTools: true, supportsVision: preset.vision, supportsReasoning: preset.reasoning,
           supportsStreaming: true, contextWindow: preset.contextWindow, maxOutputTokens: preset.maxOutputTokens,
           usageWeight: '1', sortOrder: preset.sortOrder };
         await tx.insert(models).values(values).onConflictDoUpdate({ target: models.publicId, set: {
-          displayName: values.displayName, enabled: values.enabled, supportsTools: true, supportsVision: false,
+          displayName: values.displayName, enabled: values.enabled, supportsTools: true, supportsVision: values.supportsVision,
           supportsReasoning: values.supportsReasoning, supportsStreaming: true, contextWindow: values.contextWindow,
           maxOutputTokens: values.maxOutputTokens, sortOrder: values.sortOrder } });
         const [model] = await tx.select().from(models).where(eq(models.publicId, publicId)).limit(1);

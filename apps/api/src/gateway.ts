@@ -51,7 +51,7 @@ export async function registerGateway(app: FastifyInstance) {
       const providerCode = candidates[0]?.provider.code ?? '';
       return { id: model.publicId, object: 'model', owned_by: model.publicId.split('/')[0],
         display_name: model.displayName, context_window: model.contextWindow, max_output_tokens: model.maxOutputTokens,
-        effective_context_window_percent: isBailianProvider(providerCode) ? 75 : 95,
+        effective_context_window_percent: isBailianProvider(providerCode) ? 100 : 95,
         ...catalogPresentation(candidates) };
     }) };
   });
