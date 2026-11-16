@@ -2,12 +2,12 @@ import {db,systemSettings,rateCards,rateCardVersions,models,providers,modelInsta
 import {and,desc,eq,sql} from 'drizzle-orm';
 import {ApiError} from './errors.js';
 import {moneyPolicy} from './money-policy.js';
-import {isDeepSeekProvider,isOpenAIProvider} from './provider.js';
+import {isBailianProvider,isDeepSeekProvider,isOpenAIProvider} from './provider.js';
 import {ModelMarkupSchema,modelPriceReference,referenceRates} from './model-price-reference.js';
 
 type Tx=Parameters<Parameters<typeof db.transaction>[0]>[0];
 export const markupKey=(id:string)=>`model_markup:${id}`;
-export const providerFamily=(code:string)=>isDeepSeekProvider(code)?'deepseek':isOpenAIProvider(code)?'openai':'';
+export const providerFamily=(code:string)=>isDeepSeekProvider(code)?'deepseek':isOpenAIProvider(code)?'openai':isBailianProvider(code)?'bailian':'';
 async function publish(tx:Tx,providerId:string,modelId:string,values:ReturnType<typeof referenceRates>,actorId?:string) {
  await tx.insert(rateCards).values({providerId,modelId,billingPolicy:'MANAGED_USAGE'}).onConflictDoNothing();
  const [card]=await tx.select().from(rateCards).where(and(eq(rateCards.providerId,providerId),eq(rateCards.modelId,modelId),eq(rateCards.billingPolicy,'MANAGED_USAGE'))).for('update').limit(1);
@@ -25,8 +25,10 @@ export async function ensureManagedModelRate(providerId:string,modelId:string,pr
  return db.transaction(async tx=>{
   await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${markupKey(modelId)},0))`);
   const [row]=await tx.select().from(systemSettings).where(eq(systemSettings.key,markupKey(modelId))).limit(1);
-  // Preserve existing non-DeepSeek prices until the administrator explicitly adopts multiplier pricing.
-  if(family!=='deepseek'&&!row)return;
+  // Preserve existing OpenAI prices until the administrator explicitly adopts
+  // multiplier pricing. Bailian has a reviewed official list price, so it can
+  // publish the base rate immediately.
+  if(family!=='deepseek'&&family!=='bailian'&&!row)return;
   const policy=await moneyPolicy(tx),reference=modelPriceReference(family,providerModelId,policy.prices);if(!reference)return;
   const multiplier=row?ModelMarkupSchema.parse(row.value).multiplier:policy.markup;
   return publish(tx,providerId,modelId,referenceRates(reference,multiplier,policy.holidayDates));

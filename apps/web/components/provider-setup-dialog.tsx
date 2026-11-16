@@ -20,10 +20,10 @@ export function ProviderSetupDialog({ provider, onClose, onReady }: {
   const [modelId,setModelId] = useState('');
   const [reasoning,setReasoning] = useState(false);
   const [verifyGeneration,setVerifyGeneration] = useState(true);
-  const [baseUrl,setBaseUrl]=useState('https://api.openai.com/v1');
+  const [baseUrl,setBaseUrl]=useState(managedProviderKind(provider.code)==='BAILIAN'?'https://dashscope.aliyuncs.com/compatible-mode/v1':'https://api.openai.com/v1');
   const [workaround,setWorkaround]=useState(false);
   const [catalog,setCatalog]=useState<string[]>([]);
-  useEffect(()=>{if(managedProviderKind(provider.code)!=='OPENAI')return;const controller=new AbortController();void api<{data:Array<{id:string;baseUrl?:string;config?:{emptyToolsWorkaround?:boolean}}>} >('/api/v1/admin/providers',{signal:controller.signal}).then(result=>{if(controller.signal.aborted)return;const saved=result.data.find(p=>p.id===provider.id);if(saved?.baseUrl)setBaseUrl(saved.baseUrl);setWorkaround(saved?.config?.emptyToolsWorkaround===true);}).catch(()=>{});return()=>controller.abort();},[provider.id,provider.code]);
+  useEffect(()=>{const savedKind=managedProviderKind(provider.code);if(savedKind!=='OPENAI'&&savedKind!=='BAILIAN')return;const controller=new AbortController();void api<{data:Array<{id:string;baseUrl?:string;config?:{emptyToolsWorkaround?:boolean}}>} >('/api/v1/admin/providers',{signal:controller.signal}).then(result=>{if(controller.signal.aborted)return;const saved=result.data.find(p=>p.id===provider.id);if(saved?.baseUrl)setBaseUrl(saved.baseUrl);setWorkaround(saved?.config?.emptyToolsWorkaround===true);}).catch(()=>{});return()=>controller.abort();},[provider.id,provider.code]);
   async function syncCatalog(){setBusy(true);setMessage('');try{const result=await post<{catalog:string[]}>(`/api/v1/admin/providers/${provider.id}/sync-openai`,{baseUrl,...(key.trim()?{apiKey:key.trim()}:{}),emptyToolsWorkaround:workaround});setCatalog(result.catalog);setKey('');if(!result.catalog.includes(modelId))setModelId(result.catalog[0]??'');onReady();setMessage('已导入这把密钥实际提供的模型，默认停用。选择模型检查后，再启用并分配用户权限。');}catch(e){setMessage((e as Error).message);}finally{setBusy(false);}}
   const kind = managedProviderKind(provider.code);
 
@@ -74,6 +74,20 @@ export function ProviderSetupDialog({ provider, onClose, onReady }: {
       const value=error as {message?:string;requestId?:string};setMessage(`${value.message??'连接或能力检查失败，请重试。'}${value.requestId?` · 请求 ID：${value.requestId}`:''}`);
     } finally {setBusy(false);}
   }
+  async function connectBailian() {
+    if (!baseUrl.trim()) { setMessage('请填写百炼工作空间的兼容模式地址。'); return; }
+    setBusy(true);setMessage('');setReady(false);
+    try {
+      const result=await post<{ready:boolean;results:Array<{id:string;name:string;status:string;message?:string}>}>(`/api/v1/admin/providers/${provider.id}/connect-bailian`,{baseUrl,...(key.trim()?{apiKey:key.trim()}:{}),verifyGeneration});
+      setKey('');
+      const readyCount=result.results.filter(item=>item.status==='READY').length;
+      const failed=result.results.filter(item=>item.status==='FAILED'||item.status==='MISSING');
+      setReady(readyCount>0);
+      setMessage(`已导入 ${readyCount} 个通过生成检查的模型${failed.length?`；未通过：${failed.map(item=>`${item.name}（${item.status==='MISSING'?'目录中不存在':item.message??'检查失败'}）`).join('、')}`:''}。请配置费率和套餐权限后再开放给用户。`);
+    } catch(error) {
+      const value=error as {message?:string;requestId?:string};setMessage(`${value.message??'连接或能力检查失败，请重试。'}${value.requestId?` · 请求 ID：${value.requestId}`:''}`);
+    } finally {setBusy(false);}
+  }
 
   return <dialog ref={dialog} className="provider-dialog" aria-label={`配置 ${provider.name}`} onCancel={event => { event.preventDefault(); if(!busy)onClose(); }}>
     <div className="provider-dialog-content">
@@ -90,6 +104,12 @@ export function ProviderSetupDialog({ provider, onClose, onReady }: {
           <label><input type="checkbox" checked={verifyGeneration} onChange={event=>setVerifyGeneration(event.target.checked)}/> 执行生成检查（少量付费）</label>
           <p>模型目录不等于生成验证。检查成功后启用连接实例与模型，再到用户管理分配权限。</p>
           <button type="button" className="button button-small" disabled={busy||!modelId.trim()} onClick={()=>void connectOpenAI()}>{busy?'正在保存…':verifyGeneration?'检查所选模型':'保存所选模型'}</button></>
+        : kind === 'BAILIAN' ? <><p>阿里云百炼（DashScope）提供原生 Responses 接口。填写百炼工作空间的 compatible-mode 地址，服务器会按类别导入最新模型并逐项检查文本、思考与工具能力。</p>
+          <div className="field"><label htmlFor="bailian-base-url">百炼兼容模式地址</label><input id="bailian-base-url" value={baseUrl} placeholder="https://llm-xxxx.cn-beijing.maas.aliyuncs.com/compatible-mode/v1" onChange={event=>setBaseUrl(event.target.value)}/></div>
+          <div className="field"><label htmlFor="bailian-api-key">百炼 API Key（留空保留现有密钥）</label><input id="bailian-api-key" type="password" autoComplete="new-password" value={key} onChange={event=>setKey(event.target.value)}/></div>
+          <label><input type="checkbox" checked={verifyGeneration} onChange={event=>setVerifyGeneration(event.target.checked)}/> 执行生成检查（每个模型少量付费）</label>
+          <p>检查失败的模型保持停用。桌面端图片以 data URL 发送，百炼当前只接受可下载的图片地址，因此图片输入暂不开放。</p>
+          <button type="button" className="button button-small" disabled={busy||!baseUrl.trim()} onClick={()=>void connectBailian()}>{busy?'正在导入并检查…':'保存连接并导入精选模型'}</button></>
         : kind === 'DEEPSEEK' ? <><p>输入管理员管理的 DeepSeek API Key；密钥在服务端加密保存，页面不会回显。</p>
           <div className="field"><label htmlFor="provider-api-key">DeepSeek API Key</label><input id="provider-api-key" type="password" autoComplete="new-password" value={key} onChange={event => setKey(event.target.value)}/></div>
           <button type="button" className="button button-small" disabled={busy} onClick={() => void connectDeepSeek()}>{busy ? '正在检查…' : '连接并同步可用模型'}</button></>

@@ -5,14 +5,18 @@ describe('managed connection types and model bindings',()=>{
     expect(managedProviderKind('OPENAI')).toBe('OPENAI');
     expect(managedProviderKind('OPENAI_ABC123')).toBe('OPENAI');
     expect(managedProviderKind('DEEPSEEK_ABC123')).toBe('DEEPSEEK');
-    for(const code of ['MOCK','COPILOT','OPENAIOTHER','DEEPSEEKOTHER'])expect(managedProviderKind(code)).toBeNull();
+    expect(managedProviderKind('BAILIAN')).toBe('BAILIAN');
+    expect(managedProviderKind('BAILIAN_ABC123')).toBe('BAILIAN');
+    for(const code of ['MOCK','COPILOT','OPENAIOTHER','DEEPSEEKOTHER','BAILIANOTHER'])expect(managedProviderKind(code)).toBeNull();
   });
   it('blocks cross-provider instance bindings while preserving legacy DeepSeek namespaces',()=>{
     expect(providerMatchesLogicalModel('openai/gpt-fixture','OPENAI_ABC')).toBe(true);
     expect(providerMatchesLogicalModel('deepseek/deepseek-flash','DEEPSEEK_ABC')).toBe(true);
+    expect(providerMatchesLogicalModel('bailian/qwen4-max','BAILIAN_ABC')).toBe(true);
     expect(providerMatchesLogicalModel('deepseek_legacy/deepseek-flash','DEEPSEEK_ABC')).toBe(true);
     expect(providerMatchesLogicalModel('openai/gpt-fixture','DEEPSEEK_ABC')).toBe(false);
     expect(providerMatchesLogicalModel('deepseek/deepseek-flash','OPENAI_ABC')).toBe(false);
+    expect(providerMatchesLogicalModel('bailian/qwen4-max','OPENAI_ABC')).toBe(false);
     expect(providerMatchesLogicalModel('mock/echo','OPENAI_ABC')).toBe(false);
   });
   it('allows another same-family key only when its exact instance binding exists',()=>{

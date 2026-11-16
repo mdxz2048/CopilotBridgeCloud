@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { admin, ApiError } from './core.js';
 import { applyWalletChange } from './wallet.js';
 import { qualifyReferralFromPaidOrder } from './referral.js';
-import { isDeepSeekProvider, isOpenAIProvider } from './provider.js';
+import { isBailianProvider, isDeepSeekProvider, isOpenAIProvider } from './provider.js';
 
 const uuidParam = (params: unknown) => z.uuid().parse((params as { id: string }).id);
 const decimal = z.string().regex(/^\d+(?:\.\d{1,6})?$/);
@@ -90,7 +90,7 @@ export async function registerV2Admin(app: FastifyInstance) {
         .innerJoin(providers, eq(providers.id, modelInstances.providerId))
         .where(and(eq(modelInstances.modelId, model.id), eq(modelInstances.providerId, data.providerId),
           eq(modelInstances.providerModelId, model.providerModelId))).limit(1);
-      const family = binding && (isOpenAIProvider(binding.code) ? 'openai' : isDeepSeekProvider(binding.code) ? 'deepseek' : undefined);
+      const family = binding && (isOpenAIProvider(binding.code) ? 'openai' : isBailianProvider(binding.code) ? 'bailian' : isDeepSeekProvider(binding.code) ? 'deepseek' : undefined);
       if (!family || model.publicId.split('/')[0] !== family) throw new ApiError(400, 'MODEL_PROVIDER_MISMATCH');
     }
     const [card] = await db.insert(rateCards).values(data).onConflictDoNothing().returning();

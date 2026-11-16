@@ -39,7 +39,7 @@ export async function registerModelPricingAdmin(app:FastifyInstance) {
    return {id:p.id,name:p.name,enabled:p.enabled,balance,balanceStatus,checkedAt,...summary(stats.filter(s=>s.providerId===p.id))};
   }));
   const archived=(markups.find(r=>r.key==='archived_models')?.value as {ids?:string[]}|undefined)?.ids??[];
-  const items=catalog.filter(m=>!archived.includes(m.id)&&/^(deepseek|openai)\//.test(m.publicId)).map(m=>{
+  const items=catalog.filter(m=>!archived.includes(m.id)&&/^(deepseek|openai|bailian)\//.test(m.publicId)).map(m=>{
    const connection=connections.find(p=>p.id===m.providerId),family=providerFamily(connection?.code??'');
    const row=markups.find(r=>r.key===markupKey(m.id));
    return {id:m.id,name:m.displayName,publicId:m.publicId,enabled:m.enabled,providerId:m.providerId,

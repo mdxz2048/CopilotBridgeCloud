@@ -6,9 +6,10 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { admin, allowedModels, ApiError, audit, changeDeviceStatus, currentDeviceLimit, currentSubscription, currentUsage } from './core.js';
 import { nextPeriod } from './logic.js';
-import { providerFor, DeepSeekProvider, isDeepSeekProvider, OpenAIProvider, isOpenAIProvider } from './provider.js';
+import { providerFor, DeepSeekProvider, isBailianProvider, isDeepSeekProvider, OpenAIProvider, isOpenAIProvider } from './provider.js';
 import { probeOpenAIResponses } from './native-provider-probe.js';
 import { declaredOpenAICapabilities, openAIModelPresets } from './openai-catalog.js';
+import { bailianModelPresets, bailianReasoningModels } from './bailian-catalog.js';
 import { currentRatePolicy, UserLimitsSchema } from './rate-policy.js';
 import { currentBillingMode } from './billing-mode.js';
 import { encryptSecret, decryptSecret, hashPassword } from './security.js';
@@ -65,7 +66,8 @@ export async function registerAdmin(app: FastifyInstance) {
     const data = z.object({modelId:z.uuid(),providerId:z.uuid(),providerModelId:z.string().min(1).max(120),priority:z.number().int().min(-100000).max(100000).default(0),weight:z.number().int().min(0).max(100000).default(1)}).parse(req.body);
     const [model] = await db.select().from(models).where(eq(models.id,data.modelId)).limit(1);
     const [provider] = await db.select().from(providers).where(eq(providers.id,data.providerId)).limit(1);
-    if (!model || !provider || !(isDeepSeekProvider(provider.code)||isOpenAIProvider(provider.code)) || model.publicId.split('/')[0] !== (isOpenAIProvider(provider.code)?'openai':'deepseek')) throw new ApiError(400,'MODEL_PROVIDER_MISMATCH');
+    const modelNamespace=isOpenAIProvider(provider.code)?'openai':isBailianProvider(provider.code)?'bailian':'deepseek';
+    if (!model || !provider || !(isDeepSeekProvider(provider.code)||isOpenAIProvider(provider.code)||isBailianProvider(provider.code)) || model.publicId.split('/')[0] !== modelNamespace) throw new ApiError(400,'MODEL_PROVIDER_MISMATCH');
     // The existing rate-card identity is provider/logical model; prohibit ambiguous upstream costs.
     if (model.providerModelId !== data.providerModelId) throw new ApiError(409,'RATE_CARD_IDENTITY_MISMATCH','同一逻辑模型仅绑定相同上游型号，避免费率混用。');
     const [instance] = await db.insert(modelInstances).values({...data,enabled:false,healthStatus:'UNKNOWN'}).onConflictDoNothing().returning();
@@ -87,11 +89,11 @@ export async function registerAdmin(app: FastifyInstance) {
     const [instance] = await db.select().from(modelInstances).where(eq(modelInstances.id,id)).limit(1);
     if (!instance) throw new ApiError(404,'NOT_FOUND');
     const [provider] = await db.select().from(providers).where(eq(providers.id,instance.providerId)).limit(1);
-    if (!provider || !(isDeepSeekProvider(provider.code)||isOpenAIProvider(provider.code)) || (isDeepSeekProvider(provider.code)&&!currentDeepSeekModel(instance.providerModelId))) throw new ApiError(422,'UNSUPPORTED_CAPABILITY','此型号尚无原生 Responses 兼容证据。');
+    if (!provider || !(isDeepSeekProvider(provider.code)||isOpenAIProvider(provider.code)||isBailianProvider(provider.code)) || (isDeepSeekProvider(provider.code)&&!currentDeepSeekModel(instance.providerModelId))) throw new ApiError(422,'UNSUPPORTED_CAPABILITY','此型号尚无原生 Responses 兼容证据。');
     const adapter = await providerFor(provider.id,provider.code);
     if (!adapter.executeNative) throw new ApiError(422,'UNSUPPORTED_PROTOCOL');
     try {
-      if(isOpenAIProvider(provider.code)) {
+      if(isOpenAIProvider(provider.code)||isBailianProvider(provider.code)) {
         const checked=await probeOpenAIResponses(adapter as OpenAIProvider,instance.providerModelId,instance.capabilities.reasoning===true);
         const declaration=declaredOpenAICapabilities(instance.providerModelId,instance.capabilities.reasoning===true);
         const [updated]=await db.update(modelInstances).set({healthStatus:'READY',healthCheckedAt:new Date(),cooldownUntil:null,nativeProtocols:['responses'],capabilities:{...checked.capabilities,reasoningModes:declaration.reasoningModes,generationVerified:true}}).where(eq(modelInstances.id,id)).returning();
@@ -320,9 +322,11 @@ export async function registerAdmin(app: FastifyInstance) {
   });
   app.post('/api/v1/admin/providers', async (req, reply) => {
     const a = await admin(req);
-    const { name,kind } = z.object({ name: z.string().trim().min(1).max(120),kind:z.enum(['DEEPSEEK','OPENAI']).default('DEEPSEEK') }).parse(req.body);
+    const { name,kind } = z.object({ name: z.string().trim().min(1).max(120),kind:z.enum(['DEEPSEEK','OPENAI','BAILIAN']).default('DEEPSEEK') }).parse(req.body);
     const code = `${kind}_${randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase()}`;
-    const [provider] = await db.insert(providers).values({ code, name, baseUrl: kind==='OPENAI'?'https://api.openai.com/v1':'https://api.deepseek.com', enabled: false }).returning();
+    const [provider] = await db.insert(providers).values({ code, name,
+      baseUrl: kind==='OPENAI'?'https://api.openai.com/v1':kind==='BAILIAN'?'https://dashscope.aliyuncs.com/compatible-mode/v1':'https://api.deepseek.com',
+      enabled: false }).returning();
     await audit(a.user.id, 'PROVIDER_CREATED', 'PROVIDER', provider.id, { name, code });
     return reply.code(201).send(provider);
   });
@@ -417,6 +421,86 @@ export async function registerAdmin(app: FastifyInstance) {
       return logical;
     });
     return {ready:!!checked,configured:true,generationVerified:!!checked,model,models:[model],catalog,billingMode:currentBillingMode(),requiresUserAccess:true,requiresRateCard:true};
+  });
+  app.post('/api/v1/admin/providers/:id/connect-bailian', async req => {
+    const a = await admin(req), id = idParam(req.params);
+    const data = z.object({ baseUrl: z.url(), apiKey: z.string().trim().min(10).max(512).optional(), verifyGeneration: z.boolean().default(true) }).strict().parse(req.body);
+    const [provider] = await db.select().from(providers).where(eq(providers.id, id)).limit(1);
+    if (!provider || !isBailianProvider(provider.code)) throw new ApiError(400, 'MODEL_PROVIDER_MISMATCH');
+    const endpoint = openAIEndpoint(data.baseUrl);
+    const [saved] = await db.select().from(providerCredentials).where(eq(providerCredentials.providerId, id)).limit(1);
+    if (!data.apiKey && !saved) throw new ApiError(400, 'PROVIDER_AUTH_REQUIRED', '请输入百炼 API Key。');
+    const key = data.apiKey ?? decryptSecret(saved);
+    const adapter = new OpenAIProvider(endpoint, key, 60000, bailianReasoningModels);
+    let catalog: string[];
+    try { catalog = await adapter.listModels(); }
+    catch (error) { throw new ApiError(400, 'PROVIDER_AUTH_REQUIRED', `百炼连接检查失败：${error instanceof Error ? error.message : 'UNREACHABLE'}`); }
+    // One reviewed model per family/tier; image/audio/embedding models cannot be
+    // driven through the desktop Responses bridge and stay out of this catalog.
+    const results: Array<{ preset: typeof bailianModelPresets[number]; status: 'READY' | 'CONFIGURED' | 'FAILED' | 'MISSING'; checked?: Awaited<ReturnType<typeof probeOpenAIResponses>>; message?: string }> = [];
+    for (const preset of bailianModelPresets) {
+      const listed = catalog.includes(preset.id);
+      if (!data.verifyGeneration) { results.push({ preset, status: listed ? 'CONFIGURED' : 'MISSING' }); continue; }
+      try { results.push({ preset, status: 'READY', checked: await probeOpenAIResponses(adapter, preset.id, preset.reasoning) }); }
+      catch (error) {
+        const message = error instanceof Error ? error.message.slice(0, 300) : 'UNKNOWN';
+        // The compatible-mode /models listing can lag behind the Responses
+        // deployment, so a model missing from the list is only "MISSING" when
+        // an explicit generation probe also rejects it as unsupported.
+        results.push({ preset, status: !listed && /unsupported model|not found/i.test(message) ? 'MISSING' : 'FAILED', message });
+      }
+    }
+    const rows = await db.transaction(async tx => {
+      await tx.select().from(providers).where(eq(providers.id, id)).for('update');
+      if (data.apiKey) {
+        const secret = encryptSecret(data.apiKey);
+        await tx.insert(providerCredentials).values({ providerId: id, ...secret })
+          .onConflictDoUpdate({ target: providerCredentials.providerId, set: { ...secret, updatedAt: new Date() } });
+      }
+      const ready = results.some(result => result.status === 'READY');
+      await tx.update(providers).set({ baseUrl: endpoint, enabled: ready,
+        config: { ...provider.config, catalogConfigured: true, nativeReasoningModels: bailianReasoningModels,
+          bailianModels: bailianModelPresets.map(preset => preset.id) } }).where(eq(providers.id, id));
+      const imported: Array<typeof models.$inferSelect> = [];
+      for (const result of results) {
+        if (result.status === 'MISSING') continue;
+        const { preset } = result;
+        const isReady = result.status === 'READY';
+        const capabilities = isReady && result.checked
+          ? { ...result.checked.capabilities, vision: false, responsesProfile: 'openai',
+              reasoningModes: preset.reasoning ? ['normal', 'thinking', 'auto'] : ['normal'],
+              defaultReasoningMode: preset.reasoning ? 'auto' : 'normal', generationVerified: true, evidence: 'bailian-responses-probe' }
+          : { tools: true, streaming: true, vision: false, reasoning: preset.reasoning,
+              reasoningModes: preset.reasoning ? ['normal', 'thinking', 'auto'] : ['normal'],
+              defaultReasoningMode: preset.reasoning ? 'auto' : 'normal', responsesProfile: 'openai',
+              generationVerified: false, evidence: 'bailian-unverified' };
+        const publicId = `bailian/${preset.id}`;
+        const values = { providerId: id, providerModelId: preset.id, publicId, displayName: preset.name,
+          enabled: isReady, supportsTools: true, supportsVision: false, supportsReasoning: preset.reasoning,
+          supportsStreaming: true, contextWindow: preset.contextWindow, maxOutputTokens: preset.maxOutputTokens,
+          usageWeight: '1', sortOrder: preset.sortOrder };
+        await tx.insert(models).values(values).onConflictDoUpdate({ target: models.publicId, set: {
+          displayName: values.displayName, enabled: values.enabled, supportsTools: true, supportsVision: false,
+          supportsReasoning: values.supportsReasoning, supportsStreaming: true, contextWindow: values.contextWindow,
+          maxOutputTokens: values.maxOutputTokens, sortOrder: values.sortOrder } });
+        const [model] = await tx.select().from(models).where(eq(models.publicId, publicId)).limit(1);
+        await tx.insert(modelInstances).values({ modelId: model.id, providerId: id, providerModelId: preset.id,
+          enabled: isReady, nativeProtocols: ['responses'], healthStatus: isReady ? 'READY' : result.status === 'FAILED' ? 'UNAVAILABLE' : 'UNKNOWN',
+          healthCheckedAt: isReady || result.status === 'FAILED' ? new Date() : null, capabilities })
+          .onConflictDoUpdate({ target: [modelInstances.modelId, modelInstances.providerId, modelInstances.providerModelId],
+            set: { enabled: isReady, nativeProtocols: ['responses'], healthStatus: isReady ? 'READY' : result.status === 'FAILED' ? 'UNAVAILABLE' : 'UNKNOWN',
+              healthCheckedAt: isReady || result.status === 'FAILED' ? new Date() : null, cooldownUntil: null, capabilities } });
+        imported.push(model);
+      }
+      await tx.insert(auditLogs).values({ actorId: a.user.id, action: 'BAILIAN_CATALOG_IMPORTED', targetType: 'PROVIDER', targetId: id,
+        metadata: { endpoint, credentialChanged: Boolean(data.apiKey), verifyGeneration: data.verifyGeneration,
+          models: results.map(result => `${result.preset.id}:${result.status}`) } });
+      return imported;
+    });
+    return { ready: results.some(result => result.status === 'READY'), configured: true,
+      generationVerified: results.some(result => result.status === 'READY'), models: rows,
+      catalog, results: results.map(result => ({ id: result.preset.id, name: result.preset.name, category: result.preset.category,
+        status: result.status, message: result.message })), requiresUserAccess: true, requiresRateCard: true };
   });
   app.post('/api/v1/admin/providers/:id/connect-deepseek', async req => {
     const a = await admin(req); const id = idParam(req.params);

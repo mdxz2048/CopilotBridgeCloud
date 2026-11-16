@@ -8,6 +8,11 @@ export { OpenAIProvider } from './openai-provider.js';
 export const isOpenAIProvider = (code: string) => code === 'OPENAI' || /^OPENAI_[A-F0-9]{12}$/.test(code);
 export { DeepSeekProvider } from './deepseek-provider.js';
 export const isDeepSeekProvider = (code: string) => code === 'DEEPSEEK' || /^DEEPSEEK_[A-F0-9]{12}$/.test(code);
+/**
+ * Aliyun Bailian exposes an OpenAI-compatible native Responses endpoint, so it
+ * reuses the OpenAI adapter; it is a separate family for reporting and pricing.
+ */
+export const isBailianProvider = (code: string) => code === 'BAILIAN' || /^BAILIAN_[A-F0-9]{12}$/.test(code);
 import { CopilotFailure, CopilotProvider } from './copilot-provider.js';
 export { MockProvider } from './mock-provider.js';
 
@@ -60,5 +65,7 @@ export async function providerFor(providerId: string, code: string, connection?:
   if (isDeepSeekProvider(code)) return new DeepSeekProvider(provider.baseUrl ?? 'https://api.deepseek.com', key, provider.timeoutMs);
   if (isOpenAIProvider(code)) return new OpenAIProvider(provider.baseUrl ?? 'https://api.openai.com/v1', key, provider.timeoutMs,
     Array.isArray(provider.config.nativeReasoningModels) ? provider.config.nativeReasoningModels.filter((value): value is string => typeof value === 'string') : [],provider.config.emptyToolsWorkaround===true);
+  if (isBailianProvider(code)) return new OpenAIProvider(provider.baseUrl ?? 'https://dashscope.aliyuncs.com/compatible-mode/v1', key, provider.timeoutMs,
+    Array.isArray(provider.config.nativeReasoningModels) ? provider.config.nativeReasoningModels.filter((value): value is string => typeof value === 'string') : [],false);
   throw new Error('PROVIDER_UNAVAILABLE');
 }

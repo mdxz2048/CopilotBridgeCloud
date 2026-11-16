@@ -1,15 +1,21 @@
 import {z} from 'zod';
 import {isPeak,POINTS_PER_RMB,defaultMoneyPolicy} from './money-pricing.js';
+import {findBailianPreset} from './bailian-catalog.js';
 
 export const ModelMarkupSchema=z.object({multiplier:z.number().min(.01).max(100),revision:z.number().int().nonnegative()}).strict();
 export type ModelMarkup=z.infer<typeof ModelMarkupSchema>;
 type Prices={input:number;cached:number;output:number};
-export type PriceReference={source:'OFFICIAL_DEEPSEEK'|'CONFIGURED_REFERENCE'|'USER_PROVIDED_REFERENCE';label:string;costMultiplier?:number;periods:Array<{id:'offPeak'|'peak'|'standard';label:string;prices:Prices}>};
+export type PriceReference={source:'OFFICIAL_DEEPSEEK'|'OFFICIAL_BAILIAN'|'CONFIGURED_REFERENCE'|'USER_PROVIDED_REFERENCE';label:string;costMultiplier?:number;periods:Array<{id:'offPeak'|'peak'|'standard';label:string;prices:Prices}>};
 export function modelPriceReference(family:string,model:string,prices:Record<string,{offPeak:Prices;peak:Prices}>):PriceReference|null {
  if(family==='deepseek'&&prices[model]){
   const base=defaultMoneyPolicy.prices[model as keyof typeof defaultMoneyPolicy.prices];
   const official=base&&(['offPeak','peak'] as const).every(period=>(['input','cached','output'] as const).every(part=>base[period][part]===prices[model][period][part]));
   return {costMultiplier:1,source:official?'OFFICIAL_DEEPSEEK':'CONFIGURED_REFERENCE',label:official?'DeepSeek 人民币峰谷基准':'已配置价格基准（不是已核对的供应商账单）',periods:[{id:'offPeak',label:'空闲时段',prices:prices[model].offPeak},{id:'peak',label:'高峰时段',prices:prices[model].peak}]};
+ }
+ if(family==='bailian'){
+  const preset=findBailianPreset(model);
+  if(!preset)return null;
+  return {source:'OFFICIAL_BAILIAN',label:'阿里云百炼北京地域官方人民币价目（长上下文阶梯按基础档计）',periods:preset.periods};
  }
  // Explicit prices supplied by the operator; never treated as measured supplier cost.
  if(family==='openai'&&model==='gpt-6.1-sol')return {costMultiplier:.1,source:'USER_PROVIDED_REFERENCE',label:'GateAI GPT-6.1 Sol 人民币价目 · CNY 2 / 0.1 / 10，不换汇；实际成本未验证',periods:[{id:'standard',label:'标准（人民币／百万 Token）',prices:{input:2,cached:.1,output:10}}]};

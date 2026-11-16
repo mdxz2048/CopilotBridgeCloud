@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { ResponseRequestSchema } from '@bridge/contract';
 import { actor, allowedModels, ApiError, currentSubscription, requireEntitlement, subscriptionError } from './core.js';
 import { usageCredit } from './logic.js';
-import { providerFor, isDeepSeekProvider, type CanonicalRequest, type CanonicalResult } from './provider.js';
+import { providerFor, isBailianProvider, isDeepSeekProvider, type CanonicalRequest, type CanonicalResult } from './provider.js';
 import { activeRateVersion, hasObservedUpstreamTextDelta, interruptedStreamUsageUnavailable, preflightPoints, settleAiRequest } from './metering.js';
 import { walletSummary } from './wallet.js';
 import { hashRiskSignal } from './referral.js';
@@ -47,7 +47,13 @@ export async function registerGateway(app: FastifyInstance) {
     const sub = await currentSubscription(a.user.id);
     if (!sub) throw await subscriptionError(a.user.id);
     const allowed = await allowedModels(a.user.id, sub.plan.id);
-    return { object: 'list', data: allowed.map(({ model, candidates }) => ({ id: model.publicId, object: 'model', owned_by: model.publicId.split('/')[0], ...catalogPresentation(candidates) })) };
+    return { object: 'list', data: allowed.map(({ model, candidates }) => {
+      const providerCode = candidates[0]?.provider.code ?? '';
+      return { id: model.publicId, object: 'model', owned_by: model.publicId.split('/')[0],
+        display_name: model.displayName, context_window: model.contextWindow, max_output_tokens: model.maxOutputTokens,
+        effective_context_window_percent: isBailianProvider(providerCode) ? 75 : 95,
+        ...catalogPresentation(candidates) };
+    }) };
   });
   app.post('/v1/responses',{bodyLimit:64*1024*1024}, async (req, reply) => {
     const a = await actor(req, true);

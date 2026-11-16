@@ -10,6 +10,7 @@ export type ResponsesProfile='deepseek'|'openai';
 export function responsesProfile(code:string):ResponsesProfile|null {
   if(code==='DEEPSEEK'||/^DEEPSEEK_[A-F0-9]{12}$/.test(code))return 'deepseek';
   if(code==='OPENAI'||/^OPENAI_[A-F0-9]{12}$/.test(code))return 'openai';
+  if(code==='BAILIAN'||/^BAILIAN_[A-F0-9]{12}$/.test(code))return 'openai';
   return null;
 }
 function resourceAvailable(candidate: Candidate, now = Date.now(),ignoreCooldown=false) {

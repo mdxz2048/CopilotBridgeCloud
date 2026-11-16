@@ -1,12 +1,14 @@
-export type ManagedProviderKind = 'DEEPSEEK' | 'OPENAI';
+export type ManagedProviderKind = 'DEEPSEEK' | 'OPENAI' | 'BAILIAN';
 export function managedProviderKind(code: string): ManagedProviderKind | null {
   if (/^DEEPSEEK(?:_|$)/.test(code)) return 'DEEPSEEK';
   if (/^OPENAI(?:_|$)/.test(code)) return 'OPENAI';
+  if (/^BAILIAN(?:_|$)/.test(code)) return 'BAILIAN';
   return null;
 }
 export function providerMatchesLogicalModel(publicId: string, code: string): boolean {
   const kind = managedProviderKind(code);
-  return kind === 'OPENAI' ? publicId.startsWith('openai/')
+  return kind === 'BAILIAN' ? publicId.startsWith('bailian/')
+    : kind === 'OPENAI' ? publicId.startsWith('openai/')
     : kind === 'DEEPSEEK' && /^deepseek(?:\/|_|-)/.test(publicId);
 }
 export function providerCanPriceModel(
